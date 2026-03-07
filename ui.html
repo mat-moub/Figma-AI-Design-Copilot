@@ -474,11 +474,10 @@
     <!-- Model selection -->
     <div class="settings__row">
       <span class="settings__label">Model</span>
-      <select id="model-select" aria-label="AI Model">
+      <select id="model-select" aria-label="Copilot Model">
         <option value="gpt-4o">GPT-4o</option>
-        <option value="copilot-gpt-4">Copilot GPT-4</option>
-        <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-        <option value="custom">Custom LLM</option>
+        <option value="claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+        <option value="o3-mini">o3-mini</option>
       </select>
     </div>
 
@@ -491,16 +490,16 @@
       </select>
     </div>
 
-    <!-- API Key -->
+    <!-- GitHub Token -->
     <div class="settings__row">
-      <span class="settings__label">API Key</span>
+      <span class="settings__label">GH Token</span>
       <div class="api-key-row">
         <input
           type="password"
           id="api-key-input"
-          placeholder="sk-…"
+          placeholder="ghp_… (copilot scope)"
           autocomplete="off"
-          aria-label="API Key"
+          aria-label="GitHub Token"
         />
         <button class="btn btn--ghost" id="api-key-toggle" type="button">Show</button>
       </div>

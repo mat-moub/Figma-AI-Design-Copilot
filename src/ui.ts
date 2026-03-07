@@ -174,8 +174,8 @@ async function handleGenerate(): Promise<void> {
   }
 
   const modelConfig = getModelConfig();
-  if (!modelConfig.apiKey && modelConfig.model !== "custom") {
-    showToast("Please enter your API key in the settings.", "warning");
+  if (!modelConfig.githubToken) {
+    showToast("Please enter your GitHub token (copilot scope) in the settings.", "warning");
     return;
   }
 
@@ -261,13 +261,11 @@ function showContextBadge(context: DocumentContext): void {
 
 function getModelConfig(): ModelConfig {
   const modelEl = getEl<HTMLSelectElement>("model-select");
-  const apiKeyEl = getEl<HTMLInputElement>("api-key-input");
-  const endpointEl = document.getElementById("custom-endpoint") as HTMLInputElement | null;
+  const tokenEl = getEl<HTMLInputElement>("api-key-input");
 
   return {
     model: modelEl.value as AIModel,
-    apiKey: apiKeyEl.value.trim() || undefined,
-    apiEndpoint: endpointEl?.value.trim() || undefined,
+    githubToken: tokenEl.value.trim() || undefined,
   };
 }
 
