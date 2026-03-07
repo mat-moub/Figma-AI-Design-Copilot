@@ -64,7 +64,7 @@ window.onmessage = (event: MessageEvent) => {
     case "screens-built":
       setGenerating(false);
       appendAssistantMessage(
-        `✅ ${msg.count} screen${msg.count !== 1 ? "s" : ""} have been added to your Figma document.`
+        `✅ ${pluralize(msg.count, "screen")} have been added to your Figma document.`
       );
       break;
 
@@ -173,7 +173,7 @@ async function handleGenerate(): Promise<void> {
     }
 
     const summary = formatScreensSummary(screens);
-    appendAssistantMessage(`Generating ${screens.length} screen${screens.length !== 1 ? "s" : ""}…\n\n${summary}`);
+    appendAssistantMessage(`Generating ${pluralize(screens.length, "screen")}…\n\n${summary}`);
 
     // Add AI response to history
     chatHistory.push({ role: "assistant", content: summary });
@@ -312,13 +312,19 @@ function showToast(message: string, level: "info" | "warning" | "error" = "info"
   setTimeout(() => toast.classList.remove("toast--visible"), 3000);
 }
 
+// ── Pluralize helper ──────────────────────────────────────────────────────────
+
+function pluralize(count: number, singular: string): string {
+  return `${count} ${singular}${count !== 1 ? "s" : ""}`;
+}
+
 // ── Format screens summary ────────────────────────────────────────────────────
 
 function formatScreensSummary(screens: UIScreen[]): string {
   return screens
     .map(
       (s) =>
-        `• **${s.name}** — ${s.elements.length} element${s.elements.length !== 1 ? "s" : ""} (${s.layout} layout)`
+        `• **${s.name}** — ${pluralize(s.elements.length, "element")} (${s.layout} layout)`
     )
     .join("\n");
 }
@@ -401,7 +407,7 @@ async function loadConfigFile(file: File): Promise<void> {
     populateCustomAgentOptions();
     renderCustomConfigSummary();
     showToast(
-      `Loaded ${registry.agentCount} agent${registry.agentCount !== 1 ? "s" : ""} and ${registry.skillCount} skill${registry.skillCount !== 1 ? "s" : ""} from ${file.name}.`
+      `Loaded ${pluralize(registry.agentCount, "agent")} and ${pluralize(registry.skillCount, "skill")} from ${file.name}.`
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to parse config file.";

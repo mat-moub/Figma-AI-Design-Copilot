@@ -134,7 +134,14 @@ describe("CustomAgentRegistry", () => {
       const reg = makeRegistry();
       expect(() =>
         reg.load({ skills: [{ id: "s", name: "S" }] } as unknown as CopilotConfig)
-      ).toThrow('"promptModifier" must be a string');
+      ).toThrow('"promptModifier" must be a non-empty string');
+    });
+
+    it("throws when a skill has an empty promptModifier", () => {
+      const reg = makeRegistry();
+      expect(() =>
+        reg.load({ skills: [{ id: "s", name: "S", promptModifier: "   " }] } as unknown as CopilotConfig)
+      ).toThrow('"promptModifier" must be a non-empty string');
     });
   });
 

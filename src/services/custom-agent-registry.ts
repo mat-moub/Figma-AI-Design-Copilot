@@ -158,9 +158,9 @@ export class CustomAgentRegistry {
     if (typeof s["name"] !== "string" || s["name"].trim() === "") {
       throw new Error(`Invalid skill "${String(s["id"])}": "name" must be a non-empty string.`);
     }
-    if (typeof s["promptModifier"] !== "string") {
+    if (typeof s["promptModifier"] !== "string" || s["promptModifier"].trim() === "") {
       throw new Error(
-        `Invalid skill "${String(s["id"])}": "promptModifier" must be a string.`
+        `Invalid skill "${String(s["id"])}": "promptModifier" must be a non-empty string.`
       );
     }
   }
