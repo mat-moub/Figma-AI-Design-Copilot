@@ -91,6 +91,68 @@ export interface AgentConfig {
 
 export type SkillType = "generate-screen" | "generate-variants" | "apply-design-system";
 
+// ─── Custom Skills & Agents ──────────────────────────────────────────────────
+
+/**
+ * Definition of a user-provided custom skill loaded from a copilot config file.
+ * A custom skill appends a `promptModifier` to the agent system prompt, letting
+ * users extend generation behaviour without writing TypeScript.
+ */
+export interface CustomSkillConfig {
+  /** Unique identifier used in CustomAgentConfig.skills */
+  id: string;
+  /** Human-readable name shown in the UI */
+  name: string;
+  /** Extra instructions appended to the agent system prompt */
+  promptModifier: string;
+}
+
+/**
+ * Definition of a user-provided custom agent loaded from a copilot config file.
+ * Custom agents run the same built-in skills as built-in agents but with a
+ * fully user-controlled system prompt and skill selection.
+ */
+export interface CustomAgentConfig {
+  /** Unique identifier — used as the <option> value in the agent select */
+  id: string;
+  /** Human-readable name shown in the UI agent dropdown */
+  name: string;
+  /** System prompt sent to the AI model */
+  systemPrompt: string;
+  /**
+   * Ordered list of built-in skill IDs to execute.
+   * Supported values: "generate-screen", "generate-variants", "apply-design-system".
+   */
+  skills: SkillType[];
+}
+
+/**
+ * A single skill entry from the external skills library
+ * (https://github.com/flpbalada/my-opencode-config).
+ * Code-related skills are excluded at fetch time.
+ */
+export interface ExternalSkillEntry {
+  /** Folder name / unique identifier in the remote repository */
+  id: string;
+  /** Human-readable display name derived from the folder name */
+  name: string;
+}
+
+/**
+ * Schema for the copilot config file (e.g. `copilot.json` or
+ * `.copilot/config.json`) that users can drop into the plugin panel to
+ * register their own agents and skills — inspired by Claude Code's `.claude`
+ * folder convention.
+ */
+export interface CopilotConfig {
+  /** Optional schema version for future compatibility */
+  version?: string;
+  /** Custom agents to register */
+  agents?: CustomAgentConfig[];
+  /** Custom skills available to agents */
+  skills?: CustomSkillConfig[];
+}
+
 export interface GenerateScreenInput {
   prompt: string;
   context: DocumentContext;

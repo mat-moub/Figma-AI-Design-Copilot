@@ -2,6 +2,7 @@ import type { AgentConfig, AgentType, ChatMessage, DocumentContext, ModelConfig,
 import { AIService } from "../services/ai-service";
 import { applyDesignSystem } from "../skills/apply-design-system";
 import { generateScreen } from "../skills/generate-screen";
+import { buildSkillsKnowledgeBlock } from "../data/skills-library";
 
 const DESIGN_SYSTEM_SYSTEM_PROMPT = `You are a design system expert with deep knowledge of component libraries, tokens, and style guides.
 
@@ -16,6 +17,14 @@ When generating UI:
 - Use the exact component names provided in the context (e.g. ButtonPrimary, CardAnalytics)
 - Apply design tokens for colors and typography where possible
 - Keep visual consistency across all generated screens
+
+## UX & Product Design Skills
+
+You are equipped with the following UX and product design knowledge frameworks.
+Apply them proactively when generating UI to create more effective,
+user-centred, and psychologically informed designs:
+
+${buildSkillsKnowledgeBlock()}
 
 Always return ONLY the JSON array of screens as instructed in the system context.`;
 

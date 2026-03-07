@@ -9,11 +9,22 @@
 import { AIService } from "./services/ai-service";
 import { UXDesignerAgent } from "./agents/ux-designer-agent";
 import { DesignSystemAgent } from "./agents/design-system-agent";
+import { CustomAgent } from "./agents/custom-agent";
+import { CustomAgentRegistry } from "./services/custom-agent-registry";
+import { BUNDLED_SKILLS } from "./data/skills-library";
+import {
+  fetchSkillsLibrary,
+  loadSkillsLibraryFromStorage,
+  saveSkillsLibraryToStorage,
+  clearSkillsLibraryFromStorage,
+} from "./services/skills-library-service";
 import type {
   AgentType,
   AIModel,
   ChatMessage,
+  CopilotConfig,
   DocumentContext,
+  ExternalSkillEntry,
   ModelConfig,
   PluginToUIMessage,
   UIScreen,
@@ -24,9 +35,17 @@ import type {
 let documentContext: DocumentContext | null = null;
 let chatHistory: ChatMessage[] = [];
 
+/**
+ * Extra skills loaded at runtime from the GitHub library.
+ * Starts empty; users can click "⬇ Update" to refresh from the remote repo.
+ * The bundled skills (BUNDLED_SKILLS) are always active in the default agents.
+ */
+let externalSkills: ExternalSkillEntry[] = [];
+
 const aiService = new AIService();
 const uxAgent = new UXDesignerAgent();
 const dsAgent = new DesignSystemAgent();
+const registry = new CustomAgentRegistry();
 
 // ── DOM References ────────────────────────────────────────────────────────────
 
@@ -39,8 +58,26 @@ function getEl<T extends HTMLElement>(id: string): T {
 // ── Initialise ────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
+  registry.loadFromStorage();
+  populateCustomAgentOptions();
   setupEventListeners();
   requestDocumentContext();
+
+  // Restore any extra skills loaded at runtime from the remote library
+  externalSkills = loadSkillsLibraryFromStorage();
+
+  // Render the skills library panel (bundled skills are always shown)
+  renderSkillsLibrary();
+
+  // Announce bundled skills in the chat only on first startup
+  const announcedKey = "copilot_skills_announced";
+  if (!localStorage.getItem(announcedKey)) {
+    const skillNames = BUNDLED_SKILLS.map((s) => `• ${s.name}`).join("\n");
+    appendAssistantMessage(
+      `📚 ${pluralize(BUNDLED_SKILLS.length, "skill")} from the design library are bundled and active in all agents:\n\n${skillNames}`
+    );
+    localStorage.setItem(announcedKey, "1");
+  }
 });
 
 // ── Plugin → UI messages ──────────────────────────────────────────────────────
@@ -58,7 +95,7 @@ window.onmessage = (event: MessageEvent) => {
     case "screens-built":
       setGenerating(false);
       appendAssistantMessage(
-        `✅ ${msg.count} screen${msg.count !== 1 ? "s" : ""} have been added to your Figma document.`
+        `✅ ${pluralize(msg.count, "screen")} have been added to your Figma document.`
       );
       break;
 
@@ -94,6 +131,36 @@ function setupEventListeners(): void {
   clearBtn.addEventListener("click", clearHistory);
   refreshCtxBtn.addEventListener("click", requestDocumentContext);
   apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
+
+  // ── Custom agents / skills: file-drop zone ──────────────────────────────
+  setupDropZone();
+
+  // ── Custom agents: file picker fallback ────────────────────────────────
+  const fileInput = document.getElementById("config-file-input") as HTMLInputElement | null;
+  if (fileInput) {
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files?.[0];
+      if (file) void loadConfigFile(file);
+      fileInput.value = "";
+    });
+  }
+
+  // ── Custom agents: clear button ─────────────────────────────────────────
+  const clearCustomBtn = document.getElementById("clear-custom-btn");
+  if (clearCustomBtn) {
+    clearCustomBtn.addEventListener("click", clearCustomConfig);
+  }
+
+  // ── Skills library ──────────────────────────────────────────────────────
+  const loadSkillsBtn = document.getElementById("load-skills-library-btn");
+  if (loadSkillsBtn) {
+    loadSkillsBtn.addEventListener("click", () => void handleLoadSkillsLibrary());
+  }
+
+  const clearSkillsBtn = document.getElementById("clear-skills-library-btn");
+  if (clearSkillsBtn) {
+    clearSkillsBtn.addEventListener("click", handleClearSkillsLibrary);
+  }
 }
 
 // ── Core: Generate ────────────────────────────────────────────────────────────
@@ -119,7 +186,7 @@ async function handleGenerate(): Promise<void> {
   };
 
   const variants = getVariantCount();
-  const agentType = getSelectedAgent();
+  const selectedAgent = getSelectedAgent();
 
   appendUserMessage(prompt);
   promptEl.value = "";
@@ -133,14 +200,22 @@ async function handleGenerate(): Promise<void> {
   try {
     let screens: UIScreen[];
 
-    if (agentType === "design-system") {
+    if (selectedAgent === "design-system") {
       screens = await dsAgent.generate(enrichedPrompt, context, modelConfig, chatHistory);
-    } else {
+    } else if (selectedAgent === "ux-designer") {
       screens = await uxAgent.generate(enrichedPrompt, variants, context, modelConfig, chatHistory);
+    } else {
+      // Custom agent — id stored directly in the select value
+      const customConfig = registry.getAgent(selectedAgent);
+      if (!customConfig) {
+        throw new Error(`Custom agent "${selectedAgent}" not found. Try reloading your config.`);
+      }
+      const customAgent = new CustomAgent(customConfig);
+      screens = await customAgent.generate(enrichedPrompt, variants, context, modelConfig, chatHistory);
     }
 
     const summary = formatScreensSummary(screens);
-    appendAssistantMessage(`Generating ${screens.length} screen${screens.length !== 1 ? "s" : ""}…\n\n${summary}`);
+    appendAssistantMessage(`Generating ${pluralize(screens.length, "screen")}…\n\n${summary}`);
 
     // Add AI response to history
     chatHistory.push({ role: "assistant", content: summary });
@@ -202,9 +277,10 @@ function getVariantCount(): number {
   return isNaN(val) || val < 1 ? 1 : Math.min(val, 5);
 }
 
-function getSelectedAgent(): AgentType {
+/** Returns the built-in AgentType or a custom agent id string. */
+function getSelectedAgent(): AgentType | string {
   const el = getEl<HTMLSelectElement>("agent-select");
-  return el.value as AgentType;
+  return el.value;
 }
 
 // ── Chat UI helpers ───────────────────────────────────────────────────────────
@@ -278,13 +354,228 @@ function showToast(message: string, level: "info" | "warning" | "error" = "info"
   setTimeout(() => toast.classList.remove("toast--visible"), 3000);
 }
 
+// ── Pluralize helper ──────────────────────────────────────────────────────────
+
+function pluralize(count: number, singular: string): string {
+  return `${count} ${singular}${count !== 1 ? "s" : ""}`;
+}
+
 // ── Format screens summary ────────────────────────────────────────────────────
 
 function formatScreensSummary(screens: UIScreen[]): string {
   return screens
     .map(
       (s) =>
-        `• **${s.name}** — ${s.elements.length} element${s.elements.length !== 1 ? "s" : ""} (${s.layout} layout)`
+        `• **${s.name}** — ${pluralize(s.elements.length, "element")} (${s.layout} layout)`
     )
     .join("\n");
+}
+
+// ── Custom agents: agent dropdown ─────────────────────────────────────────────
+
+/**
+ * Sync the agent <select> with the current registry.
+ * Built-in options are always present; custom agent options are appended and
+ * prefixed with a separator so the user can distinguish them.
+ */
+function populateCustomAgentOptions(): void {
+  const select = getEl<HTMLSelectElement>("agent-select");
+
+  // Remove previously added custom options (everything after the built-in ones)
+  const builtInCount = 2; // "ux-designer" + "design-system"
+  while (select.options.length > builtInCount) {
+    select.remove(select.options.length - 1);
+  }
+
+  const customAgents = registry.getAgents();
+  if (customAgents.length === 0) return;
+
+  // Separator
+  const sep = document.createElement("option");
+  sep.disabled = true;
+  sep.textContent = "── Custom Agents ──";
+  select.appendChild(sep);
+
+  for (const agent of customAgents) {
+    const opt = document.createElement("option");
+    opt.value = agent.id;
+    opt.textContent = agent.name;
+    select.appendChild(opt);
+  }
+}
+
+// ── Custom agents: drop zone ──────────────────────────────────────────────────
+
+function setupDropZone(): void {
+  const zone = document.getElementById("drop-zone");
+  if (!zone) return;
+
+  zone.addEventListener("dragover", (e: DragEvent) => {
+    e.preventDefault();
+    zone.classList.add("drop-zone--active");
+  });
+
+  zone.addEventListener("dragleave", () => {
+    zone.classList.remove("drop-zone--active");
+  });
+
+  zone.addEventListener("drop", (e: DragEvent) => {
+    e.preventDefault();
+    zone.classList.remove("drop-zone--active");
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    // Accept the first JSON file found
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.name.endsWith(".json")) {
+        void loadConfigFile(file);
+        return;
+      }
+    }
+
+    showToast("Please drop a JSON config file.", "warning");
+  });
+}
+
+async function loadConfigFile(file: File): Promise<void> {
+  try {
+    const text = await file.text();
+    const json = JSON.parse(text) as unknown;
+    // Registry validates internally and throws on invalid data
+    registry.load(json as CopilotConfig);
+    registry.saveToStorage();
+    populateCustomAgentOptions();
+    renderCustomConfigSummary();
+    showToast(
+      `Loaded ${pluralize(registry.agentCount, "agent")} and ${pluralize(registry.skillCount, "skill")} from ${file.name}.`
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to parse config file.";
+    showToast(message, "error");
+  }
+}
+
+function clearCustomConfig(): void {
+  registry.clear();
+  populateCustomAgentOptions();
+  renderCustomConfigSummary();
+  // Reset agent select to default
+  const select = getEl<HTMLSelectElement>("agent-select");
+  select.value = "ux-designer";
+  showToast("Custom agents and skills cleared.");
+}
+
+/** Update the summary list of loaded custom agents and skills. */
+function renderCustomConfigSummary(): void {
+  const summary = document.getElementById("custom-config-summary");
+  if (!summary) return;
+
+  const agents = registry.getAgents();
+  const skills = registry.getSkills();
+
+  if (agents.length === 0 && skills.length === 0) {
+    summary.textContent = "No custom config loaded.";
+    return;
+  }
+
+  const lines: string[] = [];
+  if (agents.length > 0) {
+    lines.push(`Agents: ${agents.map((a) => a.name).join(", ")}`);
+  }
+  if (skills.length > 0) {
+    lines.push(`Skills: ${skills.map((s) => s.name).join(", ")}`);
+  }
+  summary.textContent = lines.join(" · ");
+}
+
+// ── Skills Library ────────────────────────────────────────────────────────────
+
+/**
+ * Fetch the latest non-code skills from the remote library, merge them with
+ * the bundled skills, update state/storage, and post a chat summary.
+ */
+async function handleLoadSkillsLibrary(): Promise<void> {
+  const loadBtn = document.getElementById("load-skills-library-btn") as HTMLButtonElement | null;
+  if (loadBtn) {
+    loadBtn.disabled = true;
+    loadBtn.textContent = "Updating…";
+  }
+
+  try {
+    const skills = await fetchSkillsLibrary();
+    externalSkills = skills;
+    saveSkillsLibraryToStorage(skills);
+    renderSkillsLibrary();
+
+    if (skills.length === 0) {
+      appendAssistantMessage("⚠️ Remote skills library is empty — bundled skills remain active.");
+    } else {
+      const skillNames = skills.map((s) => `• ${s.name}`).join("\n");
+      appendAssistantMessage(
+        `🔄 Remote skills library updated (${pluralize(skills.length, "skill")}):\n\n${skillNames}`
+      );
+    }
+
+    showToast(`Updated: ${pluralize(skills.length, "skill")} from remote library.`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update skills library.";
+    showToast(message, "error");
+    appendAssistantMessage(`❌ ${message}`);
+  } finally {
+    if (loadBtn) {
+      loadBtn.disabled = false;
+      loadBtn.textContent = "⟳ Update";
+    }
+  }
+}
+
+/** Clear extra runtime-loaded skills (bundled skills remain active). */
+function handleClearSkillsLibrary(): void {
+  externalSkills = [];
+  clearSkillsLibraryFromStorage();
+  renderSkillsLibrary();
+  showToast("Runtime skills cleared. Bundled skills remain active.");
+}
+
+/**
+ * Render the skills library panel.
+ * Always shows the bundled skills; additionally shows any runtime-loaded skills.
+ */
+function renderSkillsLibrary(): void {
+  const summary = document.getElementById("skills-library-summary");
+  const listEl = document.getElementById("skills-library-list");
+
+  if (!summary || !listEl) return;
+
+  summary.textContent =
+    `${pluralize(BUNDLED_SKILLS.length, "bundled skill")} active in all agents` +
+    (externalSkills.length > 0
+      ? ` · ${pluralize(externalSkills.length, "extra skill")} loaded from remote`
+      : "");
+
+  // Show bundled skills (always active)
+  listEl.innerHTML = "";
+  const bundledIds = new Set(BUNDLED_SKILLS.map((b) => b.id));
+  for (const skill of BUNDLED_SKILLS) {
+    const tag = document.createElement("span");
+    tag.className = "skill-tag";
+    tag.textContent = skill.name;
+    tag.title = `Bundled: ${skill.description}`;
+    listEl.appendChild(tag);
+  }
+
+  // Append extra runtime-loaded skills with a distinct style
+  for (const skill of externalSkills) {
+    // Skip if already covered by bundled set
+    if (bundledIds.has(skill.id)) continue;
+    const tag = document.createElement("span");
+    tag.className = "skill-tag skill-tag--remote";
+    tag.textContent = skill.name;
+    tag.title = `Remote: ${skill.id}`;
+    listEl.appendChild(tag);
+  }
+
+  listEl.classList.remove("hidden");
 }
