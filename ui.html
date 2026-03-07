@@ -340,6 +340,69 @@
     .toast--warning { background: #d97706; }
     .toast--error   { background: #dc2626; }
 
+    /* ── Custom agents drop zone ──────────────────────────────── */
+    .custom-section {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      flex-shrink: 0;
+    }
+
+    .custom-section__title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone--active {
+      border-color: var(--primary);
+      background: #eef3fd;
+    }
+
+    .drop-zone__label {
+      font-size: 11px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .drop-zone__label strong {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Make the file input cover the drop zone so it also acts as a click target */
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    #custom-config-summary {
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
   </style>
@@ -388,6 +451,33 @@
         <button class="btn btn--ghost" id="api-key-toggle" type="button">Show</button>
       </div>
     </div>
+  </section>
+
+  <!-- Custom Agents & Skills -->
+  <section class="custom-section" aria-label="Custom agents and skills">
+    <div class="custom-section__title">
+      <span>Custom Agents &amp; Skills</span>
+      <button class="btn btn--ghost" id="clear-custom-btn" type="button" style="padding:2px 7px;font-size:11px" title="Remove all custom agents and skills">Clear</button>
+    </div>
+    <div
+      id="drop-zone"
+      class="drop-zone"
+      role="button"
+      aria-label="Drop copilot.json here or click to browse"
+      title="Drop a copilot.json config file to load custom agents and skills"
+    >
+      <p class="drop-zone__label">
+        Drop <strong>copilot.json</strong> here or <strong>click to browse</strong>
+      </p>
+      <input
+        type="file"
+        id="config-file-input"
+        accept=".json,application/json"
+        aria-label="Select copilot config file"
+        tabindex="-1"
+      />
+    </div>
+    <p id="custom-config-summary">No custom config loaded.</p>
   </section>
 
   <!-- Chat History -->
