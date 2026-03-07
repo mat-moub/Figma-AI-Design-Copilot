@@ -452,6 +452,11 @@
       padding: 2px 8px;
     }
 
+    .skill-tag--remote {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
   </style>
@@ -534,12 +539,12 @@
     <div class="skills-library-section__title">
       <span>Skills Library</span>
       <div class="skills-library-actions">
-        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Remove loaded skills library">Clear</button>
-        <button class="btn btn--ghost" id="load-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Load design skills from github.com/flpbalada/my-opencode-config">⬇ Load</button>
+        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Remove extra runtime-loaded skills (bundled skills remain active)">Clear extra</button>
+        <button class="btn btn--ghost" id="load-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Update skills from github.com/flpbalada/my-opencode-config">⟳ Update</button>
       </div>
     </div>
-    <p id="skills-library-summary">No skills library loaded.</p>
-    <div id="skills-library-list" class="hidden"></div>
+    <p id="skills-library-summary">Skills library active in all agents.</p>
+    <div id="skills-library-list"></div>
   </section>
 
   <!-- Chat History -->

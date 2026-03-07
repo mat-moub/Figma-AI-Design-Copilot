@@ -11,6 +11,7 @@ import { UXDesignerAgent } from "./agents/ux-designer-agent";
 import { DesignSystemAgent } from "./agents/design-system-agent";
 import { CustomAgent } from "./agents/custom-agent";
 import { CustomAgentRegistry } from "./services/custom-agent-registry";
+import { BUNDLED_SKILLS } from "./data/skills-library";
 import {
   fetchSkillsLibrary,
   loadSkillsLibraryFromStorage,
@@ -33,6 +34,12 @@ import type {
 
 let documentContext: DocumentContext | null = null;
 let chatHistory: ChatMessage[] = [];
+
+/**
+ * Extra skills loaded at runtime from the GitHub library.
+ * Starts empty; users can click "⬇ Update" to refresh from the remote repo.
+ * The bundled skills (BUNDLED_SKILLS) are always active in the default agents.
+ */
 let externalSkills: ExternalSkillEntry[] = [];
 
 const aiService = new AIService();
@@ -56,9 +63,21 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   requestDocumentContext();
 
-  // Restore previously loaded skills library from localStorage
+  // Restore any extra skills loaded at runtime from the remote library
   externalSkills = loadSkillsLibraryFromStorage();
+
+  // Render the skills library panel (bundled skills are always shown)
   renderSkillsLibrary();
+
+  // Announce bundled skills in the chat only on first startup
+  const announcedKey = "copilot_skills_announced";
+  if (!localStorage.getItem(announcedKey)) {
+    const skillNames = BUNDLED_SKILLS.map((s) => `• ${s.name}`).join("\n");
+    appendAssistantMessage(
+      `📚 ${pluralize(BUNDLED_SKILLS.length, "skill")} from the design library are bundled and active in all agents:\n\n${skillNames}`
+    );
+    localStorage.setItem(announcedKey, "1");
+  }
 });
 
 // ── Plugin → UI messages ──────────────────────────────────────────────────────
@@ -474,14 +493,14 @@ function renderCustomConfigSummary(): void {
 // ── Skills Library ────────────────────────────────────────────────────────────
 
 /**
- * Fetch non-code skills from the remote library and update state, storage,
- * and the UI. Posts a chat message listing the loaded skills.
+ * Fetch the latest non-code skills from the remote library, merge them with
+ * the bundled skills, update state/storage, and post a chat summary.
  */
 async function handleLoadSkillsLibrary(): Promise<void> {
   const loadBtn = document.getElementById("load-skills-library-btn") as HTMLButtonElement | null;
   if (loadBtn) {
     loadBtn.disabled = true;
-    loadBtn.textContent = "Loading…";
+    loadBtn.textContent = "Updating…";
   }
 
   try {
@@ -491,58 +510,72 @@ async function handleLoadSkillsLibrary(): Promise<void> {
     renderSkillsLibrary();
 
     if (skills.length === 0) {
-      appendAssistantMessage("⚠️ Skills library loaded but no design skills were found.");
+      appendAssistantMessage("⚠️ Remote skills library is empty — bundled skills remain active.");
     } else {
       const skillNames = skills.map((s) => `• ${s.name}`).join("\n");
       appendAssistantMessage(
-        `📚 Skills library loaded (${pluralize(skills.length, "skill")}):\n\n${skillNames}`
+        `🔄 Remote skills library updated (${pluralize(skills.length, "skill")}):\n\n${skillNames}`
       );
     }
 
-    showToast(`Loaded ${pluralize(skills.length, "skill")} from the skills library.`);
+    showToast(`Updated: ${pluralize(skills.length, "skill")} from remote library.`);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load skills library.";
+    const message = err instanceof Error ? err.message : "Failed to update skills library.";
     showToast(message, "error");
     appendAssistantMessage(`❌ ${message}`);
   } finally {
     if (loadBtn) {
       loadBtn.disabled = false;
-      loadBtn.textContent = "⬇ Load";
+      loadBtn.textContent = "⟳ Update";
     }
   }
 }
 
-/** Clear the loaded external skills from state, storage, and the UI. */
+/** Clear extra runtime-loaded skills (bundled skills remain active). */
 function handleClearSkillsLibrary(): void {
   externalSkills = [];
   clearSkillsLibraryFromStorage();
   renderSkillsLibrary();
-  showToast("Skills library cleared.");
+  showToast("Runtime skills cleared. Bundled skills remain active.");
 }
 
-/** Render the skills library section based on current `externalSkills` state. */
+/**
+ * Render the skills library panel.
+ * Always shows the bundled skills; additionally shows any runtime-loaded skills.
+ */
 function renderSkillsLibrary(): void {
   const summary = document.getElementById("skills-library-summary");
   const listEl = document.getElementById("skills-library-list");
 
   if (!summary || !listEl) return;
 
-  if (externalSkills.length === 0) {
-    summary.textContent = "No skills library loaded.";
-    listEl.innerHTML = "";
-    listEl.classList.add("hidden");
-    return;
-  }
+  summary.textContent =
+    `${pluralize(BUNDLED_SKILLS.length, "bundled skill")} active in all agents` +
+    (externalSkills.length > 0
+      ? ` · ${pluralize(externalSkills.length, "extra skill")} loaded from remote`
+      : "");
 
-  summary.textContent = `${pluralize(externalSkills.length, "skill")} loaded from github.com/flpbalada/my-opencode-config`;
-
+  // Show bundled skills (always active)
   listEl.innerHTML = "";
-  for (const skill of externalSkills) {
+  const bundledIds = new Set(BUNDLED_SKILLS.map((b) => b.id));
+  for (const skill of BUNDLED_SKILLS) {
     const tag = document.createElement("span");
     tag.className = "skill-tag";
     tag.textContent = skill.name;
-    tag.title = skill.id;
+    tag.title = `Bundled: ${skill.description}`;
     listEl.appendChild(tag);
   }
+
+  // Append extra runtime-loaded skills with a distinct style
+  for (const skill of externalSkills) {
+    // Skip if already covered by bundled set
+    if (bundledIds.has(skill.id)) continue;
+    const tag = document.createElement("span");
+    tag.className = "skill-tag skill-tag--remote";
+    tag.textContent = skill.name;
+    tag.title = `Remote: ${skill.id}`;
+    listEl.appendChild(tag);
+  }
+
   listEl.classList.remove("hidden");
 }

@@ -5,6 +5,7 @@ import {
   loadSkillsLibraryFromStorage,
   clearSkillsLibraryFromStorage,
 } from "../services/skills-library-service";
+import { BUNDLED_SKILLS, buildSkillsKnowledgeBlock } from "../data/skills-library";
 import type { ExternalSkillEntry } from "../types/ui-types";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -72,13 +73,13 @@ describe("isCodeSkill()", () => {
 // ── skillIdToName() ───────────────────────────────────────────────────────────
 
 describe("skillIdToName()", () => {
-  it("converts kebab-case ids to Title Case names", () => {
+  it("converts kebab-case ids to Title Case names (with acronym handling)", () => {
     expect(skillIdToName("fogg-behavior-model")).toBe("Fogg Behavior Model");
     expect(skillIdToName("cognitive-biases")).toBe("Cognitive Biases");
     expect(skillIdToName("jobs-to-be-done")).toBe("Jobs To Be Done");
     expect(skillIdToName("hicks-law")).toBe("Hicks Law");
     expect(skillIdToName("visual-cues-cta-psychology")).toBe(
-      "Visual Cues Cta Psychology"
+      "Visual Cues CTA Psychology"
     );
   });
 
@@ -124,5 +125,59 @@ describe("clearSkillsLibraryFromStorage()", () => {
   it("is a no-op when storage is already empty", () => {
     const storage = makeStorage();
     expect(() => clearSkillsLibraryFromStorage(storage)).not.toThrow();
+  });
+});
+
+// ── BUNDLED_SKILLS ────────────────────────────────────────────────────────────
+
+describe("BUNDLED_SKILLS", () => {
+  it("contains 28 non-code skills", () => {
+    expect(BUNDLED_SKILLS).toHaveLength(28);
+  });
+
+  it("every skill has a non-empty id, name, and description", () => {
+    for (const skill of BUNDLED_SKILLS) {
+      expect(skill.id.length).toBeGreaterThan(0);
+      expect(skill.name.length).toBeGreaterThan(0);
+      expect(skill.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("contains no code-related skills", () => {
+    for (const skill of BUNDLED_SKILLS) {
+      expect(isCodeSkill(skill.id)).toBe(false);
+    }
+  });
+
+  it("includes key UX/design skills", () => {
+    const ids = BUNDLED_SKILLS.map((s) => s.id);
+    expect(ids).toContain("fogg-behavior-model");
+    expect(ids).toContain("hicks-law");
+    expect(ids).toContain("cognitive-load");
+    expect(ids).toContain("progressive-disclosure");
+    expect(ids).toContain("trust-psychology");
+  });
+});
+
+// ── buildSkillsKnowledgeBlock() ───────────────────────────────────────────────
+
+describe("buildSkillsKnowledgeBlock()", () => {
+  it("returns a non-empty string", () => {
+    const block = buildSkillsKnowledgeBlock();
+    expect(typeof block).toBe("string");
+    expect(block.length).toBeGreaterThan(0);
+  });
+
+  it("includes all skill names in bold markdown", () => {
+    const block = buildSkillsKnowledgeBlock();
+    for (const skill of BUNDLED_SKILLS) {
+      expect(block).toContain(`**${skill.name}**`);
+    }
+  });
+
+  it("has one line per skill", () => {
+    const block = buildSkillsKnowledgeBlock();
+    const lines = block.split("\n").filter((l) => l.trim().length > 0);
+    expect(lines).toHaveLength(BUNDLED_SKILLS.length);
   });
 });

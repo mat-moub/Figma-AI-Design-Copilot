@@ -3,6 +3,7 @@ import { AIService } from "../services/ai-service";
 import { generateScreen } from "../skills/generate-screen";
 import { generateVariants } from "../skills/generate-variants";
 import { applyDesignSystem } from "../skills/apply-design-system";
+import { buildSkillsKnowledgeBlock } from "../data/skills-library";
 
 const UX_DESIGNER_SYSTEM_PROMPT = `You are a senior UX designer with deep expertise in mobile and web UI design.
 
@@ -17,6 +18,14 @@ Design principles you follow:
 - Accessibility: meaningful labels, logical tab order
 - Visual clarity: sufficient contrast, whitespace, alignment
 - Consistency: reuse patterns and components across screens
+
+## UX & Product Design Skills
+
+You are equipped with the following UX and product design knowledge frameworks.
+Apply them proactively when generating UI to create more effective,
+user-centred, and psychologically informed designs:
+
+${buildSkillsKnowledgeBlock()}
 
 Always return ONLY the JSON array of screens as instructed in the system context.`;
 
