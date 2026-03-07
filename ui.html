@@ -404,6 +404,54 @@
       color: var(--text-muted);
     }
 
+    /* ── Skills Library ───────────────────────────────────────── */
+    .skills-library-section {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      flex-shrink: 0;
+    }
+
+    .skills-library-section__title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .skills-library-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    #skills-library-summary {
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    #skills-library-list {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .skill-tag {
+      background: #e8f0fe;
+      color: var(--primary);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+    }
+
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
   </style>
@@ -479,6 +527,19 @@
       />
     </div>
     <p id="custom-config-summary">No custom config loaded.</p>
+  </section>
+
+  <!-- Skills Library -->
+  <section class="skills-library-section" aria-label="Skills library">
+    <div class="skills-library-section__title">
+      <span>Skills Library</span>
+      <div class="skills-library-actions">
+        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Remove loaded skills library">Clear</button>
+        <button class="btn btn--ghost" id="load-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Load design skills from github.com/flpbalada/my-opencode-config">⬇ Load</button>
+      </div>
+    </div>
+    <p id="skills-library-summary">No skills library loaded.</p>
+    <div id="skills-library-list" class="hidden"></div>
   </section>
 
   <!-- Chat History -->

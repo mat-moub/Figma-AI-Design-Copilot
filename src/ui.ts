@@ -11,12 +11,19 @@ import { UXDesignerAgent } from "./agents/ux-designer-agent";
 import { DesignSystemAgent } from "./agents/design-system-agent";
 import { CustomAgent } from "./agents/custom-agent";
 import { CustomAgentRegistry } from "./services/custom-agent-registry";
+import {
+  fetchSkillsLibrary,
+  loadSkillsLibraryFromStorage,
+  saveSkillsLibraryToStorage,
+  clearSkillsLibraryFromStorage,
+} from "./services/skills-library-service";
 import type {
   AgentType,
   AIModel,
   ChatMessage,
   CopilotConfig,
   DocumentContext,
+  ExternalSkillEntry,
   ModelConfig,
   PluginToUIMessage,
   UIScreen,
@@ -26,6 +33,7 @@ import type {
 
 let documentContext: DocumentContext | null = null;
 let chatHistory: ChatMessage[] = [];
+let externalSkills: ExternalSkillEntry[] = [];
 
 const aiService = new AIService();
 const uxAgent = new UXDesignerAgent();
@@ -47,6 +55,10 @@ document.addEventListener("DOMContentLoaded", () => {
   populateCustomAgentOptions();
   setupEventListeners();
   requestDocumentContext();
+
+  // Restore previously loaded skills library from localStorage
+  externalSkills = loadSkillsLibraryFromStorage();
+  renderSkillsLibrary();
 });
 
 // ── Plugin → UI messages ──────────────────────────────────────────────────────
@@ -118,6 +130,17 @@ function setupEventListeners(): void {
   const clearCustomBtn = document.getElementById("clear-custom-btn");
   if (clearCustomBtn) {
     clearCustomBtn.addEventListener("click", clearCustomConfig);
+  }
+
+  // ── Skills library ──────────────────────────────────────────────────────
+  const loadSkillsBtn = document.getElementById("load-skills-library-btn");
+  if (loadSkillsBtn) {
+    loadSkillsBtn.addEventListener("click", () => void handleLoadSkillsLibrary());
+  }
+
+  const clearSkillsBtn = document.getElementById("clear-skills-library-btn");
+  if (clearSkillsBtn) {
+    clearSkillsBtn.addEventListener("click", handleClearSkillsLibrary);
   }
 }
 
@@ -446,4 +469,80 @@ function renderCustomConfigSummary(): void {
     lines.push(`Skills: ${skills.map((s) => s.name).join(", ")}`);
   }
   summary.textContent = lines.join(" · ");
+}
+
+// ── Skills Library ────────────────────────────────────────────────────────────
+
+/**
+ * Fetch non-code skills from the remote library and update state, storage,
+ * and the UI. Posts a chat message listing the loaded skills.
+ */
+async function handleLoadSkillsLibrary(): Promise<void> {
+  const loadBtn = document.getElementById("load-skills-library-btn") as HTMLButtonElement | null;
+  if (loadBtn) {
+    loadBtn.disabled = true;
+    loadBtn.textContent = "Loading…";
+  }
+
+  try {
+    const skills = await fetchSkillsLibrary();
+    externalSkills = skills;
+    saveSkillsLibraryToStorage(skills);
+    renderSkillsLibrary();
+
+    if (skills.length === 0) {
+      appendAssistantMessage("⚠️ Skills library loaded but no design skills were found.");
+    } else {
+      const skillNames = skills.map((s) => `• ${s.name}`).join("\n");
+      appendAssistantMessage(
+        `📚 Skills library loaded (${pluralize(skills.length, "skill")}):\n\n${skillNames}`
+      );
+    }
+
+    showToast(`Loaded ${pluralize(skills.length, "skill")} from the skills library.`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load skills library.";
+    showToast(message, "error");
+    appendAssistantMessage(`❌ ${message}`);
+  } finally {
+    if (loadBtn) {
+      loadBtn.disabled = false;
+      loadBtn.textContent = "⬇ Load";
+    }
+  }
+}
+
+/** Clear the loaded external skills from state, storage, and the UI. */
+function handleClearSkillsLibrary(): void {
+  externalSkills = [];
+  clearSkillsLibraryFromStorage();
+  renderSkillsLibrary();
+  showToast("Skills library cleared.");
+}
+
+/** Render the skills library section based on current `externalSkills` state. */
+function renderSkillsLibrary(): void {
+  const summary = document.getElementById("skills-library-summary");
+  const listEl = document.getElementById("skills-library-list");
+
+  if (!summary || !listEl) return;
+
+  if (externalSkills.length === 0) {
+    summary.textContent = "No skills library loaded.";
+    listEl.innerHTML = "";
+    listEl.classList.add("hidden");
+    return;
+  }
+
+  summary.textContent = `${pluralize(externalSkills.length, "skill")} loaded from github.com/flpbalada/my-opencode-config`;
+
+  listEl.innerHTML = "";
+  for (const skill of externalSkills) {
+    const tag = document.createElement("span");
+    tag.className = "skill-tag";
+    tag.textContent = skill.name;
+    tag.title = skill.id;
+    listEl.appendChild(tag);
+  }
+  listEl.classList.remove("hidden");
 }

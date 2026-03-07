@@ -127,6 +127,18 @@ export interface CustomAgentConfig {
 }
 
 /**
+ * A single skill entry from the external skills library
+ * (https://github.com/flpbalada/my-opencode-config).
+ * Code-related skills are excluded at fetch time.
+ */
+export interface ExternalSkillEntry {
+  /** Folder name / unique identifier in the remote repository */
+  id: string;
+  /** Human-readable display name derived from the folder name */
+  name: string;
+}
+
+/**
  * Schema for the copilot config file (e.g. `copilot.json` or
  * `.copilot/config.json`) that users can drop into the plugin panel to
  * register their own agents and skills — inspired by Claude Code's `.claude`
