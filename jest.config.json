@@ -1,0 +1,19 @@
+{
+  "testEnvironment": "node",
+  "roots": ["<rootDir>/src"],
+  "testMatch": ["**/__tests__/**/*.test.ts"],
+  "transform": {
+    "^.+\\.ts$": ["ts-jest", {
+      "tsconfig": {
+        "target": "ES2017",
+        "lib": ["ES2017", "DOM"],
+        "module": "CommonJS",
+        "strict": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "moduleResolution": "node",
+        "skipLibCheck": true
+      }
+    }]
+  }
+}
