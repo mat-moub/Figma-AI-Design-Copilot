@@ -39,21 +39,59 @@ Supported providers:
 ## Table of contents
 
 1. [Screenshots](#screenshots)
-2. [Architecture overview](#architecture-overview)
-3. [UI layout](#ui-layout)
-4. [Two-process model](#two-process-model)
-5. [Directory structure](#directory-structure)
-6. [Core concepts](#core-concepts)
-7. [Authentication & BYOK](#authentication--byok)
-8. [Available providers and models](#available-providers-and-models)
-9. [Agents](#agents)
-10. [Skills](#skills)
-11. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
-12. [External skills library](#external-skills-library)
-13. [Data flow — single request](#data-flow--single-request)
-14. [Build & develop](#build--develop)
-15. [Testing](#testing)
-16. [Key types quick reference](#key-types-quick-reference)
+2. [Onboarding](#onboarding)
+3. [Architecture overview](#architecture-overview)
+4. [UI layout](#ui-layout)
+5. [Two-process model](#two-process-model)
+6. [Directory structure](#directory-structure)
+7. [Core concepts](#core-concepts)
+8. [Authentication & BYOK](#authentication--byok)
+9. [Available providers and models](#available-providers-and-models)
+10. [Agents](#agents)
+11. [Skills](#skills)
+12. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
+13. [External skills library](#external-skills-library)
+14. [Data flow — single request](#data-flow--single-request)
+15. [Build & develop](#build--develop)
+16. [Testing](#testing)
+17. [Key types quick reference](#key-types-quick-reference)
+
+---
+
+## Onboarding
+
+On first launch the plugin automatically shows a 3-step onboarding overlay (plus a completion screen) to help new users get up and running without opening Settings manually.
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <strong>Step 1 — Welcome</strong><br/>
+      Introduction to the plugin's capabilities
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/2c6ab80d-8aaa-43c1-bbde-37dea45a0d75" alt="Onboarding step 1 — Welcome screen" width="200"/>
+    </td>
+    <td align="center" width="25%">
+      <strong>Step 2 — Configure provider</strong><br/>
+      Pick provider, model, and enter API key
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/ba5af1b5-30c4-49f8-aa37-b9d09005c9f2" alt="Onboarding step 2 — Configure AI provider" width="200"/>
+    </td>
+    <td align="center" width="25%">
+      <strong>Step 3 — Custom agent</strong> <em>(optional)</em><br/>
+      Create a domain-specific agent with a pre-filled system prompt
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/ae504023-f2b9-42bc-afc7-16402d08d426" alt="Onboarding step 3 — Create your first custom agent (optional)" width="200"/>
+    </td>
+    <td align="center" width="25%">
+      <strong>You're all set!</strong><br/>
+      Usage tips and the final dismissal screen
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/a7553aa0-e8af-49b6-b6d9-b89c74cd2de9" alt="Onboarding final screen — You're all set!" width="200"/>
+    </td>
+  </tr>
+</table>
+
+The onboarding is shown **only once** (on first install). The welcome screen refers to **3 quick steps** — the final "You're all set!" screen is a completion reward, shown in the progress breadcrumb but not counted as a step so it doesn't feel intimidating. Settings entered in step 2 are immediately applied to the plugin — no need to re-enter them in the Settings panel. If a custom agent is created in step 3, it is instantly available in the Agent dropdown. The onboarding can be re-triggered by clearing `localStorage` in the browser dev tools (key: `copilot_onboarding_done`).
 
 ---
 

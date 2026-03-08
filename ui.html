@@ -714,6 +714,201 @@
 
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
+
+    /* ── Onboarding: optional badge ───────────────────────────── */
+    .onboarding-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(99, 125, 255, 0.10);
+      color: var(--primary);
+      border: 1px solid rgba(99, 125, 255, 0.22);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
+    /* ── Onboarding: agent prompt textarea ────────────────────── */
+    .onboarding-textarea {
+      width: 100%;
+      min-height: 130px;
+      max-height: 200px;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      font-size: 11px;
+      font-family: var(--font);
+      color: var(--text);
+      line-height: 1.55;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      margin-top: 6px;
+    }
+    .onboarding-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    /* ── Onboarding Overlay ───────────────────────────────────── */
+    .onboarding-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .onboarding-overlay.hidden { display: none !important; }
+
+    .onboarding-header {
+      background: var(--primary);
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(30, 48, 112, 0.30);
+    }
+
+    .onboarding-header__brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.2px;
+    }
+
+    .onboarding-progress {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .onboarding-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .onboarding-dot--active {
+      background: #ffffff;
+      transform: scale(1.2);
+    }
+
+    .onboarding-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .onboarding-body::-webkit-scrollbar { width: 4px; }
+    .onboarding-body::-webkit-scrollbar-track { background: transparent; }
+    .onboarding-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .onboarding-step {
+      flex: 1;
+      padding: 24px 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .onboarding-icon {
+      font-size: 36px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .onboarding-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .onboarding-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .onboarding-features {
+      list-style: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .onboarding-features li {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .onboarding-configure {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .onboarding-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .onboarding-tips {
+      list-style: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .onboarding-tips li {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .onboarding-nav {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .onboarding-nav__right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
@@ -1037,6 +1232,162 @@
 
     </div><!-- end settings-overlay__body -->
   </div><!-- end settings-view -->
+
+  <!-- ── Onboarding Overlay (shown on first launch, hidden by default) ── -->
+  <div id="onboarding-view" class="onboarding-overlay hidden" role="dialog"
+       aria-label="Welcome to AI Design Copilot" aria-modal="true">
+
+    <!-- Onboarding header -->
+    <div class="onboarding-header">
+      <div class="onboarding-header__brand">
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
+        AI Design Copilot
+      </div>
+      <!-- Step progress dots -->
+      <div class="onboarding-progress" aria-label="Setup progress">
+        <span class="onboarding-dot onboarding-dot--active" title="Step 1 of 3"></span>
+        <span class="onboarding-dot" title="Step 2 of 3"></span>
+        <span class="onboarding-dot" title="Step 3 of 3"></span>
+        <span class="onboarding-dot" title="Done!"></span>
+      </div>
+    </div>
+
+    <!-- Scrollable content area -->
+    <div class="onboarding-body">
+
+      <!-- ── Step 1: Welcome ── -->
+      <div class="onboarding-step" id="onboarding-step-0">
+        <div class="onboarding-icon" aria-hidden="true">✨</div>
+        <h2 class="onboarding-title">Welcome to AI Design Copilot</h2>
+        <p class="onboarding-desc">
+          Generate Figma screens from natural language prompts using AI.
+          Let's get you set up in 3 quick steps.
+        </p>
+        <ul class="onboarding-features" aria-label="Key features">
+          <li>🎨 Describe a screen and watch it appear in Figma</li>
+          <li>🤖 Supports GitHub Copilot, OpenAI, and Anthropic</li>
+          <li>📐 Respects your design system's components and styles</li>
+          <li>🔀 Generate multiple variants of a screen at once</li>
+        </ul>
+      </div>
+
+      <!-- ── Step 2: Configure Provider ── -->
+      <div class="onboarding-step hidden" id="onboarding-step-1">
+        <h2 class="onboarding-title">Configure your AI provider</h2>
+        <p class="onboarding-desc">
+          Choose a provider and enter your API key. You can change this later in Settings.
+        </p>
+        <div class="onboarding-configure">
+          <!-- Provider -->
+          <div class="settings__row">
+            <label class="settings__label" for="ob-provider-select">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
+              Provider
+            </label>
+            <select id="ob-provider-select" aria-label="AI Provider" style="flex:1">
+              <option value="github-copilot">GitHub Copilot</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </div>
+          <!-- Model -->
+          <div class="settings__row">
+            <label class="settings__label" for="ob-model-select">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
+              Model
+            </label>
+            <select id="ob-model-select" aria-label="Model" style="flex:1"></select>
+          </div>
+          <!-- API Key -->
+          <div class="settings__row">
+            <span class="settings__label" id="ob-api-key-label">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
+              GH Token
+            </span>
+            <div class="api-key-row">
+              <input type="password" id="ob-api-key-input"
+                     placeholder="ghp_… (copilot scope)"
+                     autocomplete="off" aria-label="API Key"/>
+              <button class="btn btn--icon" id="ob-api-key-toggle" type="button"
+                      title="Show/hide key" aria-label="Toggle key visibility">
+                <svg class="icon icon-sm" id="ob-key-icon-eye" aria-hidden="true"><use href="#icon-eye"/></svg>
+                <svg class="icon icon-sm hidden" id="ob-key-icon-eye-slash" aria-hidden="true"><use href="#icon-eye-slash"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <p class="onboarding-hint">
+          🔒 Your key is stored locally in your browser and never shared.
+        </p>
+      </div>
+
+      <!-- ── Step 3: Custom Agent (optional) ── -->
+      <div class="onboarding-step hidden" id="onboarding-step-2">
+        <h2 class="onboarding-title">
+          Create your first custom agent
+          <span class="onboarding-badge" aria-label="Optional step">Optional</span>
+        </h2>
+        <p class="onboarding-desc">
+          Give your agent a context specific to your application. It will use your design
+          system and all available skills automatically.
+        </p>
+        <div class="onboarding-configure">
+          <!-- Agent name -->
+          <div class="settings__row">
+            <label class="settings__label" for="ob-agent-name">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-agent"/></svg>
+              Name
+            </label>
+            <input type="text" id="ob-agent-name" placeholder="My Company Agent"
+                   aria-label="Agent name" style="flex:1"/>
+          </div>
+          <!-- System prompt -->
+          <div>
+            <label for="ob-agent-prompt" class="settings__label">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
+              System prompt
+            </label>
+            <textarea id="ob-agent-prompt" class="onboarding-textarea"
+                      aria-label="Agent system prompt"
+                      spellcheck="false">You are a UX expert in a company about... (insert your application functional context here). Create powerful figma components respecting existing design system. Use skills available in skills folder.</textarea>
+          </div>
+        </div>
+        <p class="onboarding-hint">
+          💡 Your agent will appear in the Agent dropdown and can be customised later in Settings.
+          Click <strong>Skip for now</strong> to start without a custom agent.
+        </p>
+      </div>
+
+      <!-- ── Step 4: Ready ── -->
+      <div class="onboarding-step hidden" id="onboarding-step-3">
+        <div class="onboarding-icon" aria-hidden="true">🚀</div>
+        <h2 class="onboarding-title">You're all set!</h2>
+        <p class="onboarding-desc">
+          Start generating screens by typing a prompt below.
+          Here are some tips to get the most out of the plugin.
+        </p>
+        <ul class="onboarding-tips" aria-label="Usage tips">
+          <li>💬 <strong>Prompt</strong> — Describe any screen: "Create a mobile login screen"</li>
+          <li>🔀 <strong>Variants</strong> — Set a number to generate multiple versions at once</li>
+          <li>🔄 <strong>Context</strong> — Click "Context" so AI reads your Figma document</li>
+          <li>⚙️ <strong>Settings</strong> — Change provider or model at any time</li>
+        </ul>
+      </div>
+
+    </div><!-- end onboarding-body -->
+
+    <!-- Navigation bar -->
+    <div class="onboarding-nav">
+      <button class="btn btn--ghost" id="ob-skip-btn" type="button">Skip setup</button>
+      <div class="onboarding-nav__right">
+        <button class="btn btn--ghost hidden" id="ob-back-btn" type="button">← Back</button>
+        <button class="btn btn--primary" id="ob-next-btn" type="button">
+          Next →
+        </button>
+      </div>
+    </div>
+
+  </div><!-- end onboarding-view -->
 
   <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

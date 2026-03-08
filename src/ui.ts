@@ -27,6 +27,7 @@ import type {
   LLMProvider,
   ModelConfig,
   PluginToUIMessage,
+  SkillType,
   UIScreen,
 } from "./types/ui-types";
 
@@ -91,6 +92,9 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     localStorage.setItem(announcedKey, "1");
   }
+
+  // Show onboarding on first launch
+  setupOnboarding();
 });
 
 // ── Plugin → UI messages ──────────────────────────────────────────────────────
@@ -884,4 +888,239 @@ function renderSkillsLibrary(): void {
 
   // Refresh the compact info in the main-page agent bar
   updateAgentsSkillsInfo();
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+
+const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
+const ONBOARDING_TOTAL_STEPS = 4;
+
+/** All built-in skills, used as the default set for onboarding-created agents. */
+const ALL_SKILL_TYPES: SkillType[] = ["generate-screen", "generate-variants", "apply-design-system"];
+
+/**
+ * Default system prompt pre-filled in the step-4 agent textarea.
+ * If the user hasn't changed this text we skip creating the agent.
+ */
+const OB_AGENT_DEFAULT_PROMPT =
+  "You are a UX expert in a company about... " +
+  "(insert your application functional context here). " +
+  "Create powerful figma components respecting existing design system. " +
+  "Use skills available in skills folder.";
+
+let onboardingStep = 0;
+
+/**
+ * Initialise and (if first launch) display the onboarding overlay.
+ * The flow has 3 real steps plus a final "You're all set" screen (shown in
+ * the breadcrumb but not announced as a numbered step in text).
+ * On subsequent launches the overlay stays hidden because the done-flag is
+ * already stored in localStorage.
+ */
+function setupOnboarding(): void {
+  if (localStorage.getItem(ONBOARDING_DONE_KEY)) return;
+
+  // Populate the onboarding provider/model/key UI with saved or default values
+  const VALID_PROVIDERS: LLMProvider[] = ["github-copilot", "openai", "anthropic"];
+  const rawProvider = localStorage.getItem("copilot_provider");
+  const savedProvider: LLMProvider =
+    rawProvider !== null && (VALID_PROVIDERS as string[]).includes(rawProvider)
+      ? (rawProvider as LLMProvider)
+      : "github-copilot";
+  const obProviderSelect = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
+  if (obProviderSelect) obProviderSelect.value = savedProvider;
+  syncOnboardingProviderUI(savedProvider);
+
+  // Provider change → re-sync model list and key field
+  if (obProviderSelect) {
+    obProviderSelect.addEventListener("change", () => {
+      syncOnboardingProviderUI(obProviderSelect.value as LLMProvider);
+    });
+  }
+
+  // API key visibility toggle
+  const keyToggle = document.getElementById("ob-api-key-toggle");
+  if (keyToggle) {
+    keyToggle.addEventListener("click", () => {
+      const input = document.getElementById("ob-api-key-input") as HTMLInputElement | null;
+      const eye      = document.getElementById("ob-key-icon-eye");
+      const eyeSlash = document.getElementById("ob-key-icon-eye-slash");
+      if (!input) return;
+      const isPassword = input.type === "password";
+      input.type = isPassword ? "text" : "password";
+      eye?.classList.toggle("hidden", !isPassword);
+      eyeSlash?.classList.toggle("hidden", isPassword);
+    });
+  }
+
+  // Skip: dismiss onboarding without saving changes
+  const skipBtn = document.getElementById("ob-skip-btn");
+  if (skipBtn) {
+    skipBtn.addEventListener("click", () => {
+      dismissOnboarding();
+    });
+  }
+
+  // Back: go to previous step
+  const backBtn = document.getElementById("ob-back-btn");
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      if (onboardingStep > 0) goToOnboardingStep(onboardingStep - 1);
+    });
+  }
+
+  // Next / Get started
+  const nextBtn = document.getElementById("ob-next-btn");
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      if (onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
+        // Save provider config when leaving step 2 (Config)
+        if (onboardingStep === 1) applyOnboardingConfig();
+        // Save custom agent when leaving step 3 (Custom Agent)
+        if (onboardingStep === 2) applyOnboardingCustomAgent();
+        goToOnboardingStep(onboardingStep + 1);
+      } else {
+        // Final step (You're all set): close the overlay
+        dismissOnboarding();
+      }
+    });
+  }
+
+  goToOnboardingStep(0);
+  const overlay = document.getElementById("onboarding-view");
+  overlay?.classList.remove("hidden");
+}
+
+/** Navigate to a specific onboarding step and update the UI accordingly. */
+function goToOnboardingStep(step: number): void {
+  const stepEls = document.querySelectorAll<HTMLElement>(".onboarding-step");
+  const dotEls  = document.querySelectorAll<HTMLElement>(".onboarding-dot");
+
+  stepEls.forEach((el, i) => el.classList.toggle("hidden", i !== step));
+  dotEls.forEach((el, i) => el.classList.toggle("onboarding-dot--active", i === step));
+
+  const backBtn = document.getElementById("ob-back-btn");
+  const nextBtn = document.getElementById("ob-next-btn");
+  const skipBtn = document.getElementById("ob-skip-btn");
+
+  const isLastStep = step === ONBOARDING_TOTAL_STEPS - 1;
+
+  // Back: hidden on step 0 and on the final "You're all set" screen
+  backBtn?.classList.toggle("hidden", step === 0 || isLastStep);
+
+  // Skip: hidden on the final "You're all set" screen; labelled differently on step 2
+  if (skipBtn) {
+    skipBtn.classList.toggle("hidden", isLastStep);
+    skipBtn.textContent = step === 2 ? "Skip for now" : "Skip setup";
+  }
+
+  if (nextBtn) {
+    nextBtn.textContent = isLastStep ? "Get started 🚀" : "Next →";
+  }
+
+  onboardingStep = step;
+}
+
+/**
+ * Populate the onboarding model dropdown and restore saved API key for the
+ * chosen provider — mirrors `syncProviderUI` but targets the `#ob-*` elements.
+ */
+function syncOnboardingProviderUI(provider: LLMProvider): void {
+  const modelSelect = document.getElementById("ob-model-select") as HTMLSelectElement | null;
+  const keyInput    = document.getElementById("ob-api-key-input") as HTMLInputElement | null;
+  const keyLabel    = document.getElementById("ob-api-key-label");
+
+  if (modelSelect) {
+    modelSelect.innerHTML = "";
+    for (const { value, label } of PROVIDER_MODELS[provider]) {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      modelSelect.appendChild(opt);
+    }
+    const savedModel = localStorage.getItem(`copilot_model_${provider}`);
+    if (savedModel) modelSelect.value = savedModel;
+  }
+
+  const info = PROVIDER_KEY_INFO[provider];
+  if (keyLabel?.lastChild) keyLabel.lastChild.textContent = info.label;
+  if (keyInput) {
+    keyInput.placeholder = info.placeholder;
+    keyInput.value = localStorage.getItem(info.storageKey) ?? "";
+  }
+}
+
+/**
+ * Save the provider/model/key values from the onboarding form to localStorage
+ * and sync the main settings UI so the plugin is immediately ready to use.
+ */
+function applyOnboardingConfig(): void {
+  const obProvider = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
+  const obModel    = document.getElementById("ob-model-select")    as HTMLSelectElement | null;
+  const obKey      = document.getElementById("ob-api-key-input")   as HTMLInputElement  | null;
+
+  if (!obProvider) return;
+  const provider = obProvider.value as LLMProvider;
+
+  localStorage.setItem("copilot_provider", provider);
+  if (obModel) localStorage.setItem(`copilot_model_${provider}`, obModel.value);
+  if (obKey) {
+    const info = PROVIDER_KEY_INFO[provider];
+    localStorage.setItem(info.storageKey, obKey.value.trim());
+  }
+
+  // Reflect the new settings in the main settings panel
+  const mainProvider = document.getElementById("provider-select") as HTMLSelectElement | null;
+  if (mainProvider) mainProvider.value = provider;
+  syncProviderUI(provider);
+}
+
+/** Close the onboarding overlay and persist the completion flag. */
+function dismissOnboarding(): void {
+  const overlay = document.getElementById("onboarding-view");
+  overlay?.classList.add("hidden");
+  localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+}
+
+/**
+ * Read the optional custom-agent fields from step 3 and, if the user has
+ * edited the default system prompt, register and persist the new agent so
+ * it is immediately available in the Agent dropdown.
+ *
+ * If the textarea still contains the unmodified placeholder text the agent
+ * is silently skipped — no action is taken.
+ */
+function applyOnboardingCustomAgent(): void {
+  const nameInput   = document.getElementById("ob-agent-name")   as HTMLInputElement   | null;
+  const promptInput = document.getElementById("ob-agent-prompt") as HTMLTextAreaElement | null;
+
+  const systemPrompt = promptInput?.value.trim() ?? "";
+
+  // Skip silently if the user left the default placeholder unchanged
+  if (!systemPrompt || systemPrompt === OB_AGENT_DEFAULT_PROMPT) return;
+
+  const agentName = nameInput?.value.trim() || "My Custom Agent";
+  const id = `onboarding-agent-${Date.now()}`;
+
+  try {
+    registry.load({
+      agents: [{
+        id,
+        name: agentName,
+        systemPrompt,
+        skills: ALL_SKILL_TYPES,
+      }],
+    });
+    registry.saveToStorage();
+    populateCustomAgentOptions();
+    renderCustomConfigSummary();
+
+    // Auto-select the newly created agent in the main dropdown
+    const agentSelect = document.getElementById("agent-select") as HTMLSelectElement | null;
+    if (agentSelect) agentSelect.value = id;
+
+    showToast(`Custom agent "${agentName}" created!`);
+  } catch {
+    showToast("Could not create the agent — please check the name and prompt, then try again from Settings.");
+  }
 }
