@@ -91,6 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     localStorage.setItem(announcedKey, "1");
   }
+
+  // Show onboarding on first launch
+  setupOnboarding();
 });
 
 // ── Plugin → UI messages ──────────────────────────────────────────────────────
@@ -884,4 +887,170 @@ function renderSkillsLibrary(): void {
 
   // Refresh the compact info in the main-page agent bar
   updateAgentsSkillsInfo();
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+
+const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
+const ONBOARDING_TOTAL_STEPS = 3;
+
+let onboardingStep = 0;
+
+/**
+ * Initialise and (if first launch) display the 3-step onboarding overlay.
+ * On subsequent launches the overlay stays hidden because the done-flag is
+ * already stored in localStorage.
+ */
+function setupOnboarding(): void {
+  if (localStorage.getItem(ONBOARDING_DONE_KEY)) return;
+
+  // Populate the onboarding provider/model/key UI with saved or default values
+  const VALID_PROVIDERS: LLMProvider[] = ["github-copilot", "openai", "anthropic"];
+  const rawProvider = localStorage.getItem("copilot_provider");
+  const savedProvider: LLMProvider =
+    rawProvider !== null && (VALID_PROVIDERS as string[]).includes(rawProvider)
+      ? (rawProvider as LLMProvider)
+      : "github-copilot";
+  const obProviderSelect = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
+  if (obProviderSelect) obProviderSelect.value = savedProvider;
+  syncOnboardingProviderUI(savedProvider);
+
+  // Provider change → re-sync model list and key field
+  if (obProviderSelect) {
+    obProviderSelect.addEventListener("change", () => {
+      syncOnboardingProviderUI(obProviderSelect.value as LLMProvider);
+    });
+  }
+
+  // API key visibility toggle
+  const keyToggle = document.getElementById("ob-api-key-toggle");
+  if (keyToggle) {
+    keyToggle.addEventListener("click", () => {
+      const input = document.getElementById("ob-api-key-input") as HTMLInputElement | null;
+      const eye      = document.getElementById("ob-key-icon-eye");
+      const eyeSlash = document.getElementById("ob-key-icon-eye-slash");
+      if (!input) return;
+      const isPassword = input.type === "password";
+      input.type = isPassword ? "text" : "password";
+      eye?.classList.toggle("hidden", !isPassword);
+      eyeSlash?.classList.toggle("hidden", isPassword);
+    });
+  }
+
+  // Skip: dismiss onboarding without saving changes
+  const skipBtn = document.getElementById("ob-skip-btn");
+  if (skipBtn) {
+    skipBtn.addEventListener("click", () => {
+      dismissOnboarding();
+    });
+  }
+
+  // Back: go to previous step
+  const backBtn = document.getElementById("ob-back-btn");
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      if (onboardingStep > 0) goToOnboardingStep(onboardingStep - 1);
+    });
+  }
+
+  // Next / Get started
+  const nextBtn = document.getElementById("ob-next-btn");
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      if (onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
+        // Save provider config when leaving step 2
+        if (onboardingStep === 1) applyOnboardingConfig();
+        goToOnboardingStep(onboardingStep + 1);
+      } else {
+        // Final step: close and mark as done
+        dismissOnboarding();
+      }
+    });
+  }
+
+  goToOnboardingStep(0);
+  const overlay = document.getElementById("onboarding-view");
+  overlay?.classList.remove("hidden");
+}
+
+/** Navigate to a specific onboarding step and update the UI accordingly. */
+function goToOnboardingStep(step: number): void {
+  const stepEls = document.querySelectorAll<HTMLElement>(".onboarding-step");
+  const dotEls  = document.querySelectorAll<HTMLElement>(".onboarding-dot");
+
+  stepEls.forEach((el, i) => el.classList.toggle("hidden", i !== step));
+  dotEls.forEach((el, i) => el.classList.toggle("onboarding-dot--active", i === step));
+
+  const backBtn = document.getElementById("ob-back-btn");
+  const nextBtn = document.getElementById("ob-next-btn");
+  const skipBtn = document.getElementById("ob-skip-btn");
+
+  backBtn?.classList.toggle("hidden", step === 0);
+  if (skipBtn) skipBtn.classList.toggle("hidden", step === ONBOARDING_TOTAL_STEPS - 1);
+  if (nextBtn) {
+    nextBtn.textContent = step === ONBOARDING_TOTAL_STEPS - 1 ? "Get started 🚀" : "Next →";
+  }
+
+  onboardingStep = step;
+}
+
+/**
+ * Populate the onboarding model dropdown and restore saved API key for the
+ * chosen provider — mirrors `syncProviderUI` but targets the `#ob-*` elements.
+ */
+function syncOnboardingProviderUI(provider: LLMProvider): void {
+  const modelSelect = document.getElementById("ob-model-select") as HTMLSelectElement | null;
+  const keyInput    = document.getElementById("ob-api-key-input") as HTMLInputElement | null;
+  const keyLabel    = document.getElementById("ob-api-key-label");
+
+  if (modelSelect) {
+    modelSelect.innerHTML = "";
+    for (const { value, label } of PROVIDER_MODELS[provider]) {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      modelSelect.appendChild(opt);
+    }
+    const savedModel = localStorage.getItem(`copilot_model_${provider}`);
+    if (savedModel) modelSelect.value = savedModel;
+  }
+
+  const info = PROVIDER_KEY_INFO[provider];
+  if (keyLabel?.lastChild) keyLabel.lastChild.textContent = info.label;
+  if (keyInput) {
+    keyInput.placeholder = info.placeholder;
+    keyInput.value = localStorage.getItem(info.storageKey) ?? "";
+  }
+}
+
+/**
+ * Save the provider/model/key values from the onboarding form to localStorage
+ * and sync the main settings UI so the plugin is immediately ready to use.
+ */
+function applyOnboardingConfig(): void {
+  const obProvider = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
+  const obModel    = document.getElementById("ob-model-select")    as HTMLSelectElement | null;
+  const obKey      = document.getElementById("ob-api-key-input")   as HTMLInputElement  | null;
+
+  if (!obProvider) return;
+  const provider = obProvider.value as LLMProvider;
+
+  localStorage.setItem("copilot_provider", provider);
+  if (obModel) localStorage.setItem(`copilot_model_${provider}`, obModel.value);
+  if (obKey) {
+    const info = PROVIDER_KEY_INFO[provider];
+    localStorage.setItem(info.storageKey, obKey.value.trim());
+  }
+
+  // Reflect the new settings in the main settings panel
+  const mainProvider = document.getElementById("provider-select") as HTMLSelectElement | null;
+  if (mainProvider) mainProvider.value = provider;
+  syncProviderUI(provider);
+}
+
+/** Close the onboarding overlay and persist the completion flag. */
+function dismissOnboarding(): void {
+  const overlay = document.getElementById("onboarding-view");
+  overlay?.classList.add("hidden");
+  localStorage.setItem(ONBOARDING_DONE_KEY, "1");
 }

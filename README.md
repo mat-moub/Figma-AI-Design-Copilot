@@ -39,21 +39,53 @@ Supported providers:
 ## Table of contents
 
 1. [Screenshots](#screenshots)
-2. [Architecture overview](#architecture-overview)
-3. [UI layout](#ui-layout)
-4. [Two-process model](#two-process-model)
-5. [Directory structure](#directory-structure)
-6. [Core concepts](#core-concepts)
-7. [Authentication & BYOK](#authentication--byok)
-8. [Available providers and models](#available-providers-and-models)
-9. [Agents](#agents)
-10. [Skills](#skills)
-11. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
-12. [External skills library](#external-skills-library)
-13. [Data flow — single request](#data-flow--single-request)
-14. [Build & develop](#build--develop)
-15. [Testing](#testing)
-16. [Key types quick reference](#key-types-quick-reference)
+2. [Onboarding](#onboarding)
+3. [Architecture overview](#architecture-overview)
+4. [UI layout](#ui-layout)
+5. [Two-process model](#two-process-model)
+6. [Directory structure](#directory-structure)
+7. [Core concepts](#core-concepts)
+8. [Authentication & BYOK](#authentication--byok)
+9. [Available providers and models](#available-providers-and-models)
+10. [Agents](#agents)
+11. [Skills](#skills)
+12. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
+13. [External skills library](#external-skills-library)
+14. [Data flow — single request](#data-flow--single-request)
+15. [Build & develop](#build--develop)
+16. [Testing](#testing)
+17. [Key types quick reference](#key-types-quick-reference)
+
+---
+
+## Onboarding
+
+On first launch the plugin automatically shows a 3-step onboarding overlay to help new users get up and running without opening Settings manually.
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <strong>Step 1 — Welcome</strong><br/>
+      Introduction to the plugin's capabilities
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/49494053-f807-4ecf-8f24-865474cb8205" alt="Onboarding step 1 — Welcome screen" width="240"/>
+    </td>
+    <td align="center" width="33%">
+      <strong>Step 2 — Configure provider</strong><br/>
+      Pick provider, model, and enter API key
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/86dc7744-4908-4de0-8be1-fe746d7f92d0" alt="Onboarding step 2 — Configure AI provider" width="240"/>
+    </td>
+    <td align="center" width="33%">
+      <strong>Step 3 — Ready!</strong><br/>
+      Usage tips to get the most out of the plugin
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/9bb8d68d-fd90-443d-b395-3dae5c8d9f15" alt="Onboarding step 3 — Ready to start" width="240"/>
+    </td>
+  </tr>
+</table>
+
+The onboarding is shown **only once** (on first install). It is dismissed either by completing all 3 steps or by clicking **Skip setup**. Settings entered in step 2 are immediately applied to the plugin — no need to re-enter them in the Settings panel. The onboarding can be re-triggered by clearing `localStorage` in the browser dev tools (key: `copilot_onboarding_done`).
 
 ---
 
