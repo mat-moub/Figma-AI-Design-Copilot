@@ -911,7 +911,9 @@ const OB_AGENT_DEFAULT_PROMPT =
 let onboardingStep = 0;
 
 /**
- * Initialise and (if first launch) display the 4-step onboarding overlay.
+ * Initialise and (if first launch) display the onboarding overlay.
+ * The flow has 3 real steps plus a final "You're all set" screen (shown in
+ * the breadcrumb but not announced as a numbered step in text).
  * On subsequent launches the overlay stays hidden because the done-flag is
  * already stored in localStorage.
  */
@@ -972,12 +974,13 @@ function setupOnboarding(): void {
   if (nextBtn) {
     nextBtn.addEventListener("click", () => {
       if (onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
-        // Save provider config when leaving step 2
+        // Save provider config when leaving step 2 (Config)
         if (onboardingStep === 1) applyOnboardingConfig();
+        // Save custom agent when leaving step 3 (Custom Agent)
+        if (onboardingStep === 2) applyOnboardingCustomAgent();
         goToOnboardingStep(onboardingStep + 1);
       } else {
-        // Final step (optional custom agent): save agent if filled, then close
-        applyOnboardingCustomAgent();
+        // Final step (You're all set): close the overlay
         dismissOnboarding();
       }
     });
@@ -1000,16 +1003,19 @@ function goToOnboardingStep(step: number): void {
   const nextBtn = document.getElementById("ob-next-btn");
   const skipBtn = document.getElementById("ob-skip-btn");
 
-  backBtn?.classList.toggle("hidden", step === 0);
+  const isLastStep = step === ONBOARDING_TOTAL_STEPS - 1;
 
-  // Skip is visible on every step but labelled differently on the optional last step
+  // Back: hidden on step 0 and on the final "You're all set" screen
+  backBtn?.classList.toggle("hidden", step === 0 || isLastStep);
+
+  // Skip: hidden on the final "You're all set" screen; labelled differently on step 2
   if (skipBtn) {
-    skipBtn.classList.remove("hidden");
-    skipBtn.textContent = step === ONBOARDING_TOTAL_STEPS - 1 ? "Skip for now" : "Skip setup";
+    skipBtn.classList.toggle("hidden", isLastStep);
+    skipBtn.textContent = step === 2 ? "Skip for now" : "Skip setup";
   }
 
   if (nextBtn) {
-    nextBtn.textContent = step === ONBOARDING_TOTAL_STEPS - 1 ? "Get started 🚀" : "Next →";
+    nextBtn.textContent = isLastStep ? "Get started 🚀" : "Next →";
   }
 
   onboardingStep = step;
@@ -1077,7 +1083,7 @@ function dismissOnboarding(): void {
 }
 
 /**
- * Read the optional custom-agent fields from step 4 and, if the user has
+ * Read the optional custom-agent fields from step 3 and, if the user has
  * edited the default system prompt, register and persist the new agent so
  * it is immediately available in the Agent dropdown.
  *

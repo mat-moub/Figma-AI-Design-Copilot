@@ -1245,10 +1245,10 @@
       </div>
       <!-- Step progress dots -->
       <div class="onboarding-progress" aria-label="Setup progress">
-        <span class="onboarding-dot onboarding-dot--active" title="Step 1 of 4"></span>
-        <span class="onboarding-dot" title="Step 2 of 4"></span>
-        <span class="onboarding-dot" title="Step 3 of 4"></span>
-        <span class="onboarding-dot" title="Step 4 of 4"></span>
+        <span class="onboarding-dot onboarding-dot--active" title="Step 1 of 3"></span>
+        <span class="onboarding-dot" title="Step 2 of 3"></span>
+        <span class="onboarding-dot" title="Step 3 of 3"></span>
+        <span class="onboarding-dot" title="Done!"></span>
       </div>
     </div>
 
@@ -1261,7 +1261,7 @@
         <h2 class="onboarding-title">Welcome to AI Design Copilot</h2>
         <p class="onboarding-desc">
           Generate Figma screens from natural language prompts using AI.
-          Let's get you set up in 4 quick steps.
+          Let's get you set up in 3 quick steps.
         </p>
         <ul class="onboarding-features" aria-label="Key features">
           <li>🎨 Describe a screen and watch it appear in Figma</li>
@@ -1321,24 +1321,8 @@
         </p>
       </div>
 
-      <!-- ── Step 3: Ready ── -->
+      <!-- ── Step 3: Custom Agent (optional) ── -->
       <div class="onboarding-step hidden" id="onboarding-step-2">
-        <div class="onboarding-icon" aria-hidden="true">🚀</div>
-        <h2 class="onboarding-title">You're all set!</h2>
-        <p class="onboarding-desc">
-          Start generating screens by typing a prompt below.
-          Here are some tips to get the most out of the plugin.
-        </p>
-        <ul class="onboarding-tips" aria-label="Usage tips">
-          <li>💬 <strong>Prompt</strong> — Describe any screen: "Create a mobile login screen"</li>
-          <li>🔀 <strong>Variants</strong> — Set a number to generate multiple versions at once</li>
-          <li>🔄 <strong>Context</strong> — Click "Context" so AI reads your Figma document</li>
-          <li>⚙️ <strong>Settings</strong> — Change provider or model at any time</li>
-        </ul>
-      </div>
-
-      <!-- ── Step 4: Custom Agent (optional) ── -->
-      <div class="onboarding-step hidden" id="onboarding-step-3">
         <h2 class="onboarding-title">
           Create your first custom agent
           <span class="onboarding-badge" aria-label="Optional step">Optional</span>
@@ -1372,6 +1356,22 @@
           💡 Your agent will appear in the Agent dropdown and can be customised later in Settings.
           Click <strong>Skip for now</strong> to start without a custom agent.
         </p>
+      </div>
+
+      <!-- ── Step 4: Ready ── -->
+      <div class="onboarding-step hidden" id="onboarding-step-3">
+        <div class="onboarding-icon" aria-hidden="true">🚀</div>
+        <h2 class="onboarding-title">You're all set!</h2>
+        <p class="onboarding-desc">
+          Start generating screens by typing a prompt below.
+          Here are some tips to get the most out of the plugin.
+        </p>
+        <ul class="onboarding-tips" aria-label="Usage tips">
+          <li>💬 <strong>Prompt</strong> — Describe any screen: "Create a mobile login screen"</li>
+          <li>🔀 <strong>Variants</strong> — Set a number to generate multiple versions at once</li>
+          <li>🔄 <strong>Context</strong> — Click "Context" so AI reads your Figma document</li>
+          <li>⚙️ <strong>Settings</strong> — Change provider or model at any time</li>
+        </ul>
       </div>
 
     </div><!-- end onboarding-body -->
