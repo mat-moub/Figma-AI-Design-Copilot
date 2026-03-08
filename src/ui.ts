@@ -30,10 +30,16 @@ import type {
   UIScreen,
 } from "./types/ui-types";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+/** After this many milliseconds without a context refresh, warn the designer. */
+const CONTEXT_STALE_MS = 10 * 60 * 1000; // 10 minutes
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 let documentContext: DocumentContext | null = null;
 let chatHistory: ChatMessage[] = [];
+let contextFetchedAt: number | null = null;
 
 /**
  * Extra skills loaded at runtime from the GitHub library.
@@ -224,6 +230,12 @@ async function handleGenerate(): Promise<void> {
     pages: [],
   };
 
+  // Warn the designer if the Figma context snapshot is older than CONTEXT_STALE_MS.
+  // The context is still used as-is — the user can click "Context" to refresh.
+  if (documentContext && contextFetchedAt !== null && Date.now() - contextFetchedAt > CONTEXT_STALE_MS) {
+    showToast("⚠️ Figma context may be stale — click 'Context' to refresh.", "warning");
+  }
+
   const variants = getVariantCount();
   const selectedAgent = getSelectedAgent();
 
@@ -233,11 +245,16 @@ async function handleGenerate(): Promise<void> {
 
   const enrichedPrompt = aiService.formatUserPrompt(prompt, variants, context);
 
-  // Add to history for multi-turn conversations
-  chatHistory.push({ role: "user", content: enrichedPrompt });
+  // NOTE: the current user message is intentionally NOT pushed to chatHistory
+  // here. chatHistory holds only the *previous* turns so that generateScreens
+  // can append the current userMessage without duplication. Both the raw user
+  // message and the assistant reply are pushed to chatHistory after the agent
+  // returns successfully (or on error, so the model retains context).
 
   try {
     let screens: UIScreen[];
+
+    const skillsUsed = getAgentActiveSkills(selectedAgent, variants);
 
     if (selectedAgent === "design-system") {
       screens = await dsAgent.generate(enrichedPrompt, context, modelConfig, chatHistory);
@@ -254,9 +271,11 @@ async function handleGenerate(): Promise<void> {
     }
 
     const summary = formatScreensSummary(screens);
-    appendAssistantMessage(`Generating ${pluralize(screens.length, "screen")}…\n\n${summary}`);
+    appendAssistantMessage(`Generating ${pluralize(screens.length, "screen")}…\n\n${summary}`, skillsUsed);
 
-    // Add AI response to history
+    // Push both sides of the turn to history using the raw (un-enriched) prompt
+    // so successive turns remain concise and the system prompt handles context.
+    chatHistory.push({ role: "user", content: prompt });
     chatHistory.push({ role: "assistant", content: summary });
 
     // Send screens to the plugin controller for Figma rendering
@@ -268,6 +287,8 @@ async function handleGenerate(): Promise<void> {
     setGenerating(false);
     const message = err instanceof Error ? err.message : String(err);
     appendAssistantMessage(`❌ ${message}`);
+    // Record the failed turn so the model retains conversation context
+    chatHistory.push({ role: "user", content: prompt });
     chatHistory.push({ role: "assistant", content: `Error: ${message}` });
     showToast(message, "error");
   }
@@ -281,6 +302,7 @@ function requestDocumentContext(): void {
 }
 
 function showContextBadge(context: DocumentContext): void {
+  contextFetchedAt = Date.now();
   const badge = document.getElementById("ctx-badge");
   if (!badge) return;
   const total =
@@ -288,12 +310,14 @@ function showContextBadge(context: DocumentContext): void {
     context.designSystem.colors.length +
     context.screens.length;
   badge.textContent = `${total} items`;
+  const refreshedAt = new Date(contextFetchedAt).toLocaleTimeString();
   badge.title = [
+    `Refreshed: ${refreshedAt}`,
     `Components: ${context.designSystem.components.join(", ") || "none"}`,
     `Colors: ${context.designSystem.colors.join(", ") || "none"}`,
     `Screens: ${context.screens.join(", ") || "none"}`,
   ].join("\n");
-  badge.classList.remove("hidden");
+  badge.classList.remove("hidden", "ctx-badge--stale");
 }
 
 // ── Config helpers ────────────────────────────────────────────────────────────
@@ -440,11 +464,11 @@ function appendUserMessage(content: string): void {
   appendChatMessage("user", content);
 }
 
-function appendAssistantMessage(content: string): void {
-  appendChatMessage("assistant", content);
+function appendAssistantMessage(content: string, skillsUsed?: string[]): void {
+  appendChatMessage("assistant", content, skillsUsed);
 }
 
-function appendChatMessage(role: "user" | "assistant", content: string): void {
+function appendChatMessage(role: "user" | "assistant", content: string, skillsUsed?: string[]): void {
   const container = getEl<HTMLDivElement>("chat-history");
   const bubble = document.createElement("div");
   bubble.className = `chat-bubble chat-bubble--${role}`;
@@ -459,6 +483,20 @@ function appendChatMessage(role: "user" | "assistant", content: string): void {
 
   bubble.appendChild(label);
   bubble.appendChild(text);
+
+  if (skillsUsed && skillsUsed.length > 0) {
+    const skillsRow = document.createElement("div");
+    skillsRow.className = "chat-skills";
+    skillsRow.setAttribute("aria-label", "Skills used");
+    for (const skill of skillsUsed) {
+      const tag = document.createElement("span");
+      tag.className = "chat-skill-tag";
+      tag.textContent = skill;
+      skillsRow.appendChild(tag);
+    }
+    bubble.appendChild(skillsRow);
+  }
+
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
 }
@@ -554,6 +592,39 @@ function formatScreensSummary(screens: UIScreen[]): string {
         `• **${s.name}** — ${pluralize(s.elements.length, "element")} (${s.layout} layout)`
     )
     .join("\n");
+}
+
+// ── Active skills resolver ────────────────────────────────────────────────────
+
+/**
+ * Returns the human-readable names of the skills that will be invoked for the
+ * given agent and variant count.  Used to annotate assistant chat bubbles with
+ * the skills that were active during a generation request, giving the designer
+ * full transparency into what the agent did.
+ */
+function getAgentActiveSkills(selectedAgent: AgentType | string, variants: number): string[] {
+  const SKILL_LABELS: Record<string, string> = {
+    "generate-screen":     "Generate Screen",
+    "generate-variants":   "Generate Variants",
+    "apply-design-system": "Apply Design System",
+  };
+
+  if (selectedAgent === "ux-designer") {
+    const base = variants > 1 ? ["generate-variants"] : ["generate-screen"];
+    return [...base, "apply-design-system"].map((s) => SKILL_LABELS[s]);
+  }
+
+  if (selectedAgent === "design-system") {
+    return ["generate-screen", "apply-design-system"].map((s) => SKILL_LABELS[s]);
+  }
+
+  // Custom agent — derive from its skill list stored in the registry
+  const customConfig = registry.getAgent(selectedAgent);
+  if (customConfig) {
+    return customConfig.skills.map((s) => SKILL_LABELS[s] ?? s);
+  }
+
+  return [];
 }
 
 // ── Custom agents: agent dropdown ─────────────────────────────────────────────

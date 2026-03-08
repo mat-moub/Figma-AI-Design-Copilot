@@ -13,17 +13,23 @@ Supported providers:
 
 <table>
   <tr>
-    <td align="center" width="50%">
+    <td align="center" width="33%">
       <strong>Main view</strong><br/>
       Connection badge + model always visible, agent selector, chat interface
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/62870713-2a1a-4e2a-9d7d-b64a7b1191cb" alt="Main view — connection badge, agent selector, chat" width="280"/>
+      <img src="screenshots/main-view.png" alt="Main view — connection badge, agent selector, chat" width="240"/>
     </td>
-    <td align="center" width="50%">
+    <td align="center" width="33%">
       <strong>Settings (full-screen overlay)</strong><br/>
       Model config, API key, custom agents drag-and-drop, skills library
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/3e6ef072-6098-492b-88ed-af53c5dcc24d" alt="Settings overlay — model, API key, custom agents, skills library" width="280"/>
+      <img src="screenshots/settings-view.png" alt="Settings overlay — model, API key, custom agents, skills library" width="240"/>
+    </td>
+    <td align="center" width="33%">
+      <strong>Skill chips in chat</strong><br/>
+      Every AI response shows the skills that were invoked (e.g. Generate Variants, Apply Design System)
+      <br/><br/>
+      <img src="screenshots/chat-skill-chips.png" alt="Chat showing skill chip tags on each assistant message" width="240"/>
     </td>
   </tr>
 </table>
