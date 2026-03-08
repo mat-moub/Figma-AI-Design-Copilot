@@ -14,24 +14,16 @@ Supported providers:
 <table>
   <tr>
     <td align="center" width="50%">
-      <strong>Configuration ouverte</strong><br/>
-      Icônes SVG inline, sélecteurs provider / model / agent / clé API
+      <strong>Main view</strong><br/>
+      Connection badge + model always visible, agent selector, chat interface
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/314fa2d8-cffd-43cd-b2e5-747fd7bbd466" alt="Configuration ouverte avec icônes" width="280"/>
+      <img src="https://github.com/user-attachments/assets/62870713-2a1a-4e2a-9d7d-b64a7b1191cb" alt="Main view — connection badge, agent selector, chat" width="280"/>
     </td>
     <td align="center" width="50%">
-      <strong>Badge · Pas de clé (🟠)</strong><br/>
-      Configuration repliée — badge orange indique qu'aucune clé API n'est configurée
+      <strong>Settings (full-screen overlay)</strong><br/>
+      Model config, API key, custom agents drag-and-drop, skills library
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/26d21897-64a0-47f9-a55d-9085b7249054" alt="Badge connexion orange — pas de clé" width="280"/>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <strong>Badge · Connecté (🟢)</strong><br/>
-      Configuration repliée — badge vert confirme que la clé API est configurée et le provider actif
-      <br/><br/>
-      <img src="https://github.com/user-attachments/assets/c57be4b3-79be-47a5-8d0b-6cc399f7320f" alt="Badge connexion vert — clé configurée" width="280"/>
+      <img src="https://github.com/user-attachments/assets/3e6ef072-6098-492b-88ed-af53c5dcc24d" alt="Settings overlay — model, API key, custom agents, skills library" width="280"/>
     </td>
   </tr>
 </table>
@@ -42,19 +34,48 @@ Supported providers:
 
 1. [Screenshots](#screenshots)
 2. [Architecture overview](#architecture-overview)
-3. [Two-process model](#two-process-model)
-4. [Directory structure](#directory-structure)
-5. [Core concepts](#core-concepts)
-6. [Authentication & BYOK](#authentication--byok)
-7. [Available providers and models](#available-providers-and-models)
-8. [Agents](#agents)
-9. [Skills](#skills)
-10. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
-11. [External skills library](#external-skills-library)
-12. [Data flow — single request](#data-flow--single-request)
-13. [Build & develop](#build--develop)
-14. [Testing](#testing)
-15. [Key types quick reference](#key-types-quick-reference)
+3. [UI layout](#ui-layout)
+4. [Two-process model](#two-process-model)
+5. [Directory structure](#directory-structure)
+6. [Core concepts](#core-concepts)
+7. [Authentication & BYOK](#authentication--byok)
+8. [Available providers and models](#available-providers-and-models)
+9. [Agents](#agents)
+10. [Skills](#skills)
+11. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
+12. [External skills library](#external-skills-library)
+13. [Data flow — single request](#data-flow--single-request)
+14. [Build & develop](#build--develop)
+15. [Testing](#testing)
+16. [Key types quick reference](#key-types-quick-reference)
+
+---
+
+## UI layout
+
+The plugin UI is split into two distinct views:
+
+### Main view (default)
+
+| Area | Content |
+|------|---------|
+| **Header** | Brand logo, Context refresh button, Clear chat button, **Settings** button |
+| **Info bar** | Connection dot (🟠 no key / 🟢 ready) + current provider · model label |
+| **Agent bar** | Agent selector dropdown (includes custom agents loaded from Settings) + loaded agents/skills count |
+| **Chat** | Scrollable conversation history |
+| **Input** | Variants counter, prompt textarea, Generate button |
+
+### Settings view (full-screen overlay)
+
+Clicking the **Settings** button opens a full-screen overlay that completely covers the main view — preventing any accidental interaction with the chat while configuring the plugin.
+
+| Section | Content |
+|---------|---------|
+| **Model Configuration** | Provider selector, Model selector, API key input with show/hide toggle |
+| **Custom Agents & Skills** | Drag-and-drop zone for `copilot.json` files + loaded config summary |
+| **Skills Library** | 28 bundled UX/design skills tags + Update (remote fetch) / Clear buttons |
+
+The Settings overlay is closed with the **Close** button in its header. Any changes to provider/model/API key are reflected immediately in the info bar on the main page.
 
 ---
 
@@ -193,7 +214,7 @@ Uses a **GitHub Personal Access Token (classic)** with the `copilot` scope.
 1. Go to **github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)**.
 2. Click **Generate new token (classic)**.
 3. Select the **`copilot`** scope (under *GitHub Copilot*).
-4. Copy the token (`ghp_…`) and paste it into the **GH Token** field in the plugin panel.
+4. Copy the token (`ghp_…`) and paste it into the **GH Token** field in the plugin **Settings**.
 
 > **Requirement:** A GitHub account with an active [GitHub Copilot subscription](https://github.com/features/copilot#pricing).
 
