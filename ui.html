@@ -45,6 +45,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
 
     /* ── SVG Icons ────────────────────────────────────────────── */
@@ -148,16 +149,20 @@
       color: #ffffff;
     }
 
-    /* ── Settings Panel (collapsible) ─────────────────────────── */
-    .settings-wrapper {
+    /* ── Info Bar (connection + model, always visible on main) ── */
+    .info-bar {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       flex-shrink: 0;
+      gap: 8px;
       box-shadow: var(--shadow-aura);
       position: relative;
     }
-
-    .settings-wrapper::after {
+    .info-bar::after {
       content: '';
       position: absolute;
       left: 0; right: 0; bottom: -1px;
@@ -171,52 +176,13 @@
       pointer-events: none;
     }
 
-    /* Toggle row: full-width button */
-    .settings-toggle {
-      width: 100%;
-      background: none;
-      border: none;
-      padding: 9px 14px;
+    .info-bar__model {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      font-family: var(--font);
-      color: var(--text);
-      transition: background 0.12s;
-      gap: 8px;
-    }
-    .settings-toggle:hover { background: var(--bg); }
-
-    .settings-toggle__left {
-      display: flex;
-      align-items: center;
-      gap: 7px;
+      gap: 6px;
       font-size: 11px;
       font-weight: 600;
-      color: var(--primary);
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      min-width: 0;
-      flex: 1;
-    }
-
-    /* Connection status badge (visible when panel is collapsed) */
-    .connection-badge {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      background: rgba(30, 48, 112, 0.07);
-      border: 1px solid rgba(30, 48, 112, 0.15);
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 10px;
-      font-weight: 600;
       color: var(--text-muted);
-      letter-spacing: 0;
-      text-transform: none;
-      white-space: nowrap;
-      flex-shrink: 0;
     }
 
     .connection-dot {
@@ -228,37 +194,125 @@
     }
     .connection-dot--ready { background: var(--status-ready); }
 
-    .chevron-icon {
-      font-size: 11px;
-      color: var(--text-muted);
-      transition: transform 0.2s;
+    /* ── Agent Bar (agent select + skills info on main page) ──── */
+    .agent-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       flex-shrink: 0;
     }
-    .chevron-icon.open { transform: rotate(180deg); }
 
-    /* Settings form panel */
-    .settings {
-      padding: 10px 14px 12px;
+    .agent-bar select {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .agents-skills-info {
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-style: italic;
+    }
+
+    /* ── Settings Overlay ─────────────────────────────────────── */
+    .settings-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      z-index: 50;
       display: flex;
       flex-direction: column;
-      gap: 8px;
       overflow: hidden;
-      transition: max-height 0.25s ease, opacity 0.2s, padding 0.2s;
-      max-height: 300px;
-      opacity: 1;
     }
-    .settings.collapsed {
-      max-height: 0;
-      opacity: 0;
-      padding-top: 0;
-      padding-bottom: 0;
+    .settings-overlay.hidden { display: none !important; }
+
+    .settings-overlay__header {
+      background: var(--primary);
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(30, 48, 112, 0.30);
     }
 
+    .settings-overlay__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.2px;
+    }
+
+    .settings-overlay__body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .settings-overlay__body::-webkit-scrollbar { width: 4px; }
+    .settings-overlay__body::-webkit-scrollbar-track { background: transparent; }
+    .settings-overlay__body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Settings Sections ────────────────────────────────────── */
+    .settings-section {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+      position: relative;
+    }
+    .settings-section::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -1px;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(30, 48, 112, 0.20) 30%,
+        rgba(30, 48, 112, 0.35) 50%,
+        rgba(30, 48, 112, 0.20) 70%,
+        transparent 100%);
+      pointer-events: none;
+    }
+
+    .settings-section__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .settings-section__title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .settings-section__actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── Settings Rows ────────────────────────────────────────── */
     .settings__row {
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-bottom: 8px;
     }
+    .settings__row:last-child { margin-bottom: 0; }
 
     .settings__label {
       color: var(--text-muted);
@@ -297,82 +351,6 @@
       min-width: 0;
     }
     .api-key-row input { flex: 1; min-width: 0; }
-
-    /* ── Collapsible Sections ─────────────────────────────────── */
-    .collapsible-section {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      position: relative;
-    }
-    .collapsible-section::after {
-      content: '';
-      position: absolute;
-      left: 0; right: 0; bottom: -1px;
-      height: 1px;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(30, 48, 112, 0.20) 30%,
-        rgba(30, 48, 112, 0.35) 50%,
-        rgba(30, 48, 112, 0.20) 70%,
-        transparent 100%);
-      pointer-events: none;
-    }
-
-    /* Header row: toggle button + action buttons side-by-side */
-    .collapsible-section__header {
-      display: flex;
-      align-items: center;
-    }
-
-    .collapsible-section__toggle {
-      flex: 1;
-      min-width: 0;
-      background: none;
-      border: none;
-      padding: 7px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-      cursor: pointer;
-      font-family: var(--font);
-      color: var(--text);
-      transition: background 0.12s;
-    }
-    .collapsible-section__toggle:hover { background: var(--bg); }
-
-    .section-title {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-    }
-
-    .section-actions {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding-right: 10px;
-      flex-shrink: 0;
-    }
-
-    .collapsible-section__body {
-      overflow: hidden;
-      transition: max-height 0.25s ease, opacity 0.2s;
-      max-height: 300px;
-      opacity: 1;
-    }
-    .collapsible-section__body.collapsed {
-      max-height: 0;
-      opacity: 0;
-    }
-
-    .collapsible-section__body-inner { padding: 0 14px 10px; }
 
     /* ── Chat History ─────────────────────────────────────────── */
     .chat-section {
@@ -695,6 +673,18 @@
       border-color: rgba(46, 125, 50, 0.15);
     }
 
+    /* ── Section Title (shared) ───────────────────────────────── */
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
   </style>
@@ -788,13 +778,14 @@
   <symbol id="icon-bolt" viewBox="0 0 24 24">
     <path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/>
   </symbol>
-  <!-- wifi (connection) - filled for status dot alternative -->
-  <symbol id="icon-signal" viewBox="0 0 24 24">
-    <path d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 17.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z"/>
+  <!-- cog (settings) -->
+  <symbol id="icon-cog" viewBox="0 0 24 24">
+    <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
+    <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
   </symbol>
 </svg>
 
-  <!-- Header -->
+  <!-- ── Header ──────────────────────────────────────────────── -->
   <header class="header">
     <div class="header__brand">
       <div class="header__icon">
@@ -814,167 +805,35 @@
       <button class="btn--header" id="clear-btn" type="button" title="Clear chat history" aria-label="Clear chat history">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg>
       </button>
+      <button class="btn--header" id="settings-btn" type="button" title="Open settings" aria-label="Open settings">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-cog"/></svg>
+        Settings
+      </button>
     </div>
   </header>
 
-  <!-- Settings (collapsible) -->
-  <div class="settings-wrapper">
-    <button class="settings-toggle" id="settings-toggle" type="button" aria-expanded="true" aria-controls="settings-panel">
-      <span class="settings-toggle__left">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sliders"/></svg>
-        Configuration
-        <!-- Connection status badge — shown only when panel is collapsed -->
-        <span class="connection-badge hidden" id="connection-badge" title="LLM connection status">
-          <span class="connection-dot" id="connection-dot"></span>
-          <span id="connection-text">—</span>
-        </span>
-      </span>
-      <svg class="icon chevron-icon open icon-sm" id="settings-chevron" aria-hidden="true">
-        <use href="#icon-chevron-up"/>
-      </svg>
-    </button>
-    <div class="settings" id="settings-panel">
-      <!-- Provider -->
-      <div class="settings__row">
-        <label class="settings__label" for="provider-select">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
-          Provider
-        </label>
-        <select id="provider-select" aria-label="LLM Provider">
-          <option value="github-copilot">GitHub Copilot</option>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-        </select>
-      </div>
-
-      <!-- Model -->
-      <div class="settings__row">
-        <label class="settings__label" for="model-select">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
-          Model
-        </label>
-        <select id="model-select" aria-label="Model">
-          <option value="gpt-5.2">GPT-5.2</option>
-          <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
-          <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-          <option value="gemini-3-flash">Gemini 3 Flash</option>
-          <option value="gemini-3-pro">Gemini 3 Pro</option>
-        </select>
-      </div>
-
-      <!-- Agent -->
-      <div class="settings__row">
-        <label class="settings__label" for="agent-select">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-agent"/></svg>
-          Agent
-        </label>
-        <select id="agent-select" aria-label="Agent">
-          <option value="ux-designer">UX Designer</option>
-          <option value="design-system">Design System</option>
-        </select>
-      </div>
-
-      <!-- API Key -->
-      <div class="settings__row">
-        <span class="settings__label" id="api-key-label">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
-          <span id="api-key-label-text">GH Token</span>
-        </span>
-        <div class="api-key-row">
-          <input
-            type="password"
-            id="api-key-input"
-            placeholder="ghp_… (copilot scope)"
-            autocomplete="off"
-            aria-label="API Key"
-          />
-          <button class="btn btn--icon" id="api-key-toggle" type="button" title="Show/hide key" aria-label="Toggle key visibility">
-            <svg class="icon icon-sm" id="api-key-icon-eye" aria-hidden="true"><use href="#icon-eye"/></svg>
-            <svg class="icon icon-sm hidden" id="api-key-icon-eye-slash" aria-hidden="true"><use href="#icon-eye-slash"/></svg>
-          </button>
-        </div>
-      </div>
+  <!-- ── Info Bar: connection status + model (always visible) ── -->
+  <div class="info-bar" id="info-bar">
+    <div class="info-bar__model">
+      <span class="connection-dot" id="connection-dot" title="Connection status"></span>
+      <span id="connection-text">Not configured — open Settings</span>
     </div>
   </div>
 
-  <!-- Custom Agents & Skills (collapsible) -->
-  <div class="collapsible-section" aria-label="Custom agents and skills">
-    <div class="collapsible-section__header">
-      <button class="collapsible-section__toggle" id="custom-section-toggle" type="button"
-              aria-expanded="false" aria-controls="custom-section-body">
-        <span class="section-title">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-puzzle"/></svg>
-          Custom Agents &amp; Skills
-        </span>
-        <svg class="icon chevron-icon icon-sm" id="custom-section-chevron" aria-hidden="true">
-          <use href="#icon-chevron-down"/>
-        </svg>
-      </button>
-      <div class="section-actions">
-        <button class="btn btn--ghost" id="clear-custom-btn" type="button" title="Remove all custom agents and skills">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
-          Clear
-        </button>
-      </div>
-    </div>
-    <div class="collapsible-section__body collapsed" id="custom-section-body">
-      <div class="collapsible-section__body-inner">
-        <div id="drop-zone" class="drop-zone" role="button"
-             aria-label="Drop copilot.json here or click to browse"
-             title="Drop a copilot.json config file to load custom agents and skills">
-          <p class="drop-zone__label">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
-            Drop <strong>copilot.json</strong> or <strong>click to browse</strong>
-          </p>
-          <input type="file" id="config-file-input" accept=".json,application/json"
-                 aria-label="Select copilot config file" tabindex="-1"/>
-        </div>
-        <p id="custom-config-summary">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
-          No custom config loaded.
-        </p>
-      </div>
-    </div>
+  <!-- ── Agent Bar: agent selector + loaded agents/skills info ─ -->
+  <div class="agent-bar" id="agent-bar">
+    <label class="settings__label" for="agent-select">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-agent"/></svg>
+      Agent
+    </label>
+    <select id="agent-select" aria-label="Agent">
+      <option value="ux-designer">UX Designer</option>
+      <option value="design-system">Design System</option>
+    </select>
+    <span class="agents-skills-info" id="agents-skills-info"></span>
   </div>
 
-  <!-- Skills Library (collapsible) -->
-  <div class="collapsible-section" aria-label="Skills library">
-    <div class="collapsible-section__header">
-      <button class="collapsible-section__toggle" id="skills-section-toggle" type="button"
-              aria-expanded="false" aria-controls="skills-section-body">
-        <span class="section-title">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-layers"/></svg>
-          Skills Library
-        </span>
-        <svg class="icon chevron-icon icon-sm" id="skills-section-chevron" aria-hidden="true">
-          <use href="#icon-chevron-down"/>
-        </svg>
-      </button>
-      <div class="section-actions">
-        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button"
-                title="Remove extra runtime-loaded skills (bundled skills remain active)">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
-          Clear
-        </button>
-        <button class="btn btn--ghost" id="load-skills-library-btn" type="button"
-                title="Update skills from github.com/flpbalada/my-opencode-config">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
-          Update
-        </button>
-      </div>
-    </div>
-    <div class="collapsible-section__body collapsed" id="skills-section-body">
-      <div class="collapsible-section__body-inner">
-        <p id="skills-library-summary">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-check"/></svg>
-          Skills library active in all agents.
-        </p>
-        <div id="skills-library-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Chat History -->
+  <!-- ── Chat History ────────────────────────────────────────── -->
   <div class="chat-section">
     <div class="chat-section__label">
       <span class="section-title">
@@ -991,7 +850,7 @@
     </div>
   </div>
 
-  <!-- Input Area -->
+  <!-- ── Input Area ─────────────────────────────────────────── -->
   <section class="input-section">
     <div class="variants-row">
       <label class="settings__label" for="variants-input">
@@ -1014,62 +873,179 @@
     <p class="hint">Ctrl+Enter / ⌘+Enter to send</p>
   </section>
 
+  <!-- ── Settings Overlay (full-screen, hidden by default) ─────── -->
+  <div id="settings-view" class="settings-overlay hidden" role="dialog" aria-label="Settings" aria-modal="true">
+
+    <!-- Settings header -->
+    <div class="settings-overlay__header">
+      <div class="settings-overlay__title">
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-cog"/></svg>
+        Settings
+      </div>
+      <button class="btn--header" id="settings-close-btn" type="button" aria-label="Close settings">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
+        Close
+      </button>
+    </div>
+
+    <!-- Scrollable settings body -->
+    <div class="settings-overlay__body">
+
+      <!-- ── Section: Model Configuration ── -->
+      <div class="settings-section">
+        <div class="settings-section__header">
+          <div class="settings-section__title">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
+            Model Configuration
+          </div>
+        </div>
+
+        <!-- Provider -->
+        <div class="settings__row">
+          <label class="settings__label" for="provider-select">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
+            Provider
+          </label>
+          <select id="provider-select" aria-label="LLM Provider" style="flex:1">
+            <option value="github-copilot">GitHub Copilot</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+        </div>
+
+        <!-- Model -->
+        <div class="settings__row">
+          <label class="settings__label" for="model-select">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
+            Model
+          </label>
+          <select id="model-select" aria-label="Model" style="flex:1">
+            <option value="gpt-5.2">GPT-5.2</option>
+            <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+            <option value="gemini-3-flash">Gemini 3 Flash</option>
+            <option value="gemini-3-pro">Gemini 3 Pro</option>
+          </select>
+        </div>
+
+        <!-- API Key -->
+        <div class="settings__row">
+          <span class="settings__label" id="api-key-label">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
+            <span id="api-key-label-text">GH Token</span>
+          </span>
+          <div class="api-key-row">
+            <input
+              type="password"
+              id="api-key-input"
+              placeholder="ghp_… (copilot scope)"
+              autocomplete="off"
+              aria-label="API Key"
+            />
+            <button class="btn btn--icon" id="api-key-toggle" type="button" title="Show/hide key" aria-label="Toggle key visibility">
+              <svg class="icon icon-sm" id="api-key-icon-eye" aria-hidden="true"><use href="#icon-eye"/></svg>
+              <svg class="icon icon-sm hidden" id="api-key-icon-eye-slash" aria-hidden="true"><use href="#icon-eye-slash"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section: Custom Agents & Skills ── -->
+      <div class="settings-section">
+        <div class="settings-section__header">
+          <div class="settings-section__title">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-puzzle"/></svg>
+            Custom Agents &amp; Skills
+          </div>
+          <div class="settings-section__actions">
+            <button class="btn btn--ghost" id="clear-custom-btn" type="button"
+                    title="Remove all custom agents and skills">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
+              Clear
+            </button>
+          </div>
+        </div>
+        <div id="drop-zone" class="drop-zone" role="button"
+             aria-label="Drop copilot.json here or click to browse"
+             title="Drop a copilot.json config file to load custom agents and skills">
+          <p class="drop-zone__label">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
+            Drop <strong>copilot.json</strong> or <strong>click to browse</strong>
+          </p>
+          <input type="file" id="config-file-input" accept=".json,application/json"
+                 aria-label="Select copilot config file" tabindex="-1"/>
+        </div>
+        <p id="custom-config-summary">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
+          No custom config loaded.
+        </p>
+      </div>
+
+      <!-- ── Section: Skills Library ── -->
+      <div class="settings-section">
+        <div class="settings-section__header">
+          <div class="settings-section__title">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-layers"/></svg>
+            Skills Library
+          </div>
+          <div class="settings-section__actions">
+            <button class="btn btn--ghost" id="clear-skills-library-btn" type="button"
+                    title="Remove extra runtime-loaded skills (bundled skills remain active)">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
+              Clear
+            </button>
+            <button class="btn btn--ghost" id="load-skills-library-btn" type="button"
+                    title="Update skills from github.com/flpbalada/my-opencode-config">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+              Update
+            </button>
+          </div>
+        </div>
+        <p id="skills-library-summary">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-check"/></svg>
+          Skills library active in all agents.
+        </p>
+        <div id="skills-library-list"></div>
+      </div>
+
+    </div><!-- end settings-overlay__body -->
+  </div><!-- end settings-view -->
+
   <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <!-- Page-level interaction logic (runs before dist/ui.js) -->
   <script>
     (function () {
-      /* ── Collapsible: Settings ──────────────────────────────── */
-      var settingsToggle  = document.getElementById('settings-toggle');
-      var settingsPanel   = document.getElementById('settings-panel');
-      var settingsChevron = document.getElementById('settings-chevron');
-      var connBadge       = document.getElementById('connection-badge');
+      /**
+       * Settings overlay open/close.
+       * Toggling the overlay hides the entire main view so the user cannot
+       * interact with the chat or generate button while configuring the plugin.
+       */
+      var settingsBtn      = document.getElementById('settings-btn');
+      var settingsView     = document.getElementById('settings-view');
+      var settingsCloseBtn = document.getElementById('settings-close-btn');
 
-      if (settingsToggle && settingsPanel) {
-        settingsToggle.addEventListener('click', function () {
-          var isOpen = !settingsPanel.classList.contains('collapsed');
-          settingsPanel.classList.toggle('collapsed', isOpen);
-          if (settingsChevron) settingsChevron.classList.toggle('open', !isOpen);
-          settingsToggle.setAttribute('aria-expanded', String(!isOpen));
-          // Show badge only when panel is collapsed
-          if (connBadge) connBadge.classList.toggle('hidden', !isOpen);
+      if (settingsBtn && settingsView) {
+        settingsBtn.addEventListener('click', function () {
+          settingsView.classList.remove('hidden');
+          settingsBtn.setAttribute('aria-expanded', 'true');
+        });
+      }
+      if (settingsCloseBtn && settingsView) {
+        settingsCloseBtn.addEventListener('click', function () {
+          settingsView.classList.add('hidden');
+          if (settingsBtn) settingsBtn.setAttribute('aria-expanded', 'false');
         });
       }
 
-      /* ── Collapsible: generic helper ────────────────────────── */
-      function setupCollapsible(toggleId, bodyId, chevronId) {
-        var toggle  = document.getElementById(toggleId);
-        var body    = document.getElementById(bodyId);
-        var chevron = document.getElementById(chevronId);
-        if (!toggle || !body) return;
-        toggle.addEventListener('click', function () {
-          var isOpen = !body.classList.contains('collapsed');
-          body.classList.toggle('collapsed', isOpen);
-          if (chevron) chevron.classList.toggle('open', !isOpen);
-          toggle.setAttribute('aria-expanded', String(!isOpen));
-        });
-      }
-      setupCollapsible('custom-section-toggle', 'custom-section-body', 'custom-section-chevron');
-      setupCollapsible('skills-section-toggle',  'skills-section-body',  'skills-section-chevron');
-
-      /* ── API key eye toggle ──────────────────────────────────── */
-      var apiToggle     = document.getElementById('api-key-toggle');
-      var apiInput      = document.getElementById('api-key-input');
-      var apiIconEye    = document.getElementById('api-key-icon-eye');
-      var apiIconSlash  = document.getElementById('api-key-icon-eye-slash');
-      if (apiToggle && apiInput) {
-        apiToggle.addEventListener('click', function () {
-          var isPassword = apiInput.type === 'password';
-          apiInput.type = isPassword ? 'text' : 'password';
-          if (apiIconEye)   apiIconEye.classList.toggle('hidden', !isPassword);
-          if (apiIconSlash) apiIconSlash.classList.toggle('hidden', isPassword);
-        });
-      }
-
-      /* ── Generate icon: hide when spinner active ─────────────── */
-      var genIcon  = document.getElementById('generate-icon');
-      var spinner  = document.getElementById('spinner');
+      /**
+       * Generate icon visibility.
+       * Hides the bolt icon while the spinner is active so they never overlap.
+       * Uses a MutationObserver to react to class changes on the spinner element.
+       */
+      var genIcon = document.getElementById('generate-icon');
+      var spinner = document.getElementById('spinner');
       if (genIcon && spinner) {
         new MutationObserver(function () {
           var spinnerIsHidden = spinner.classList.contains('hidden');

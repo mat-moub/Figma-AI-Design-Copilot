@@ -573,20 +573,23 @@ function populateCustomAgentOptions(): void {
   }
 
   const customAgents = registry.getAgents();
-  if (customAgents.length === 0) return;
+  if (customAgents.length > 0) {
+    // Separator
+    const sep = document.createElement("option");
+    sep.disabled = true;
+    sep.textContent = "── Custom Agents ──";
+    select.appendChild(sep);
 
-  // Separator
-  const sep = document.createElement("option");
-  sep.disabled = true;
-  sep.textContent = "── Custom Agents ──";
-  select.appendChild(sep);
-
-  for (const agent of customAgents) {
-    const opt = document.createElement("option");
-    opt.value = agent.id;
-    opt.textContent = agent.name;
-    select.appendChild(opt);
+    for (const agent of customAgents) {
+      const opt = document.createElement("option");
+      opt.value = agent.id;
+      opt.textContent = agent.name;
+      select.appendChild(opt);
+    }
   }
+
+  // Keep the main-page info badge in sync
+  updateAgentsSkillsInfo();
 }
 
 // ── Custom agents: drop zone ──────────────────────────────────────────────────
@@ -652,7 +655,7 @@ function clearCustomConfig(): void {
   showToast("Custom agents and skills cleared.");
 }
 
-/** Update the summary list of loaded custom agents and skills. */
+/** Update the summary list of loaded custom agents and skills (settings panel). */
 function renderCustomConfigSummary(): void {
   const summary = document.getElementById("custom-config-summary");
   if (!summary) return;
@@ -662,17 +665,53 @@ function renderCustomConfigSummary(): void {
 
   if (agents.length === 0 && skills.length === 0) {
     summary.textContent = "No custom config loaded.";
-    return;
+  } else {
+    const lines: string[] = [];
+    if (agents.length > 0) {
+      lines.push(`Agents: ${agents.map((a) => a.name).join(", ")}`);
+    }
+    if (skills.length > 0) {
+      lines.push(`Skills: ${skills.map((s) => s.name).join(", ")}`);
+    }
+    summary.textContent = lines.join(" · ");
   }
 
-  const lines: string[] = [];
+  // Also refresh the compact info shown in the main-page agent bar
+  updateAgentsSkillsInfo();
+}
+
+/**
+ * Update the compact agents-and-skills info shown in the main-page agent bar.
+ *
+ * Called whenever the custom-agent registry or the external skills list changes
+ * so that the main page always reflects the current state of the Settings
+ * configuration without requiring the user to open Settings to verify.
+ *
+ * Output format examples:
+ *   - ""                                  (nothing loaded)
+ *   - "1 custom agent"
+ *   - "2 custom agents · 3 custom skills"
+ *   - "1 custom agent · +5 remote"
+ */
+function updateAgentsSkillsInfo(): void {
+  const infoEl = document.getElementById("agents-skills-info");
+  if (!infoEl) return;
+
+  const agents = registry.getAgents();
+  const skills = registry.getSkills();
+  const parts: string[] = [];
+
   if (agents.length > 0) {
-    lines.push(`Agents: ${agents.map((a) => a.name).join(", ")}`);
+    parts.push(pluralize(agents.length, "custom agent"));
   }
   if (skills.length > 0) {
-    lines.push(`Skills: ${skills.map((s) => s.name).join(", ")}`);
+    parts.push(pluralize(skills.length, "custom skill"));
   }
-  summary.textContent = lines.join(" · ");
+  if (externalSkills.length > 0) {
+    parts.push(`+${externalSkills.length} remote`);
+  }
+
+  infoEl.textContent = parts.length > 0 ? parts.join(" · ") : "";
 }
 
 // ── Skills Library ────────────────────────────────────────────────────────────
@@ -711,7 +750,15 @@ async function handleLoadSkillsLibrary(): Promise<void> {
   } finally {
     if (loadBtn) {
       loadBtn.disabled = false;
-      loadBtn.textContent = "⟳ Update";
+      // Restore button label (keep inner SVG intact by updating only the text node)
+      const textNode = Array.from(loadBtn.childNodes).find(
+        (n) => n.nodeType === Node.TEXT_NODE
+      );
+      if (textNode) {
+        textNode.textContent = " Update";
+      } else {
+        loadBtn.append(" Update");
+      }
     }
   }
 }
@@ -763,4 +810,7 @@ function renderSkillsLibrary(): void {
   }
 
   listEl.classList.remove("hidden");
+
+  // Refresh the compact info in the main-page agent bar
+  updateAgentsSkillsInfo();
 }
