@@ -49,24 +49,54 @@ export interface ChatMessage {
   timestamp?: number;
 }
 
-// ─── Models ──────────────────────────────────────────────────────────────────
+// ─── Providers ───────────────────────────────────────────────────────────────
 
 /**
- * Models available through the GitHub Copilot API.
- * All requests go to https://api.githubcopilot.com/chat/completions using a
- * GitHub Personal Access Token with the `copilot` scope.
+ * Supported LLM providers.
+ * - `github-copilot`: Routes all models through the GitHub Copilot proxy API
+ *   using a GitHub Personal Access Token with the `copilot` scope.
+ * - `openai`: Direct OpenAI Chat Completions API (BYOK).
+ * - `anthropic`: Direct Anthropic Messages API (BYOK).
  */
-export type AIModel =
+export type LLMProvider = "github-copilot" | "openai" | "anthropic";
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+/** Models routed through the GitHub Copilot proxy. */
+export type CopilotModel =
   | "gpt-5.2"
   | "claude-haiku-4-5"
   | "claude-sonnet-4-6"
   | "gemini-3-flash"
   | "gemini-3-pro";
 
+/** Models available directly on the OpenAI API. */
+export type OpenAIModel =
+  | "gpt-4o"
+  | "gpt-4o-mini"
+  | "gpt-4-turbo"
+  | "gpt-3.5-turbo";
+
+/** Models available directly on the Anthropic API. */
+export type AnthropicModel =
+  | "claude-opus-4-5"
+  | "claude-sonnet-4-5"
+  | "claude-haiku-4-5";
+
+/** Union of all model IDs supported across providers. */
+export type AIModel = CopilotModel | OpenAIModel | AnthropicModel;
+
 export interface ModelConfig {
+  /** The LLM provider to use. Defaults to `"github-copilot"` for backwards compatibility. */
+  provider: LLMProvider;
+  /** Provider-specific model identifier. */
   model: AIModel;
-  /** GitHub Personal Access Token with the `copilot` scope. */
+  /** GitHub Personal Access Token with the `copilot` scope (GitHub Copilot provider). */
   githubToken?: string;
+  /** OpenAI API key (OpenAI provider, BYOK). */
+  openaiKey?: string;
+  /** Anthropic API key (Anthropic provider, BYOK). */
+  anthropicKey?: string;
 }
 
 // ─── Document Context ────────────────────────────────────────────────────────

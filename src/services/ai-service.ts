@@ -1,41 +1,13 @@
 import type {
-  AIModel,
   ChatMessage,
   DocumentContext,
   ModelConfig,
   UIScreen,
 } from "../types/ui-types";
-
-// ─── GitHub Copilot API ───────────────────────────────────────────────────────
-
-/**
- * Why `chat/completions` and not the Copilot "skills" endpoint?
- *
- * The Copilot "skills" / skillsets endpoint is a Copilot Extensions concept:
- * it lets Copilot's own orchestration layer call *your* backend API during a
- * Copilot Chat session. This plugin works the other way round — it is the
- * caller, not the callee — so it needs an LLM inference endpoint. The
- * OpenAI-compatible `chat/completions` endpoint is the correct choice for
- * multi-turn, prompt-chained LLM calls with a GitHub PAT.
- */
-const COPILOT_API_URL = "https://api.githubcopilot.com/chat/completions";
-
-/** Map our model ids to the identifiers accepted by the Copilot API. */
-function copilotModelId(model: AIModel): string {
-  switch (model) {
-    case "claude-haiku-4-5":
-      return "claude-haiku-4-5";
-    case "claude-sonnet-4-6":
-      return "claude-sonnet-4-6";
-    case "gemini-3-flash":
-      return "gemini-3-flash";
-    case "gemini-3-pro":
-      return "gemini-3-pro";
-    case "gpt-5.2":
-    default:
-      return "gpt-5.2";
-  }
-}
+import type { LLMProvider } from "../providers/llm-provider";
+import { GitHubCopilotProvider } from "../providers/github-copilot-provider";
+import { OpenAIProvider } from "../providers/openai-provider";
+import { AnthropicProvider } from "../providers/anthropic-provider";
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
@@ -81,46 +53,26 @@ Each screen object must follow this exact schema:
 Return ONLY the JSON array, no markdown fences, no explanation.`;
 }
 
-// ─── GitHub Copilot request ───────────────────────────────────────────────────
+// ─── Provider factory ─────────────────────────────────────────────────────────
 
-async function callCopilot(
-  messages: ChatMessage[],
-  config: ModelConfig
-): Promise<string> {
-  if (!config.githubToken) {
-    throw new Error(
-      "A GitHub token with the 'copilot' scope is required. " +
-      "Generate one at github.com/settings/tokens and paste it in the GitHub Token field."
-    );
+/**
+ * Instantiate the correct `LLMProvider` from the user's `ModelConfig`.
+ * Throws a descriptive error when the required API key is missing.
+ */
+export function createProvider(config: ModelConfig): LLMProvider {
+  const provider = config.provider ?? "github-copilot";
+
+  switch (provider) {
+    case "openai":
+      return new OpenAIProvider(config.openaiKey ?? "");
+
+    case "anthropic":
+      return new AnthropicProvider(config.anthropicKey ?? "");
+
+    case "github-copilot":
+    default:
+      return new GitHubCopilotProvider(config.githubToken ?? "");
   }
-
-  const response = await fetch(COPILOT_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${config.githubToken}`,
-      "Editor-Version": "figma-ai-design-copilot/1.0.0",
-      "Editor-Plugin-Version": "figma-ai-design-copilot/1.0.0",
-      "Copilot-Integration-Id": "figma-ai-design-copilot",
-    },
-    body: JSON.stringify({
-      model: copilotModelId(config.model),
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      temperature: 0.7,
-      max_tokens: 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`GitHub Copilot API error ${response.status}: ${errorText}`);
-  }
-
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
-  };
-
-  return data.choices[0]?.message?.content ?? "";
 }
 
 // ─── Response parser ──────────────────────────────────────────────────────────
@@ -150,12 +102,17 @@ function parseScreensFromResponse(raw: string): UIScreen[] {
 
 export class AIService {
   /**
-   * Call the GitHub Copilot API and return parsed UI screens.
+   * Call the configured LLM provider and return parsed UI screens.
+   *
+   * The provider is selected from `config.provider`:
+   *   - `"github-copilot"` → GitHub Copilot proxy (default, backwards-compatible)
+   *   - `"openai"` → OpenAI Chat Completions API (BYOK via `config.openaiKey`)
+   *   - `"anthropic"` → Anthropic Messages API (BYOK via `config.anthropicKey`)
    *
    * @param userPrompt   The designer's natural language request.
    * @param agentPrompt  The agent's system prompt.
    * @param context      The Figma document context.
-   * @param config       Model and GitHub token configuration.
+   * @param config       Provider, model, and API key configuration.
    * @param history      Previous chat messages for multi-turn conversations.
    */
   async generateScreens(
@@ -165,6 +122,8 @@ export class AIService {
     config: ModelConfig,
     history: ChatMessage[] = []
   ): Promise<UIScreen[]> {
+    const provider = createProvider(config);
+
     const systemMessage: ChatMessage = {
       role: "system",
       content: buildSystemPrompt(context, agentPrompt),
@@ -185,7 +144,7 @@ export class AIService {
       userMessage,
     ];
 
-    const rawResponse = await callCopilot(messages, config);
+    const rawResponse = await provider.chat(messages, String(config.model));
     return parseScreensFromResponse(rawResponse);
   }
 
@@ -207,4 +166,3 @@ export class AIService {
     return full;
   }
 }
-
