@@ -9,22 +9,52 @@ Supported providers:
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <strong>Configuration ouverte</strong><br/>
+      Icônes SVG inline, sélecteurs provider / model / agent / clé API
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/314fa2d8-cffd-43cd-b2e5-747fd7bbd466" alt="Configuration ouverte avec icônes" width="280"/>
+    </td>
+    <td align="center" width="50%">
+      <strong>Badge · Pas de clé (🟠)</strong><br/>
+      Configuration repliée — badge orange indique qu'aucune clé API n'est configurée
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/26d21897-64a0-47f9-a55d-9085b7249054" alt="Badge connexion orange — pas de clé" width="280"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <strong>Badge · Connecté (🟢)</strong><br/>
+      Configuration repliée — badge vert confirme que la clé API est configurée et le provider actif
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/c57be4b3-79be-47a5-8d0b-6cc399f7320f" alt="Badge connexion vert — clé configurée" width="280"/>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Table of contents
 
-1. [Architecture overview](#architecture-overview)
-2. [Two-process model](#two-process-model)
-3. [Directory structure](#directory-structure)
-4. [Core concepts](#core-concepts)
-5. [Authentication & BYOK](#authentication--byok)
-6. [Available providers and models](#available-providers-and-models)
-7. [Agents](#agents)
-8. [Skills](#skills)
-9. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
-10. [External skills library](#external-skills-library)
-11. [Data flow — single request](#data-flow--single-request)
-12. [Build & develop](#build--develop)
-13. [Testing](#testing)
-14. [Key types quick reference](#key-types-quick-reference)
+1. [Screenshots](#screenshots)
+2. [Architecture overview](#architecture-overview)
+3. [Two-process model](#two-process-model)
+4. [Directory structure](#directory-structure)
+5. [Core concepts](#core-concepts)
+6. [Authentication & BYOK](#authentication--byok)
+7. [Available providers and models](#available-providers-and-models)
+8. [Agents](#agents)
+9. [Skills](#skills)
+10. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
+11. [External skills library](#external-skills-library)
+12. [Data flow — single request](#data-flow--single-request)
+13. [Build & develop](#build--develop)
+14. [Testing](#testing)
+15. [Key types quick reference](#key-types-quick-reference)
 
 ---
 
