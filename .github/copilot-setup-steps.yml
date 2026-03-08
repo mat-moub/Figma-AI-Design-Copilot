@@ -1,0 +1,15 @@
+steps:
+  - name: Install Node.js dependencies
+    run: npm install
+
+  - name: Build the plugin
+    run: npm run build
+
+  - name: Type-check
+    run: npm run typecheck
+
+  - name: Lint
+    run: npm run lint
+
+  - name: Run unit tests
+    run: npm test
