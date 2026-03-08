@@ -4,25 +4,43 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Design Copilot</title>
+  <!-- Font Awesome 6 Free via CDN -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
   <style>
     /* ── Reset & Base ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #f5f5f5;
+      --bg: #f0f2f8;
       --surface: #ffffff;
-      --border: #e0e0e0;
-      --primary: #386fe8;
-      --primary-hover: #2a5ccc;
+      --border: #d4d8e8;
+      --border-aura: rgba(30, 48, 112, 0.18);
+
+      /* Dark-blue primary palette */
+      --primary: #1e3070;
+      --primary-hover: #162558;
+      --primary-light: #2d46a0;
       --primary-text: #ffffff;
-      --text: #1a1a1a;
+      --primary-glow: rgba(30, 48, 112, 0.35);
+      --primary-glow-strong: rgba(30, 48, 112, 0.55);
+
+      --text: #1a1d2e;
       --text-muted: #6b7280;
-      --user-bubble: #386fe8;
-      --ai-bubble: #f0f4ff;
-      --ai-text: #1a1a1a;
-      --drop-zone-active-bg: #eef3fd;
+      --user-bubble: #1e3070;
+      --ai-bubble: #eef1fb;
+      --ai-text: #1a1d2e;
+      --drop-zone-active-bg: #e8ecf8;
+
       --radius: 8px;
-      --shadow: 0 1px 4px rgba(0,0,0,0.1);
+      --radius-lg: 12px;
+      --shadow: 0 2px 8px rgba(30, 48, 112, 0.10);
+      --shadow-aura: 0 0 0 1px var(--border-aura), 0 0 16px rgba(30, 48, 112, 0.10);
       --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
@@ -39,49 +57,150 @@
 
     /* ── Header ──────────────────────────────────────────────── */
     .header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 16px;
+      background: var(--primary);
+      border-bottom: none;
+      padding: 11px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(30, 48, 112, 0.30);
     }
 
-    .header__title {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text);
+    .header__brand {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .header__title::before {
-      content: "✦";
-      color: var(--primary);
-      font-size: 16px;
+    .header__icon {
+      width: 28px;
+      height: 28px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(255,255,255,0.20);
+      border: 1px solid rgba(255,255,255,0.20);
+    }
+
+    .header__title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.2px;
+    }
+
+    .header__subtitle {
+      font-size: 10px;
+      color: rgba(255,255,255,0.60);
+      font-weight: 400;
+      margin-top: 1px;
+    }
+
+    .header__actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .ctx-badge {
-      background: #e8f0fe;
-      color: var(--primary);
+      background: rgba(255,255,255,0.15);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.25);
       border-radius: 999px;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       padding: 2px 8px;
       cursor: help;
+      backdrop-filter: blur(4px);
     }
 
-    /* ── Settings Panel ──────────────────────────────────────── */
-    .settings {
+    .btn--header {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.20);
+      color: rgba(255,255,255,0.85);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-family: var(--font);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn--header:hover {
+      background: rgba(255,255,255,0.22);
+      border-color: rgba(255,255,255,0.35);
+      color: #ffffff;
+    }
+
+    /* ── Collapsible Settings Panel ──────────────────────────── */
+    .settings-wrapper {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 10px 16px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-aura);
+    }
+
+    .settings-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-family: var(--font);
+      color: var(--text);
+      transition: background 0.12s;
+    }
+
+    .settings-toggle:hover { background: var(--bg); }
+
+    .settings-toggle__left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .settings-toggle__left i { font-size: 10px; }
+
+    .settings-toggle__chevron {
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .settings-toggle__chevron.open { transform: rotate(180deg); }
+
+    .settings {
+      padding: 10px 14px 12px;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      flex-shrink: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s;
+      max-height: 300px;
+      opacity: 1;
+    }
+
+    .settings.collapsed {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
     }
 
     .settings__row {
@@ -96,7 +215,16 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      min-width: 52px;
+      min-width: 56px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .settings__label i {
+      font-size: 10px;
+      color: var(--primary);
+      opacity: 0.8;
     }
 
     select, input[type="number"], input[type="text"], input[type="password"] {
@@ -108,12 +236,12 @@
       font-family: var(--font);
       color: var(--text);
       outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.18s, box-shadow 0.18s;
     }
 
     select:focus, input:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(56, 111, 232, 0.25);
+      box-shadow: 0 0 0 3px var(--primary-glow), 0 0 12px var(--border-aura);
     }
 
     select { cursor: pointer; }
@@ -129,6 +257,68 @@
       min-width: 0;
     }
 
+    /* ── Collapsible Sections ─────────────────────────────────── */
+    .collapsible-section {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .collapsible-section__header {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-family: var(--font);
+      color: var(--text);
+      transition: background 0.12s;
+    }
+
+    .collapsible-section__header:hover { background: var(--bg); }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .section-title i {
+      font-size: 10px;
+      color: var(--primary);
+      opacity: 0.75;
+    }
+
+    .section-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .collapsible-section__body {
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s;
+      max-height: 300px;
+      opacity: 1;
+    }
+
+    .collapsible-section__body.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    .collapsible-section__body-inner {
+      padding: 0 14px 10px;
+    }
+
     /* ── Chat History ─────────────────────────────────────────── */
     .chat-section {
       flex: 1;
@@ -139,7 +329,7 @@
     }
 
     .chat-section__label {
-      padding: 8px 16px 4px;
+      padding: 7px 14px 4px;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
@@ -149,12 +339,16 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
     }
+
+    .chat-section__label .section-title { color: var(--text-muted); }
 
     #chat-history {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 16px 12px;
+      padding: 10px 14px 12px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -162,11 +356,46 @@
 
     #chat-history::-webkit-scrollbar { width: 4px; }
     #chat-history::-webkit-scrollbar-track { background: transparent; }
-    #chat-history::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    #chat-history::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* ── Chat Bubbles ─────────────────────────────────────────── */
+    .chat-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 7px;
+    }
+
+    .chat-row--user { flex-direction: row-reverse; }
+
+    .chat-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .chat-avatar--user {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 0 8px var(--primary-glow);
+    }
+
+    .chat-avatar--assistant {
+      background: var(--ai-bubble);
+      color: var(--primary);
+      border: 1px solid var(--border-aura);
+    }
 
     .chat-bubble {
-      max-width: 85%;
-      border-radius: 12px;
+      max-width: 80%;
+      border-radius: var(--radius-lg);
       padding: 8px 12px;
       display: flex;
       flex-direction: column;
@@ -174,18 +403,18 @@
     }
 
     .chat-bubble--user {
-      align-self: flex-end;
       background: var(--user-bubble);
       border-bottom-right-radius: 3px;
+      box-shadow: 0 2px 10px rgba(30, 48, 112, 0.25), 0 0 20px rgba(30, 48, 112, 0.12);
     }
 
-    .chat-bubble--user .chat-label { color: rgba(255,255,255,0.7); }
+    .chat-bubble--user .chat-label { color: rgba(255,255,255,0.65); }
     .chat-bubble--user .chat-text  { color: #ffffff; }
 
     .chat-bubble--assistant {
-      align-self: flex-start;
       background: var(--ai-bubble);
       border-bottom-left-radius: 3px;
+      border: 1px solid var(--border-aura);
     }
 
     .chat-bubble--assistant .chat-label { color: var(--primary); }
@@ -196,11 +425,14 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .chat-text {
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.55;
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -209,15 +441,29 @@
       text-align: center;
       color: var(--text-muted);
       font-size: 12px;
-      margin-top: 20px;
+      margin-top: 24px;
+      line-height: 1.6;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px dashed var(--border-aura);
+      border-radius: var(--radius-lg);
+    }
+
+    .chat-empty i {
+      font-size: 24px;
+      color: var(--primary);
+      opacity: 0.3;
+      display: block;
+      margin-bottom: 8px;
     }
 
     /* ── Input Area ───────────────────────────────────────────── */
     .input-section {
       background: var(--surface);
       border-top: 1px solid var(--border);
-      padding: 10px 16px 12px;
+      padding: 10px 14px 12px;
       flex-shrink: 0;
+      box-shadow: 0 -2px 12px rgba(30, 48, 112, 0.07);
     }
 
     .variants-row {
@@ -232,21 +478,21 @@
       resize: none;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 8px 10px;
+      border-radius: var(--radius-lg);
+      padding: 9px 12px;
       font-size: 12px;
       font-family: var(--font);
       color: var(--text);
       line-height: 1.5;
       outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.18s, box-shadow 0.18s;
       min-height: 72px;
       max-height: 120px;
     }
 
     textarea:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(56, 111, 232, 0.25);
+      box-shadow: 0 0 0 3px var(--primary-glow), 0 0 18px rgba(30, 48, 112, 0.12);
     }
 
     textarea::placeholder { color: var(--text-muted); }
@@ -265,7 +511,7 @@
       font-weight: 600;
       font-family: var(--font);
       cursor: pointer;
-      transition: background 0.15s, opacity 0.15s;
+      transition: background 0.15s, opacity 0.15s, box-shadow 0.18s;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -276,39 +522,66 @@
       color: var(--primary-text);
       flex: 1;
       justify-content: center;
+      box-shadow: 0 2px 10px rgba(30, 48, 112, 0.30), 0 0 20px rgba(30, 48, 112, 0.15);
     }
 
-    .btn--primary:hover:not(:disabled) { background: var(--primary-hover); }
-    .btn--primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn--primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 16px rgba(30, 48, 112, 0.40), 0 0 28px rgba(30, 48, 112, 0.20);
+    }
+
+    .btn--primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
 
     .btn--ghost {
       background: transparent;
       color: var(--text-muted);
       border: 1px solid var(--border);
-      padding: 6px 10px;
+      padding: 5px 9px;
     }
 
-    .btn--ghost:hover { background: var(--bg); color: var(--text); }
+    .btn--ghost:hover {
+      background: var(--bg);
+      color: var(--primary);
+      border-color: var(--border-aura);
+    }
+
+    .btn--icon {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 8px;
+      border-radius: 6px;
+    }
+
+    .btn--icon:hover {
+      background: var(--bg);
+      color: var(--primary);
+      border-color: var(--border-aura);
+    }
 
     .btn:focus-visible {
       outline: none;
-      box-shadow: 0 0 0 3px rgba(56, 111, 232, 0.35);
+      box-shadow: 0 0 0 3px var(--primary-glow), 0 0 16px rgba(30, 48, 112, 0.15);
     }
 
     .hint {
       color: var(--text-muted);
       font-size: 10px;
-      margin-top: 4px;
+      margin-top: 5px;
       text-align: right;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
     }
 
     /* ── Spinner ──────────────────────────────────────────────── */
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .spinner {
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255,255,255,0.4);
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255,255,255,0.35);
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
@@ -320,9 +593,9 @@
       bottom: 80px;
       left: 50%;
       transform: translateX(-50%) translateY(10px);
-      background: #1a1a1a;
+      background: #1a1d2e;
       color: #fff;
-      padding: 7px 14px;
+      padding: 7px 16px;
       border-radius: 999px;
       font-size: 11px;
       pointer-events: none;
@@ -331,6 +604,10 @@
       white-space: nowrap;
       max-width: 90%;
       z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
     }
 
     .toast--visible {
@@ -338,36 +615,17 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    .toast--warning { background: #d97706; }
-    .toast--error   { background: #dc2626; }
+    .toast--warning { background: #b45309; }
+    .toast--error   { background: #b91c1c; }
 
-    /* ── Custom agents drop zone ──────────────────────────────── */
-    .custom-section {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 16px;
-      flex-shrink: 0;
-    }
-
-    .custom-section__title {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
+    /* ── Drop Zone ────────────────────────────────────────────── */
     .drop-zone {
       border: 1.5px dashed var(--border);
       border-radius: var(--radius);
       padding: 10px 12px;
       text-align: center;
       cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
       position: relative;
     }
 
@@ -375,13 +633,20 @@
     .drop-zone--active {
       border-color: var(--primary);
       background: var(--drop-zone-active-bg);
+      box-shadow: 0 0 0 3px var(--primary-glow), 0 0 16px rgba(30, 48, 112, 0.10);
     }
 
     .drop-zone__label {
       font-size: 11px;
       color: var(--text-muted);
       pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
+
+    .drop-zone__label i { color: var(--primary); opacity: 0.7; }
 
     .drop-zone__label strong {
       color: var(--primary);
@@ -402,38 +667,19 @@
       margin-top: 6px;
       font-size: 10px;
       color: var(--text-muted);
-    }
-
-    /* ── Skills Library ───────────────────────────────────────── */
-    .skills-library-section {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 16px;
-      flex-shrink: 0;
-    }
-
-    .skills-library-section__title {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-      margin-bottom: 6px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 4px;
     }
 
-    .skills-library-actions {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
+    /* ── Skills ───────────────────────────────────────────────── */
     #skills-library-summary {
-      margin-top: 6px;
+      margin-top: 4px;
       font-size: 10px;
       color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     #skills-library-list {
@@ -444,139 +690,222 @@
     }
 
     .skill-tag {
-      background: #e8f0fe;
+      background: #e8ecf8;
       color: var(--primary);
       border-radius: 999px;
       font-size: 10px;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 2px 9px;
+      border: 1px solid rgba(30, 48, 112, 0.12);
     }
 
     .skill-tag--remote {
       background: #e8f5e9;
       color: #2e7d32;
+      border-color: rgba(46, 125, 50, 0.15);
+    }
+
+    /* ── Aura glow on panel borders ───────────────────────────── */
+    .settings-wrapper,
+    .collapsible-section,
+    .input-section {
+      position: relative;
+    }
+
+    .settings-wrapper::after,
+    .collapsible-section::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(30, 48, 112, 0.20) 30%,
+        rgba(30, 48, 112, 0.35) 50%,
+        rgba(30, 48, 112, 0.20) 70%,
+        transparent 100%);
+      pointer-events: none;
     }
 
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
+    .chevron-icon { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
+    .chevron-icon.open { transform: rotate(180deg); }
   </style>
 </head>
 <body>
 
   <!-- Header -->
   <header class="header">
-    <div class="header__title">AI Design Copilot</div>
-    <span id="ctx-badge" class="ctx-badge hidden" title="Design system context"></span>
+    <div class="header__brand">
+      <div class="header__icon">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+      </div>
+      <div>
+        <div class="header__title">AI Design Copilot</div>
+        <div class="header__subtitle">Powered by LLM</div>
+      </div>
+    </div>
+    <div class="header__actions">
+      <span id="ctx-badge" class="ctx-badge hidden" title="Design system context"></span>
+      <button class="btn--header" id="refresh-ctx-btn" type="button" title="Refresh document context">
+        <i class="fa-solid fa-rotate"></i> Context
+      </button>
+      <button class="btn--header" id="clear-btn" type="button" title="Clear chat history">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    </div>
   </header>
 
-  <!-- Settings -->
-  <section class="settings" aria-label="Configuration">
-    <!-- Provider selection -->
-    <div class="settings__row">
-      <span class="settings__label">Provider</span>
-      <select id="provider-select" aria-label="LLM Provider">
-        <option value="github-copilot">GitHub Copilot</option>
-        <option value="openai">OpenAI</option>
-        <option value="anthropic">Anthropic</option>
-      </select>
-    </div>
+  <!-- Settings (collapsible) -->
+  <div class="settings-wrapper">
+    <button class="settings-toggle" id="settings-toggle" type="button" aria-expanded="true" aria-controls="settings-panel">
+      <span class="settings-toggle__left">
+        <i class="fa-solid fa-sliders"></i>
+        Configuration
+      </span>
+      <i class="fa-solid fa-chevron-up chevron-icon open" id="settings-chevron"></i>
+    </button>
+    <div class="settings" id="settings-panel">
+      <!-- Provider selection -->
+      <div class="settings__row">
+        <span class="settings__label"><i class="fa-solid fa-plug"></i>Provider</span>
+        <select id="provider-select" aria-label="LLM Provider">
+          <option value="github-copilot">GitHub Copilot</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+        </select>
+      </div>
 
-    <!-- Model selection (populated dynamically per provider) -->
-    <div class="settings__row">
-      <span class="settings__label">Model</span>
-      <select id="model-select" aria-label="Model">
-        <!-- Options injected by ui.ts syncProviderUI() -->
-        <option value="gpt-5.2">GPT-5.2</option>
-        <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
-        <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-        <option value="gemini-3-flash">Gemini 3 Flash</option>
-        <option value="gemini-3-pro">Gemini 3 Pro</option>
-      </select>
-    </div>
+      <!-- Model selection (populated dynamically per provider) -->
+      <div class="settings__row">
+        <span class="settings__label"><i class="fa-solid fa-microchip"></i>Model</span>
+        <select id="model-select" aria-label="Model">
+          <!-- Options injected by ui.ts syncProviderUI() -->
+          <option value="gpt-5.2">GPT-5.2</option>
+          <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+          <option value="gemini-3-flash">Gemini 3 Flash</option>
+          <option value="gemini-3-pro">Gemini 3 Pro</option>
+        </select>
+      </div>
 
-    <!-- Agent selection -->
-    <div class="settings__row">
-      <span class="settings__label">Agent</span>
-      <select id="agent-select" aria-label="Agent">
-        <option value="ux-designer">UX Designer</option>
-        <option value="design-system">Design System</option>
-      </select>
-    </div>
+      <!-- Agent selection -->
+      <div class="settings__row">
+        <span class="settings__label"><i class="fa-solid fa-robot"></i>Agent</span>
+        <select id="agent-select" aria-label="Agent">
+          <option value="ux-designer">UX Designer</option>
+          <option value="design-system">Design System</option>
+        </select>
+      </div>
 
-    <!-- API Key (label and placeholder updated dynamically per provider) -->
-    <div class="settings__row">
-      <span class="settings__label" id="api-key-label">GH Token</span>
-      <div class="api-key-row">
-        <input
-          type="password"
-          id="api-key-input"
-          placeholder="ghp_… (copilot scope)"
-          autocomplete="off"
-          aria-label="API Key"
-        />
-        <button class="btn btn--ghost" id="api-key-toggle" type="button">Show</button>
+      <!-- API Key (label and placeholder updated dynamically per provider) -->
+      <div class="settings__row">
+        <span class="settings__label" id="api-key-label"><i class="fa-solid fa-key"></i>GH Token</span>
+        <div class="api-key-row">
+          <input
+            type="password"
+            id="api-key-input"
+            placeholder="ghp_… (copilot scope)"
+            autocomplete="off"
+            aria-label="API Key"
+          />
+          <button class="btn btn--icon" id="api-key-toggle" type="button" title="Show/hide key">
+            <i class="fa-solid fa-eye" id="api-key-toggle-icon"></i>
+          </button>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- Custom Agents & Skills -->
-  <section class="custom-section" aria-label="Custom agents and skills">
-    <div class="custom-section__title">
-      <span>Custom Agents &amp; Skills</span>
-      <button class="btn btn--ghost" id="clear-custom-btn" type="button" style="padding:2px 7px;font-size:11px" title="Remove all custom agents and skills">Clear</button>
-    </div>
-    <div
-      id="drop-zone"
-      class="drop-zone"
-      role="button"
-      aria-label="Drop copilot.json here or click to browse"
-      title="Drop a copilot.json config file to load custom agents and skills"
-    >
-      <p class="drop-zone__label">
-        Drop <strong>copilot.json</strong> here or <strong>click to browse</strong>
-      </p>
-      <input
-        type="file"
-        id="config-file-input"
-        accept=".json,application/json"
-        aria-label="Select copilot config file"
-        tabindex="-1"
-      />
-    </div>
-    <p id="custom-config-summary">No custom config loaded.</p>
-  </section>
-
-  <!-- Skills Library -->
-  <section class="skills-library-section" aria-label="Skills library">
-    <div class="skills-library-section__title">
-      <span>Skills Library</span>
-      <div class="skills-library-actions">
-        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Remove extra runtime-loaded skills (bundled skills remain active)">Clear extra</button>
-        <button class="btn btn--ghost" id="load-skills-library-btn" type="button" style="padding:2px 7px;font-size:11px" title="Update skills from github.com/flpbalada/my-opencode-config">⟳ Update</button>
+  <!-- Custom Agents & Skills (collapsible) -->
+  <div class="collapsible-section" aria-label="Custom agents and skills">
+    <button class="collapsible-section__header" id="custom-section-toggle" type="button" aria-expanded="false" aria-controls="custom-section-body">
+      <span class="section-title">
+        <i class="fa-solid fa-puzzle-piece"></i>
+        Custom Agents &amp; Skills
+      </span>
+      <span class="section-actions">
+        <button class="btn btn--ghost" id="clear-custom-btn" type="button" style="padding:3px 8px;font-size:10px" title="Remove all custom agents and skills" onclick="event.stopPropagation()">
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+        <i class="fa-solid fa-chevron-down chevron-icon" id="custom-section-chevron"></i>
+      </span>
+    </button>
+    <div class="collapsible-section__body collapsed" id="custom-section-body">
+      <div class="collapsible-section__body-inner">
+        <div
+          id="drop-zone"
+          class="drop-zone"
+          role="button"
+          aria-label="Drop copilot.json here or click to browse"
+          title="Drop a copilot.json config file to load custom agents and skills"
+        >
+          <p class="drop-zone__label">
+            <i class="fa-solid fa-file-code"></i>
+            Drop <strong>copilot.json</strong> or <strong>click to browse</strong>
+          </p>
+          <input
+            type="file"
+            id="config-file-input"
+            accept=".json,application/json"
+            aria-label="Select copilot config file"
+            tabindex="-1"
+          />
+        </div>
+        <p id="custom-config-summary"><i class="fa-solid fa-circle-info"></i> No custom config loaded.</p>
       </div>
     </div>
-    <p id="skills-library-summary">Skills library active in all agents.</p>
-    <div id="skills-library-list"></div>
-  </section>
+  </div>
+
+  <!-- Skills Library (collapsible) -->
+  <div class="collapsible-section" aria-label="Skills library">
+    <button class="collapsible-section__header" id="skills-section-toggle" type="button" aria-expanded="false" aria-controls="skills-section-body">
+      <span class="section-title">
+        <i class="fa-solid fa-layer-group"></i>
+        Skills Library
+      </span>
+      <span class="section-actions">
+        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button" style="padding:3px 8px;font-size:10px" title="Remove extra runtime-loaded skills (bundled skills remain active)" onclick="event.stopPropagation()">
+          <i class="fa-solid fa-xmark"></i> Clear extra
+        </button>
+        <button class="btn btn--ghost" id="load-skills-library-btn" type="button" style="padding:3px 8px;font-size:10px" title="Update skills from github.com/flpbalada/my-opencode-config" onclick="event.stopPropagation()">
+          <i class="fa-solid fa-rotate"></i> Update
+        </button>
+        <i class="fa-solid fa-chevron-down chevron-icon" id="skills-section-chevron"></i>
+      </span>
+    </button>
+    <div class="collapsible-section__body collapsed" id="skills-section-body">
+      <div class="collapsible-section__body-inner">
+        <p id="skills-library-summary"><i class="fa-solid fa-circle-check"></i> Skills library active in all agents.</p>
+        <div id="skills-library-list"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Chat History -->
   <div class="chat-section">
     <div class="chat-section__label">
-      <span>Chat</span>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn--ghost" id="refresh-ctx-btn" type="button" title="Refresh document context" style="padding:2px 7px;font-size:11px">⟳ Context</button>
-        <button class="btn btn--ghost" id="clear-btn" type="button" style="padding:2px 7px;font-size:11px">Clear</button>
-      </div>
+      <span class="section-title">
+        <i class="fa-solid fa-comments"></i>
+        Chat
+      </span>
     </div>
     <div id="chat-history" role="log" aria-live="polite" aria-label="Chat history">
-      <p class="chat-empty">Start by typing a prompt below.<br>Example: <em>"Create a mobile login screen with 3 variants"</em></p>
+      <p class="chat-empty">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        Start by typing a prompt below.<br>
+        <em>Example: "Create a mobile login screen with 3 variants"</em>
+      </p>
     </div>
   </div>
 
   <!-- Input Area -->
   <section class="input-section">
     <div class="variants-row">
-      <span class="settings__label">Variants</span>
+      <span class="settings__label"><i class="fa-solid fa-clone"></i>Variants</span>
       <input
         type="number"
         id="variants-input"
@@ -596,14 +925,83 @@
     <div class="input-actions">
       <button class="btn btn--primary" id="generate-btn" type="button">
         <span id="spinner" class="spinner hidden"></span>
+        <i class="fa-solid fa-bolt" id="generate-icon"></i>
         <span id="generate-label">Generate</span>
       </button>
     </div>
-    <p class="hint">Ctrl+Enter / ⌘+Enter to send</p>
+    <p class="hint">
+      <i class="fa-solid fa-keyboard"></i>
+      Ctrl+Enter / ⌘+Enter to send
+    </p>
   </section>
 
   <!-- Toast notification -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Collapsible section logic -->
+  <script>
+    (function () {
+      function setupCollapsible(toggleId, bodyId, chevronId, startOpen) {
+        var toggle = document.getElementById(toggleId);
+        var body = document.getElementById(bodyId);
+        var chevron = document.getElementById(chevronId);
+        if (!toggle || !body) return;
+        if (!startOpen) {
+          body.classList.add('collapsed');
+          if (chevron) chevron.classList.remove('open');
+          toggle.setAttribute('aria-expanded', 'false');
+        } else {
+          body.classList.remove('collapsed');
+          if (chevron) chevron.classList.add('open');
+          toggle.setAttribute('aria-expanded', 'true');
+        }
+        toggle.addEventListener('click', function () {
+          var isOpen = !body.classList.contains('collapsed');
+          body.classList.toggle('collapsed', isOpen);
+          if (chevron) chevron.classList.toggle('open', !isOpen);
+          toggle.setAttribute('aria-expanded', String(!isOpen));
+        });
+      }
+
+      // Settings: starts open
+      var settingsToggle = document.getElementById('settings-toggle');
+      var settingsPanel = document.getElementById('settings-panel');
+      var settingsChevron = document.getElementById('settings-chevron');
+      if (settingsToggle && settingsPanel) {
+        settingsToggle.addEventListener('click', function () {
+          var isOpen = !settingsPanel.classList.contains('collapsed');
+          settingsPanel.classList.toggle('collapsed', isOpen);
+          if (settingsChevron) settingsChevron.classList.toggle('open', !isOpen);
+          settingsToggle.setAttribute('aria-expanded', String(!isOpen));
+        });
+      }
+
+      setupCollapsible('custom-section-toggle', 'custom-section-body', 'custom-section-chevron', false);
+      setupCollapsible('skills-section-toggle', 'skills-section-body', 'skills-section-chevron', false);
+
+      // API key toggle icon update
+      var apiToggle = document.getElementById('api-key-toggle');
+      var apiInput = document.getElementById('api-key-input');
+      var apiIcon = document.getElementById('api-key-toggle-icon');
+      if (apiToggle && apiInput && apiIcon) {
+        apiToggle.addEventListener('click', function () {
+          var isPassword = apiInput.type === 'password';
+          apiInput.type = isPassword ? 'text' : 'password';
+          apiIcon.className = isPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+        });
+      }
+
+      // Generate button: hide icon when spinner is shown
+      var generateIcon = document.getElementById('generate-icon');
+      var spinner = document.getElementById('spinner');
+      if (generateIcon && spinner) {
+        var observer = new MutationObserver(function () {
+          generateIcon.style.display = spinner.classList.contains('hidden') ? '' : 'none';
+        });
+        observer.observe(spinner, { attributes: true, attributeFilter: ['class'] });
+      }
+    })();
+  </script>
 
   <!-- Bundled UI script -->
   <script src="dist/ui.js"></script>

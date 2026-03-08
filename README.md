@@ -9,22 +9,66 @@ Supported providers:
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <strong>Vue principale</strong><br/>
+      Interface complète avec configuration et zone de chat
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/3731e7b2-d85a-49e0-b84d-897c8caf3f10" alt="Vue principale du plugin" width="280"/>
+    </td>
+    <td align="center" width="50%">
+      <strong>Configuration repliée</strong><br/>
+      Sections collapsibles pour maximiser l'espace chat
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/12c1ec54-03d5-4d74-b520-0d3024d5a46f" alt="Configuration repliée" width="280"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <strong>Custom Agents & Skills</strong><br/>
+      Import d'agents personnalisés via <code>copilot.json</code>
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/a6046b9b-5b62-41ad-81b7-aefa85acff03" alt="Section Custom Agents dépliée" width="280"/>
+    </td>
+    <td align="center" width="50%">
+      <strong>Skills Library</strong><br/>
+      28 frameworks UX/produit intégrés et actifs
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/7ba1f85e-fa9a-4658-a56b-c03b1b8a412a" alt="Skills Library dépliée" width="280"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <strong>Chat en conversation</strong><br/>
+      Bulles utilisateur (bleu foncé) et réponses IA avec avatars
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/4d76c0d7-bddd-4d1a-8992-e38aa24ce085" alt="Chat avec conversation active" width="280"/>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Table of contents
 
-1. [Architecture overview](#architecture-overview)
-2. [Two-process model](#two-process-model)
-3. [Directory structure](#directory-structure)
-4. [Core concepts](#core-concepts)
-5. [Authentication & BYOK](#authentication--byok)
-6. [Available providers and models](#available-providers-and-models)
-7. [Agents](#agents)
-8. [Skills](#skills)
-9. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
-10. [External skills library](#external-skills-library)
-11. [Data flow — single request](#data-flow--single-request)
-12. [Build & develop](#build--develop)
-13. [Testing](#testing)
-14. [Key types quick reference](#key-types-quick-reference)
+1. [Screenshots](#screenshots)
+2. [Architecture overview](#architecture-overview)
+3. [Two-process model](#two-process-model)
+4. [Directory structure](#directory-structure)
+5. [Core concepts](#core-concepts)
+6. [Authentication & BYOK](#authentication--byok)
+7. [Available providers and models](#available-providers-and-models)
+8. [Agents](#agents)
+9. [Skills](#skills)
+10. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
+11. [External skills library](#external-skills-library)
+12. [Data flow — single request](#data-flow--single-request)
+13. [Build & develop](#build--develop)
+14. [Testing](#testing)
+15. [Key types quick reference](#key-types-quick-reference)
 
 ---
 
