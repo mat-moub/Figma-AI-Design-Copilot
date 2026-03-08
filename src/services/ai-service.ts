@@ -13,13 +13,17 @@ const COPILOT_API_URL = "https://api.githubcopilot.com/chat/completions";
 /** Map our model ids to the identifiers accepted by the Copilot API. */
 function copilotModelId(model: AIModel): string {
   switch (model) {
-    case "claude-3.5-sonnet":
-      return "claude-3.5-sonnet";
-    case "o3-mini":
-      return "o3-mini";
-    case "gpt-4o":
+    case "claude-haiku-4-5":
+      return "claude-haiku-4-5";
+    case "claude-sonnet-4-6":
+      return "claude-sonnet-4-6";
+    case "gemini-3-flash":
+      return "gemini-3-flash";
+    case "gemini-3-pro":
+      return "gemini-3-pro";
+    case "gpt-4.5":
     default:
-      return "gpt-4o";
+      return "gpt-4.5";
   }
 }
 

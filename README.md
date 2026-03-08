@@ -42,7 +42,8 @@ A Figma plugin that turns natural-language prompts into Figma frames using **Git
                  │ HTTPS (OpenAI-compatible)
 ┌────────────────▼────────────────────────────┐
 │  api.githubcopilot.com/chat/completions      │
-│  GPT-4o · Claude 3.5 Sonnet · o3-mini       │
+│  GPT-4.5 · Haiku 4.5 · Sonnet 4.6          │
+│  Gemini 3 Flash · Gemini 3 Pro              │
 └─────────────────────────────────────────────┘
 ```
 
@@ -161,9 +162,11 @@ The token is stored in `localStorage` within the plugin iframe and never sent an
 
 | UI label | API model id | Best for |
 |----------|-------------|----------|
-| GPT-4o *(default)* | `gpt-4o` | Fast, balanced UI generation |
-| Claude 3.5 Sonnet | `claude-3.5-sonnet` | Detailed, structured layouts |
-| o3-mini | `o3-mini` | Reasoning-heavy design decisions |
+| GPT-4.5 *(default)* | `gpt-4.5` | Fast, balanced UI generation |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | Lightweight, low-latency generation |
+| Claude Sonnet 4.6 | `claude-sonnet-4-6` | Detailed, structured layouts |
+| Gemini 3 Flash | `gemini-3-flash` | Speed-optimised multimodal generation |
+| Gemini 3 Pro | `gemini-3-pro` | High-quality, reasoning-heavy design decisions |
 
 All requests use the OpenAI-compatible chat-completions format. The model id is sent verbatim to the Copilot API.
 
@@ -290,7 +293,7 @@ npm test -- generate-screen     # run a single suite
 ```ts
 // src/types/ui-types.ts
 
-type AIModel = "gpt-4o" | "claude-3.5-sonnet" | "o3-mini";
+type AIModel = "gpt-4.5" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash" | "gemini-3-pro";
 
 interface ModelConfig {
   model: AIModel;
