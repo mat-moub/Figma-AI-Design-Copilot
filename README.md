@@ -1,6 +1,11 @@
 # Figma AI Design Copilot
 
-A Figma plugin that turns natural-language prompts into Figma frames using **GitHub Copilot** as its sole AI provider. The plugin reads the open document's design system (components, colours, text styles, existing screens) and forwards that context to Copilot so every generated frame is coherent with the current file.
+A Figma plugin that turns natural-language prompts into Figma frames using AI. The plugin reads the open document's design system (components, colours, text styles, existing screens) and forwards that context to the chosen AI provider so every generated frame is coherent with the current file.
+
+Supported providers:
+- **GitHub Copilot** — multi-model proxy (GPT, Claude, Gemini) via a GitHub PAT.
+- **OpenAI** — direct Chat Completions API with your own OpenAI key (BYOK).
+- **Anthropic** — direct Messages API with your own Anthropic key (BYOK).
 
 ---
 
@@ -10,8 +15,8 @@ A Figma plugin that turns natural-language prompts into Figma frames using **Git
 2. [Two-process model](#two-process-model)
 3. [Directory structure](#directory-structure)
 4. [Core concepts](#core-concepts)
-5. [Authentication — GitHub token](#authentication--github-token)
-6. [Available Copilot models](#available-copilot-models)
+5. [Authentication & BYOK](#authentication--byok)
+6. [Available providers and models](#available-providers-and-models)
 7. [Agents](#agents)
 8. [Skills](#skills)
 9. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
@@ -36,18 +41,17 @@ A Figma plugin that turns natural-language prompts into Figma frames using **Git
 ┌────────────────▼────────────────────────────┐
 │  Plugin iframe  (ui.ts → dist/ui.js)         │
 │  • Chat interface                            │
-│  • Agent / model / variant selection         │
-│  • Calls GitHub Copilot API via fetch()      │
-└────────────────┬────────────────────────────┘
-                 │ HTTPS (OpenAI-compatible)
-┌────────────────▼────────────────────────────┐
-│  api.githubcopilot.com/chat/completions      │
-│  GPT-5.2 · Haiku 4.5 · Sonnet 4.6          │
-│  Gemini 3 Flash · Gemini 3 Pro              │
-└─────────────────────────────────────────────┘
+│  • Provider / agent / model / variant select │
+│  • Routes requests to the selected provider  │
+└──────┬─────────────────┬────────────────────┘
+       │ GitHub Copilot  │ OpenAI / Anthropic
+┌──────▼──────┐  ┌───────▼──────────────────────┐
+│ Copilot API │  │  api.openai.com  /  api.anthro │
+│ (proxy)     │  │  pic.com  (direct, BYOK)       │
+└─────────────┘  └──────────────────────────────┘
 ```
 
-**Only one AI provider is used: GitHub Copilot.** There are no OpenAI or Anthropic direct integrations. Users authenticate with a GitHub Personal Access Token that has the `copilot` scope.
+The provider is selected in the **Provider** dropdown. Each provider has its own set of models and API key field. Keys are persisted per-provider in the plugin iframe's `localStorage` and never committed to source code.
 
 ---
 
@@ -72,8 +76,13 @@ src/
 ├── ui.ts                      # UI logic (iframe)
 ├── types/
 │   └── ui-types.ts            # All shared TypeScript types
+├── providers/
+│   ├── llm-provider.ts        # LLMProvider interface
+│   ├── github-copilot-provider.ts  # GitHub Copilot proxy
+│   ├── openai-provider.ts     # Direct OpenAI Chat Completions
+│   └── anthropic-provider.ts  # Direct Anthropic Messages API
 ├── services/
-│   ├── ai-service.ts          # GitHub Copilot API client
+│   ├── ai-service.ts          # Provider factory + AIService (orchestrator)
 │   ├── context-engine.ts      # Extracts design system from Figma doc
 │   ├── figma-builder.ts       # Converts AI JSON → Figma nodes
 │   ├── custom-agent-registry.ts  # Manages user-provided agents/skills
@@ -88,7 +97,9 @@ src/
 │   └── apply-design-system.ts # Skill: map elements to design system components
 ├── data/
 │   └── skills-library.ts      # 28 bundled UX/product-design frameworks
-└── __tests__/                 # Jest unit tests (60 tests)
+└── __tests__/                 # Jest unit tests (80 tests)
+    ├── providers.test.ts      # Provider unit tests (NEW)
+    └── …
 ```
 
 ---
@@ -111,7 +122,7 @@ interface DocumentContext {
 }
 ```
 
-This context is injected into every system prompt so Copilot can reference existing components and colours.
+This context is injected into every system prompt so the AI can reference existing components and colours.
 
 ### UIScreen (the AI's output format)
 
@@ -141,24 +152,48 @@ interface UIElement {
 
 ---
 
-## Authentication — GitHub token
+## Authentication & BYOK
 
-The plugin calls `https://api.githubcopilot.com/chat/completions` using a **GitHub Personal Access Token (classic)** with the `copilot` scope.
+The plugin supports three providers, each with its own key:
 
-**How to get one:**
+### GitHub Copilot (default)
+
+Uses a **GitHub Personal Access Token (classic)** with the `copilot` scope.
 
 1. Go to **github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)**.
 2. Click **Generate new token (classic)**.
 3. Select the **`copilot`** scope (under *GitHub Copilot*).
 4. Copy the token (`ghp_…`) and paste it into the **GH Token** field in the plugin panel.
 
-The token is stored in `localStorage` within the plugin iframe and never sent anywhere except the official Copilot API endpoint.
+> **Requirement:** A GitHub account with an active [GitHub Copilot subscription](https://github.com/features/copilot#pricing).
 
-> **Requirement:** A GitHub account with an active [GitHub Copilot subscription](https://github.com/features/copilot#pricing) (free tier included).
+### OpenAI (BYOK)
+
+Uses an **OpenAI API key** (`sk-…`).
+
+1. Go to **platform.openai.com/api-keys**.
+2. Click **Create new secret key**.
+3. Copy the key and paste it into the **API Key** field when **OpenAI** is selected as the provider.
+
+> Ensure your account has sufficient credits. Errors 401/429 are surfaced in the chat with a descriptive message.
+
+### Anthropic (BYOK)
+
+Uses an **Anthropic API key** (`sk-ant-…`).
+
+1. Go to **console.anthropic.com → API Keys**.
+2. Click **Create key**.
+3. Copy the key and paste it into the **API Key** field when **Anthropic** is selected as the provider.
+
+> Errors 401/429 are surfaced in the chat with a descriptive message.
+
+**Security:** Keys are stored in `localStorage` within the plugin iframe. They are never committed to source code or sent to any endpoint other than the respective provider's official API.
 
 ---
 
-## Available Copilot models
+## Available providers and models
+
+### GitHub Copilot
 
 | UI label | API model id | Best for |
 |----------|-------------|----------|
@@ -168,7 +203,22 @@ The token is stored in `localStorage` within the plugin iframe and never sent an
 | Gemini 3 Flash | `gemini-3-flash` | Speed-optimised multimodal generation |
 | Gemini 3 Pro | `gemini-3-pro` | High-quality, reasoning-heavy design decisions |
 
-All requests use the OpenAI-compatible chat-completions format. The model id is sent verbatim to the Copilot API.
+### OpenAI
+
+| UI label | API model id | Best for |
+|----------|-------------|----------|
+| GPT-4o | `gpt-4o` | Best overall reasoning + fast |
+| GPT-4o mini | `gpt-4o-mini` | Fastest, most cost-effective |
+| GPT-4 Turbo | `gpt-4-turbo` | High-quality generation |
+| GPT-3.5 Turbo | `gpt-3.5-turbo` | Legacy, cheapest |
+
+### Anthropic
+
+| UI label | API model id | Best for |
+|----------|-------------|----------|
+| Claude Opus 4.5 | `claude-opus-4-5` | Best quality, complex layouts |
+| Claude Sonnet 4.5 | `claude-sonnet-4-5` | Balanced quality/speed |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | Fast, cost-effective |
 
 ---
 
@@ -192,9 +242,11 @@ Skills are the atomic units of work that agents orchestrate.
 
 | Skill file | What it does |
 |-----------|-------------|
-| `skills/generate-screen.ts` | Calls Copilot once; returns one screen. Falls back to a placeholder if the response is empty. |
+| `skills/generate-screen.ts` | Calls the AI once; returns one screen. Falls back to a placeholder if the response is empty. |
 | `skills/generate-variants.ts` | Injects "generate N distinct variants (Variant A, B, C…)" into the prompt; returns N screens. Auto-labels screens that are missing the word "Variant". |
 | `skills/apply-design-system.ts` | Pattern-matches element types against the design system component names and fills in the `component` field, enabling `figma-builder.ts` to use real Figma components. |
+
+Skills call `aiService.generateScreens()`, which delegates to the configured provider via the `LLMProvider` interface. Switching providers requires no changes to skill code.
 
 ---
 
@@ -238,15 +290,20 @@ Code-related skills (prefixed with `react-`, `typescript-`, `css-`, etc.) are fi
 ## Data flow — single request
 
 ```
+User selects Provider + Model + API Key
 User types prompt → handleGenerate() in ui.ts
   │
-  ├─ getModelConfig()          → { model, githubToken }
-  ├─ getSelectedAgent()        → "ux-designer" | "design-system" | custom id
+  ├─ getModelConfig()    → { provider, model, openaiKey | anthropicKey | githubToken }
+  ├─ getSelectedAgent()  → "ux-designer" | "design-system" | custom id
   ├─ agent.generate(prompt, variants, context, modelConfig, history)
   │     │
   │     ├─ generateScreen / generateVariants  (skill)
   │     │     └─ aiService.generateScreens()
-  │     │           └─ callCopilot()  →  POST api.githubcopilot.com
+  │     │           └─ createProvider(config)  → LLMProvider instance
+  │     │                 └─ provider.chat(messages, modelId)
+  │     │                       ├─ GitHubCopilotProvider → api.githubcopilot.com
+  │     │                       ├─ OpenAIProvider        → api.openai.com
+  │     │                       └─ AnthropicProvider     → api.anthropic.com
   │     │                                ← JSON array of UIScreen[]
   │     └─ applyDesignSystem()  (optional skill)
   │
@@ -281,10 +338,17 @@ Load the plugin in Figma:
 Tests live in `src/__tests__/` and use Jest + ts-jest. There is no Figma API mock — the plugin sandbox (`main.ts`) is intentionally excluded from the test suite. All tests exercise pure TypeScript logic.
 
 ```bash
-npm test                        # run all 60 tests
-npm test -- --watch             # watch mode
-npm test -- generate-screen     # run a single suite
+npm test                      # run all 80 tests
+npm test -- --watch           # watch mode
+npm test -- providers         # run provider suite only
+npm test -- generate-screen   # run a single suite
 ```
+
+The `providers.test.ts` suite specifically validates:
+- `createProvider()` factory routes to the correct class.
+- Each provider constructs the correct HTTP request (URL, headers, body shape).
+- Error handling for missing keys and HTTP 401 / 429 responses.
+- Anthropic's system-prompt separation logic.
 
 ---
 
@@ -293,11 +357,19 @@ npm test -- generate-screen     # run a single suite
 ```ts
 // src/types/ui-types.ts
 
-type AIModel = "gpt-5.2" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash" | "gemini-3-pro";
+type LLMProvider = "github-copilot" | "openai" | "anthropic";
+
+type CopilotModel = "gpt-5.2" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash" | "gemini-3-pro";
+type OpenAIModel  = "gpt-4o" | "gpt-4o-mini" | "gpt-4-turbo" | "gpt-3.5-turbo";
+type AnthropicModel = "claude-opus-4-5" | "claude-sonnet-4-5" | "claude-haiku-4-5";
+type AIModel = CopilotModel | OpenAIModel | AnthropicModel;
 
 interface ModelConfig {
+  provider: LLMProvider;
   model: AIModel;
-  githubToken?: string; // GitHub PAT with 'copilot' scope
+  githubToken?: string;  // GitHub PAT with 'copilot' scope
+  openaiKey?: string;    // OpenAI API key (sk-…)
+  anthropicKey?: string; // Anthropic API key (sk-ant-…)
 }
 
 type AgentType = "ux-designer" | "design-system";
@@ -307,4 +379,3 @@ type SkillType = "generate-screen" | "generate-variants" | "apply-design-system"
 type UIToPluginMessage  = GetContextMessage | BuildScreensMessage;
 type PluginToUIMessage  = ContextReadyMessage | ScreensBuiltMessage | ErrorMessage | NotifyMessage;
 ```
-

@@ -471,10 +471,21 @@
 
   <!-- Settings -->
   <section class="settings" aria-label="Configuration">
-    <!-- Model selection -->
+    <!-- Provider selection -->
+    <div class="settings__row">
+      <span class="settings__label">Provider</span>
+      <select id="provider-select" aria-label="LLM Provider">
+        <option value="github-copilot">GitHub Copilot</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+      </select>
+    </div>
+
+    <!-- Model selection (populated dynamically per provider) -->
     <div class="settings__row">
       <span class="settings__label">Model</span>
-      <select id="model-select" aria-label="Copilot Model">
+      <select id="model-select" aria-label="Model">
+        <!-- Options injected by ui.ts syncProviderUI() -->
         <option value="gpt-5.2">GPT-5.2</option>
         <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
         <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
@@ -492,16 +503,16 @@
       </select>
     </div>
 
-    <!-- GitHub Token -->
+    <!-- API Key (label and placeholder updated dynamically per provider) -->
     <div class="settings__row">
-      <span class="settings__label">GH Token</span>
+      <span class="settings__label" id="api-key-label">GH Token</span>
       <div class="api-key-row">
         <input
           type="password"
           id="api-key-input"
           placeholder="ghp_… (copilot scope)"
           autocomplete="off"
-          aria-label="GitHub Token"
+          aria-label="API Key"
         />
         <button class="btn btn--ghost" id="api-key-toggle" type="button">Show</button>
       </div>

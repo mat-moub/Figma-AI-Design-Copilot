@@ -20,11 +20,11 @@ import {
 } from "./services/skills-library-service";
 import type {
   AgentType,
-  AIModel,
   ChatMessage,
   CopilotConfig,
   DocumentContext,
   ExternalSkillEntry,
+  LLMProvider,
   ModelConfig,
   PluginToUIMessage,
   UIScreen,
@@ -60,6 +60,13 @@ function getEl<T extends HTMLElement>(id: string): T {
 document.addEventListener("DOMContentLoaded", () => {
   registry.loadFromStorage();
   populateCustomAgentOptions();
+
+  // Restore provider selection and sync model/key UI before wiring listeners
+  const savedProvider = (localStorage.getItem("copilot_provider") as LLMProvider | null) ?? "github-copilot";
+  const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
+  if (providerSelect) providerSelect.value = savedProvider;
+  syncProviderUI(savedProvider);
+
   setupEventListeners();
   requestDocumentContext();
 
@@ -132,6 +139,35 @@ function setupEventListeners(): void {
   refreshCtxBtn.addEventListener("click", requestDocumentContext);
   apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
 
+  // ── Provider selection ─────────────────────────────────────────────────
+  const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
+  if (providerSelect) {
+    providerSelect.addEventListener("change", () => {
+      const provider = providerSelect.value as LLMProvider;
+      localStorage.setItem("copilot_provider", provider);
+      syncProviderUI(provider);
+    });
+  }
+
+  // ── Model selection: persist per provider ──────────────────────────────
+  const modelSelect = document.getElementById("model-select") as HTMLSelectElement | null;
+  if (modelSelect) {
+    modelSelect.addEventListener("change", () => {
+      const provider = getSelectedProvider();
+      localStorage.setItem(`copilot_model_${provider}`, modelSelect.value);
+    });
+  }
+
+  // ── API key: persist per provider on change ────────────────────────────
+  const apiKeyInput = document.getElementById("api-key-input") as HTMLInputElement | null;
+  if (apiKeyInput) {
+    apiKeyInput.addEventListener("input", () => {
+      const provider = getSelectedProvider();
+      const storageKey = PROVIDER_KEY_INFO[provider].storageKey;
+      localStorage.setItem(storageKey, apiKeyInput.value.trim());
+    });
+  }
+
   // ── Custom agents / skills: file-drop zone ──────────────────────────────
   setupDropZone();
 
@@ -174,8 +210,9 @@ async function handleGenerate(): Promise<void> {
   }
 
   const modelConfig = getModelConfig();
-  if (!modelConfig.githubToken) {
-    showToast("Please enter your GitHub token (copilot scope) in the settings.", "warning");
+  const missingKeyMsg = validateApiKey(modelConfig);
+  if (missingKeyMsg) {
+    showToast(missingKeyMsg, "warning");
     return;
   }
 
@@ -259,14 +296,126 @@ function showContextBadge(context: DocumentContext): void {
 
 // ── Config helpers ────────────────────────────────────────────────────────────
 
-function getModelConfig(): ModelConfig {
-  const modelEl = getEl<HTMLSelectElement>("model-select");
-  const tokenEl = getEl<HTMLInputElement>("api-key-input");
+/** Models available per provider, used to populate the model dropdown. */
+const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string }>> = {
+  "github-copilot": [
+    { value: "gpt-5.2", label: "GPT-5.2" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+    { value: "gemini-3-flash", label: "Gemini 3 Flash" },
+    { value: "gemini-3-pro", label: "Gemini 3 Pro" },
+  ],
+  openai: [
+    { value: "gpt-4o", label: "GPT-4o" },
+    { value: "gpt-4o-mini", label: "GPT-4o mini" },
+    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+    { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+  ],
+  anthropic: [
+    { value: "claude-opus-4-5", label: "Claude Opus 4.5" },
+    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+  ],
+};
 
-  return {
-    model: modelEl.value as AIModel,
-    githubToken: tokenEl.value.trim() || undefined,
+/** Key labels and placeholders per provider for the API key input field. */
+const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string }> = {
+  "github-copilot": {
+    label: "GH Token",
+    placeholder: "ghp_… (copilot scope)",
+    storageKey: "copilot_github_token",
+  },
+  openai: {
+    label: "API Key",
+    placeholder: "sk-… (OpenAI API key)",
+    storageKey: "copilot_openai_key",
+  },
+  anthropic: {
+    label: "API Key",
+    placeholder: "sk-ant-… (Anthropic API key)",
+    storageKey: "copilot_anthropic_key",
+  },
+};
+
+/**
+ * Update the model dropdown options and API key label/placeholder to match
+ * the currently selected provider.
+ */
+function syncProviderUI(provider: LLMProvider): void {
+  const modelSelect = getEl<HTMLSelectElement>("model-select");
+  const keyLabel = document.getElementById("api-key-label");
+  const keyInput = getEl<HTMLInputElement>("api-key-input");
+
+  // Rebuild model options
+  modelSelect.innerHTML = "";
+  for (const { value, label } of PROVIDER_MODELS[provider]) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    modelSelect.appendChild(opt);
+  }
+
+  // Restore previously saved model for this provider
+  const savedModel = localStorage.getItem(`copilot_model_${provider}`);
+  if (savedModel) modelSelect.value = savedModel;
+
+  // Update key label and placeholder
+  const info = PROVIDER_KEY_INFO[provider];
+  if (keyLabel) keyLabel.textContent = info.label;
+  keyInput.placeholder = info.placeholder;
+
+  // Restore previously saved API key for this provider
+  const savedKey = localStorage.getItem(info.storageKey) ?? "";
+  keyInput.value = savedKey;
+}
+
+function getSelectedProvider(): LLMProvider {
+  const el = document.getElementById("provider-select") as HTMLSelectElement | null;
+  return (el?.value as LLMProvider) ?? "github-copilot";
+}
+
+function getModelConfig(): ModelConfig {
+  const provider = getSelectedProvider();
+  const modelEl = getEl<HTMLSelectElement>("model-select");
+  const keyInput = getEl<HTMLInputElement>("api-key-input");
+  const keyValue = keyInput.value.trim();
+
+  const config: ModelConfig = {
+    provider,
+    model: modelEl.value as ModelConfig["model"],
   };
+
+  if (provider === "github-copilot") {
+    config.githubToken = keyValue || undefined;
+  } else if (provider === "openai") {
+    config.openaiKey = keyValue || undefined;
+  } else if (provider === "anthropic") {
+    config.anthropicKey = keyValue || undefined;
+  }
+
+  return config;
+}
+
+/**
+ * Return an error message if the required API key for the current provider is
+ * missing, or `null` if configuration is valid.
+ */
+function validateApiKey(config: ModelConfig): string | null {
+  switch (config.provider) {
+    case "openai":
+      return config.openaiKey
+        ? null
+        : "Please enter your OpenAI API key (sk-…) in the settings.";
+    case "anthropic":
+      return config.anthropicKey
+        ? null
+        : "Please enter your Anthropic API key (sk-ant-…) in the settings.";
+    case "github-copilot":
+    default:
+      return config.githubToken
+        ? null
+        : "Please enter your GitHub token (copilot scope) in the settings.";
+  }
 }
 
 function getVariantCount(): number {
