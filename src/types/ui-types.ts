@@ -51,16 +51,22 @@ export interface ChatMessage {
 
 // ─── Models ──────────────────────────────────────────────────────────────────
 
+/**
+ * Models available through the GitHub Copilot API.
+ * All requests go to https://api.githubcopilot.com/chat/completions using a
+ * GitHub Personal Access Token with the `copilot` scope.
+ */
 export type AIModel =
-  | "copilot-gpt-4"
-  | "gpt-4o"
-  | "claude-3-5-sonnet"
-  | "custom";
+  | "gpt-5.2"
+  | "claude-haiku-4-5"
+  | "claude-sonnet-4-6"
+  | "gemini-3-flash"
+  | "gemini-3-pro";
 
 export interface ModelConfig {
   model: AIModel;
-  apiKey?: string;
-  apiEndpoint?: string;
+  /** GitHub Personal Access Token with the `copilot` scope. */
+  githubToken?: string;
 }
 
 // ─── Document Context ────────────────────────────────────────────────────────

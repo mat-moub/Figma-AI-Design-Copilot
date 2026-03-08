@@ -6,19 +6,34 @@ import type {
   UIScreen,
 } from "../types/ui-types";
 
-// ─── Model endpoint helpers ───────────────────────────────────────────────────
+// ─── GitHub Copilot API ───────────────────────────────────────────────────────
 
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+/**
+ * Why `chat/completions` and not the Copilot "skills" endpoint?
+ *
+ * The Copilot "skills" / skillsets endpoint is a Copilot Extensions concept:
+ * it lets Copilot's own orchestration layer call *your* backend API during a
+ * Copilot Chat session. This plugin works the other way round — it is the
+ * caller, not the callee — so it needs an LLM inference endpoint. The
+ * OpenAI-compatible `chat/completions` endpoint is the correct choice for
+ * multi-turn, prompt-chained LLM calls with a GitHub PAT.
+ */
+const COPILOT_API_URL = "https://api.githubcopilot.com/chat/completions";
 
-function openAIModelId(model: AIModel): string {
+/** Map our model ids to the identifiers accepted by the Copilot API. */
+function copilotModelId(model: AIModel): string {
   switch (model) {
-    case "copilot-gpt-4":
-      return "gpt-4";
-    case "gpt-4o":
-      return "gpt-4o";
+    case "claude-haiku-4-5":
+      return "claude-haiku-4-5";
+    case "claude-sonnet-4-6":
+      return "claude-sonnet-4-6";
+    case "gemini-3-flash":
+      return "gemini-3-flash";
+    case "gemini-3-pro":
+      return "gemini-3-pro";
+    case "gpt-5.2":
     default:
-      return "gpt-4o";
+      return "gpt-5.2";
   }
 }
 
@@ -66,26 +81,30 @@ Each screen object must follow this exact schema:
 Return ONLY the JSON array, no markdown fences, no explanation.`;
 }
 
-// ─── OpenAI-compatible request ────────────────────────────────────────────────
+// ─── GitHub Copilot request ───────────────────────────────────────────────────
 
-async function callOpenAI(
+async function callCopilot(
   messages: ChatMessage[],
   config: ModelConfig
 ): Promise<string> {
-  if (!config.apiKey) {
-    throw new Error("API key is required for OpenAI / Copilot models.");
+  if (!config.githubToken) {
+    throw new Error(
+      "A GitHub token with the 'copilot' scope is required. " +
+      "Generate one at github.com/settings/tokens and paste it in the GitHub Token field."
+    );
   }
 
-  const endpoint = config.apiEndpoint ?? OPENAI_API_URL;
-
-  const response = await fetch(endpoint, {
+  const response = await fetch(COPILOT_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
+      "Authorization": `Bearer ${config.githubToken}`,
+      "Editor-Version": "figma-ai-design-copilot/1.0.0",
+      "Editor-Plugin-Version": "figma-ai-design-copilot/1.0.0",
+      "Copilot-Integration-Id": "figma-ai-design-copilot",
     },
     body: JSON.stringify({
-      model: openAIModelId(config.model),
+      model: copilotModelId(config.model),
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       temperature: 0.7,
       max_tokens: 4096,
@@ -94,7 +113,7 @@ async function callOpenAI(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`OpenAI API error ${response.status}: ${errorText}`);
+    throw new Error(`GitHub Copilot API error ${response.status}: ${errorText}`);
   }
 
   const data = (await response.json()) as {
@@ -102,49 +121,6 @@ async function callOpenAI(
   };
 
   return data.choices[0]?.message?.content ?? "";
-}
-
-// ─── Anthropic request ────────────────────────────────────────────────────────
-
-async function callClaude(
-  messages: ChatMessage[],
-  config: ModelConfig
-): Promise<string> {
-  if (!config.apiKey) {
-    throw new Error("API key is required for Claude.");
-  }
-
-  const systemMsg = messages.find((m) => m.role === "system");
-  const userMessages = messages.filter((m) => m.role !== "system");
-
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": config.apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 4096,
-      system: systemMsg?.content ?? "",
-      messages: userMessages.map((m) => ({
-        role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content,
-      })),
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
-  }
-
-  const data = (await response.json()) as {
-    content: Array<{ type: string; text: string }>;
-  };
-
-  return data.content.find((c) => c.type === "text")?.text ?? "";
 }
 
 // ─── Response parser ──────────────────────────────────────────────────────────
@@ -174,12 +150,12 @@ function parseScreensFromResponse(raw: string): UIScreen[] {
 
 export class AIService {
   /**
-   * Call the configured AI model and return parsed UI screens.
+   * Call the GitHub Copilot API and return parsed UI screens.
    *
    * @param userPrompt   The designer's natural language request.
    * @param agentPrompt  The agent's system prompt.
    * @param context      The Figma document context.
-   * @param config       Model and API key configuration.
+   * @param config       Model and GitHub token configuration.
    * @param history      Previous chat messages for multi-turn conversations.
    */
   async generateScreens(
@@ -209,20 +185,7 @@ export class AIService {
       userMessage,
     ];
 
-    let rawResponse: string;
-
-    switch (config.model) {
-      case "claude-3-5-sonnet":
-        rawResponse = await callClaude(messages, config);
-        break;
-      case "copilot-gpt-4":
-      case "gpt-4o":
-      case "custom":
-      default:
-        rawResponse = await callOpenAI(messages, config);
-        break;
-    }
-
+    const rawResponse = await callCopilot(messages, config);
     return parseScreensFromResponse(rawResponse);
   }
 
@@ -244,3 +207,4 @@ export class AIService {
     return full;
   }
 }
+

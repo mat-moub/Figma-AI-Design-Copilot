@@ -44,7 +44,7 @@ const mockContext: DocumentContext = {
   pages: ["Page 1"],
 };
 
-const mockModelConfig: ModelConfig = { model: "gpt-4o", apiKey: "test-key" };
+const mockModelConfig: ModelConfig = { model: "gpt-5.2", githubToken: "ghp_test" };
 
 function makeAgent(overrides: Partial<CustomAgentConfig> = {}): CustomAgent {
   const config: CustomAgentConfig = {
