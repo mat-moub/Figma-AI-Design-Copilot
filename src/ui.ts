@@ -27,6 +27,7 @@ import type {
   LLMProvider,
   ModelConfig,
   PluginToUIMessage,
+  SkillType,
   UIScreen,
 } from "./types/ui-types";
 
@@ -892,12 +893,25 @@ function renderSkillsLibrary(): void {
 // ── Onboarding ────────────────────────────────────────────────────────────────
 
 const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
-const ONBOARDING_TOTAL_STEPS = 3;
+const ONBOARDING_TOTAL_STEPS = 4;
+
+/** All built-in skills, used as the default set for onboarding-created agents. */
+const ALL_SKILL_TYPES: SkillType[] = ["generate-screen", "generate-variants", "apply-design-system"];
+
+/**
+ * Default system prompt pre-filled in the step-4 agent textarea.
+ * If the user hasn't changed this text we skip creating the agent.
+ */
+const OB_AGENT_DEFAULT_PROMPT =
+  "You are a UX expert in a company about... " +
+  "(insert your application functional context here). " +
+  "Create powerful figma components respecting existing design system. " +
+  "Use skills available in skills folder.";
 
 let onboardingStep = 0;
 
 /**
- * Initialise and (if first launch) display the 3-step onboarding overlay.
+ * Initialise and (if first launch) display the 4-step onboarding overlay.
  * On subsequent launches the overlay stays hidden because the done-flag is
  * already stored in localStorage.
  */
@@ -962,7 +976,8 @@ function setupOnboarding(): void {
         if (onboardingStep === 1) applyOnboardingConfig();
         goToOnboardingStep(onboardingStep + 1);
       } else {
-        // Final step: close and mark as done
+        // Final step (optional custom agent): save agent if filled, then close
+        applyOnboardingCustomAgent();
         dismissOnboarding();
       }
     });
@@ -986,7 +1001,13 @@ function goToOnboardingStep(step: number): void {
   const skipBtn = document.getElementById("ob-skip-btn");
 
   backBtn?.classList.toggle("hidden", step === 0);
-  if (skipBtn) skipBtn.classList.toggle("hidden", step === ONBOARDING_TOTAL_STEPS - 1);
+
+  // Skip is visible on every step but labelled differently on the optional last step
+  if (skipBtn) {
+    skipBtn.classList.remove("hidden");
+    skipBtn.textContent = step === ONBOARDING_TOTAL_STEPS - 1 ? "Skip for now" : "Skip setup";
+  }
+
   if (nextBtn) {
     nextBtn.textContent = step === ONBOARDING_TOTAL_STEPS - 1 ? "Get started 🚀" : "Next →";
   }
@@ -1053,4 +1074,47 @@ function dismissOnboarding(): void {
   const overlay = document.getElementById("onboarding-view");
   overlay?.classList.add("hidden");
   localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+}
+
+/**
+ * Read the optional custom-agent fields from step 4 and, if the user has
+ * edited the default system prompt, register and persist the new agent so
+ * it is immediately available in the Agent dropdown.
+ *
+ * If the textarea still contains the unmodified placeholder text the agent
+ * is silently skipped — no action is taken.
+ */
+function applyOnboardingCustomAgent(): void {
+  const nameInput   = document.getElementById("ob-agent-name")   as HTMLInputElement   | null;
+  const promptInput = document.getElementById("ob-agent-prompt") as HTMLTextAreaElement | null;
+
+  const systemPrompt = promptInput?.value.trim() ?? "";
+
+  // Skip silently if the user left the default placeholder unchanged
+  if (!systemPrompt || systemPrompt === OB_AGENT_DEFAULT_PROMPT) return;
+
+  const agentName = nameInput?.value.trim() || "My Custom Agent";
+  const id = `onboarding-agent-${Date.now()}`;
+
+  try {
+    registry.load({
+      agents: [{
+        id,
+        name: agentName,
+        systemPrompt,
+        skills: ALL_SKILL_TYPES,
+      }],
+    });
+    registry.saveToStorage();
+    populateCustomAgentOptions();
+    renderCustomConfigSummary();
+
+    // Auto-select the newly created agent in the main dropdown
+    const agentSelect = document.getElementById("agent-select") as HTMLSelectElement | null;
+    if (agentSelect) agentSelect.value = id;
+
+    showToast(`Custom agent "${agentName}" created!`);
+  } catch {
+    showToast("Could not create the agent — please check the name and prompt, then try again from Settings.");
+  }
 }

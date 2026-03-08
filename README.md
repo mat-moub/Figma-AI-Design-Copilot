@@ -60,32 +60,38 @@ Supported providers:
 
 ## Onboarding
 
-On first launch the plugin automatically shows a 3-step onboarding overlay to help new users get up and running without opening Settings manually.
+On first launch the plugin automatically shows a 4-step onboarding overlay to help new users get up and running without opening Settings manually.
 
 <table>
   <tr>
-    <td align="center" width="33%">
+    <td align="center" width="25%">
       <strong>Step 1 — Welcome</strong><br/>
       Introduction to the plugin's capabilities
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/49494053-f807-4ecf-8f24-865474cb8205" alt="Onboarding step 1 — Welcome screen" width="240"/>
+      <img src="https://github.com/user-attachments/assets/49494053-f807-4ecf-8f24-865474cb8205" alt="Onboarding step 1 — Welcome screen" width="200"/>
     </td>
-    <td align="center" width="33%">
+    <td align="center" width="25%">
       <strong>Step 2 — Configure provider</strong><br/>
       Pick provider, model, and enter API key
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/86dc7744-4908-4de0-8be1-fe746d7f92d0" alt="Onboarding step 2 — Configure AI provider" width="240"/>
+      <img src="https://github.com/user-attachments/assets/86dc7744-4908-4de0-8be1-fe746d7f92d0" alt="Onboarding step 2 — Configure AI provider" width="200"/>
     </td>
-    <td align="center" width="33%">
+    <td align="center" width="25%">
       <strong>Step 3 — Ready!</strong><br/>
       Usage tips to get the most out of the plugin
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/9bb8d68d-fd90-443d-b395-3dae5c8d9f15" alt="Onboarding step 3 — Ready to start" width="240"/>
+      <img src="https://github.com/user-attachments/assets/9bb8d68d-fd90-443d-b395-3dae5c8d9f15" alt="Onboarding step 3 — Ready to start" width="200"/>
+    </td>
+    <td align="center" width="25%">
+      <strong>Step 4 — Custom agent</strong> <em>(optional)</em><br/>
+      Create a domain-specific agent with a pre-filled system prompt
+      <br/><br/>
+      <img src="https://github.com/user-attachments/assets/6c31300e-9a65-4512-b8b9-718c98d3e829" alt="Onboarding step 4 — Create your first custom agent (optional)" width="200"/>
     </td>
   </tr>
 </table>
 
-The onboarding is shown **only once** (on first install). It is dismissed either by completing all 3 steps or by clicking **Skip setup**. Settings entered in step 2 are immediately applied to the plugin — no need to re-enter them in the Settings panel. The onboarding can be re-triggered by clearing `localStorage` in the browser dev tools (key: `copilot_onboarding_done`).
+The onboarding is shown **only once** (on first install). It is dismissed by completing all 4 steps or by clicking **Skip setup** / **Skip for now**. Settings entered in step 2 are immediately applied to the plugin — no need to re-enter them in the Settings panel. If a custom agent is created in step 4, it is instantly available in the Agent dropdown. The onboarding can be re-triggered by clearing `localStorage` in the browser dev tools (key: `copilot_onboarding_done`).
 
 ---
 

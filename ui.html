@@ -715,6 +715,44 @@
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
 
+    /* ── Onboarding: optional badge ───────────────────────────── */
+    .onboarding-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(99, 125, 255, 0.10);
+      color: var(--primary);
+      border: 1px solid rgba(99, 125, 255, 0.22);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
+    /* ── Onboarding: agent prompt textarea ────────────────────── */
+    .onboarding-textarea {
+      width: 100%;
+      min-height: 130px;
+      max-height: 200px;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      font-size: 11px;
+      font-family: var(--font);
+      color: var(--text);
+      line-height: 1.55;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      margin-top: 6px;
+    }
+    .onboarding-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
     /* ── Onboarding Overlay ───────────────────────────────────── */
     .onboarding-overlay {
       position: absolute;
@@ -1207,9 +1245,10 @@
       </div>
       <!-- Step progress dots -->
       <div class="onboarding-progress" aria-label="Setup progress">
-        <span class="onboarding-dot onboarding-dot--active" title="Step 1 of 3"></span>
-        <span class="onboarding-dot" title="Step 2 of 3"></span>
-        <span class="onboarding-dot" title="Step 3 of 3"></span>
+        <span class="onboarding-dot onboarding-dot--active" title="Step 1 of 4"></span>
+        <span class="onboarding-dot" title="Step 2 of 4"></span>
+        <span class="onboarding-dot" title="Step 3 of 4"></span>
+        <span class="onboarding-dot" title="Step 4 of 4"></span>
       </div>
     </div>
 
@@ -1222,7 +1261,7 @@
         <h2 class="onboarding-title">Welcome to AI Design Copilot</h2>
         <p class="onboarding-desc">
           Generate Figma screens from natural language prompts using AI.
-          Let's get you set up in 3 quick steps.
+          Let's get you set up in 4 quick steps.
         </p>
         <ul class="onboarding-features" aria-label="Key features">
           <li>🎨 Describe a screen and watch it appear in Figma</li>
@@ -1296,6 +1335,43 @@
           <li>🔄 <strong>Context</strong> — Click "Context" so AI reads your Figma document</li>
           <li>⚙️ <strong>Settings</strong> — Change provider or model at any time</li>
         </ul>
+      </div>
+
+      <!-- ── Step 4: Custom Agent (optional) ── -->
+      <div class="onboarding-step hidden" id="onboarding-step-3">
+        <h2 class="onboarding-title">
+          Create your first custom agent
+          <span class="onboarding-badge" aria-label="Optional step">Optional</span>
+        </h2>
+        <p class="onboarding-desc">
+          Give your agent a context specific to your application. It will use your design
+          system and all available skills automatically.
+        </p>
+        <div class="onboarding-configure">
+          <!-- Agent name -->
+          <div class="settings__row">
+            <label class="settings__label" for="ob-agent-name">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-agent"/></svg>
+              Name
+            </label>
+            <input type="text" id="ob-agent-name" placeholder="My Company Agent"
+                   aria-label="Agent name" style="flex:1"/>
+          </div>
+          <!-- System prompt -->
+          <div>
+            <label for="ob-agent-prompt" class="settings__label">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
+              System prompt
+            </label>
+            <textarea id="ob-agent-prompt" class="onboarding-textarea"
+                      aria-label="Agent system prompt"
+                      spellcheck="false">You are a UX expert in a company about... (insert your application functional context here). Create powerful figma components respecting existing design system. Use skills available in skills folder.</textarea>
+          </div>
+        </div>
+        <p class="onboarding-hint">
+          💡 Your agent will appear in the Agent dropdown and can be customised later in Settings.
+          Click <strong>Skip for now</strong> to start without a custom agent.
+        </p>
       </div>
 
     </div><!-- end onboarding-body -->
