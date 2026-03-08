@@ -8,6 +8,16 @@ import type {
 
 // ─── GitHub Copilot API ───────────────────────────────────────────────────────
 
+/**
+ * Why `chat/completions` and not the Copilot "skills" endpoint?
+ *
+ * The Copilot "skills" / skillsets endpoint is a Copilot Extensions concept:
+ * it lets Copilot's own orchestration layer call *your* backend API during a
+ * Copilot Chat session. This plugin works the other way round — it is the
+ * caller, not the callee — so it needs an LLM inference endpoint. The
+ * OpenAI-compatible `chat/completions` endpoint is the correct choice for
+ * multi-turn, prompt-chained LLM calls with a GitHub PAT.
+ */
 const COPILOT_API_URL = "https://api.githubcopilot.com/chat/completions";
 
 /** Map our model ids to the identifiers accepted by the Copilot API. */
@@ -21,9 +31,9 @@ function copilotModelId(model: AIModel): string {
       return "gemini-3-flash";
     case "gemini-3-pro":
       return "gemini-3-pro";
-    case "gpt-4.5":
+    case "gpt-5.2":
     default:
-      return "gpt-4.5";
+      return "gpt-5.2";
   }
 }
 

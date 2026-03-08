@@ -57,7 +57,7 @@ export interface ChatMessage {
  * GitHub Personal Access Token with the `copilot` scope.
  */
 export type AIModel =
-  | "gpt-4.5"
+  | "gpt-5.2"
   | "claude-haiku-4-5"
   | "claude-sonnet-4-6"
   | "gemini-3-flash"
