@@ -155,6 +155,7 @@ function setupEventListeners(): void {
     modelSelect.addEventListener("change", () => {
       const provider = getSelectedProvider();
       localStorage.setItem(`copilot_model_${provider}`, modelSelect.value);
+      updateConnectionBadge();
     });
   }
 
@@ -165,6 +166,7 @@ function setupEventListeners(): void {
       const provider = getSelectedProvider();
       const storageKey = PROVIDER_KEY_INFO[provider].storageKey;
       localStorage.setItem(storageKey, apiKeyInput.value.trim());
+      updateConnectionBadge();
     });
   }
 
@@ -343,7 +345,6 @@ const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: strin
  */
 function syncProviderUI(provider: LLMProvider): void {
   const modelSelect = getEl<HTMLSelectElement>("model-select");
-  const keyLabel = document.getElementById("api-key-label");
   const keyInput = getEl<HTMLInputElement>("api-key-input");
 
   // Rebuild model options
@@ -361,12 +362,15 @@ function syncProviderUI(provider: LLMProvider): void {
 
   // Update key label and placeholder
   const info = PROVIDER_KEY_INFO[provider];
-  if (keyLabel) keyLabel.textContent = info.label;
+  const keyLabelText = document.getElementById("api-key-label-text");
+  if (keyLabelText) keyLabelText.textContent = info.label;
   keyInput.placeholder = info.placeholder;
 
   // Restore previously saved API key for this provider
   const savedKey = localStorage.getItem(info.storageKey) ?? "";
   keyInput.value = savedKey;
+
+  updateConnectionBadge();
 }
 
 function getSelectedProvider(): LLMProvider {
@@ -481,14 +485,48 @@ function setGenerating(active: boolean): void {
 
 function toggleApiKeyVisibility(): void {
   const input = getEl<HTMLInputElement>("api-key-input");
-  const btn = getEl<HTMLButtonElement>("api-key-toggle");
-  if (input.type === "password") {
-    input.type = "text";
-    btn.textContent = "Hide";
-  } else {
-    input.type = "password";
-    btn.textContent = "Show";
-  }
+  const isPassword = input.type === "password";
+  input.type = isPassword ? "text" : "password";
+  // Swap eye ↔ eye-slash icons (defined in ui.html)
+  const iconEye      = document.getElementById("api-key-icon-eye");
+  const iconEyeSlash = document.getElementById("api-key-icon-eye-slash");
+  if (iconEye)      iconEye.classList.toggle("hidden", !isPassword);
+  if (iconEyeSlash) iconEyeSlash.classList.toggle("hidden", isPassword);
+}
+
+// ── Connection badge ──────────────────────────────────────────────────────────
+
+/**
+ * Refreshes the compact connection-status badge shown in the settings toggle
+ * bar when the configuration panel is collapsed.
+ *
+ * Badge format:  ● GitHub · GPT-5.2   (green dot = key set)
+ *                ○ OpenAI · GPT-4o    (orange dot = no key)
+ */
+function updateConnectionBadge(): void {
+  const dot  = document.getElementById("connection-dot");
+  const text = document.getElementById("connection-text");
+  if (!dot || !text) return;
+
+  const provider = getSelectedProvider();
+  const modelEl  = document.getElementById("model-select") as HTMLSelectElement | null;
+  const keyInput = document.getElementById("api-key-input")  as HTMLInputElement  | null;
+  const hasKey   = !!(keyInput?.value.trim());
+
+  const providerLabels: Record<string, string> = {
+    "github-copilot": "GitHub",
+    "openai":         "OpenAI",
+    "anthropic":      "Anthropic",
+  };
+
+  const providerShort = providerLabels[provider] ?? provider;
+  const modelShort    = modelEl?.options[modelEl.selectedIndex]?.text ?? modelEl?.value ?? "—";
+
+  const statusLabel = hasKey ? "API key configured" : "No API key — click to configure";
+  dot.className    = hasKey ? "connection-dot connection-dot--ready" : "connection-dot";
+  dot.title        = statusLabel;
+  dot.setAttribute("aria-label", statusLabel);
+  text.textContent = `${providerShort} · ${modelShort}`;
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────

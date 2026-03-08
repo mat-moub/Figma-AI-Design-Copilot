@@ -4,14 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Design Copilot</title>
-  <!-- Font Awesome 6 Free via CDN -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-    integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W=="
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"
-  />
   <style>
     /* ── Reset & Base ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,13 +14,11 @@
       --border: #d4d8e8;
       --border-aura: rgba(30, 48, 112, 0.18);
 
-      /* Dark-blue primary palette */
       --primary: #1e3070;
       --primary-hover: #162558;
       --primary-light: #2d46a0;
       --primary-text: #ffffff;
       --primary-glow: rgba(30, 48, 112, 0.35);
-      --primary-glow-strong: rgba(30, 48, 112, 0.55);
 
       --text: #1a1d2e;
       --text-muted: #6b7280;
@@ -39,9 +29,11 @@
 
       --radius: 8px;
       --radius-lg: 12px;
-      --shadow: 0 2px 8px rgba(30, 48, 112, 0.10);
       --shadow-aura: 0 0 0 1px var(--border-aura), 0 0 16px rgba(30, 48, 112, 0.10);
       --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+      --status-ready: #16a34a;
+      --status-no-key: #d97706;
     }
 
     body {
@@ -55,10 +47,28 @@
       overflow: hidden;
     }
 
+    /* ── SVG Icons ────────────────────────────────────────────── */
+    .icon {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: -0.13em;
+      flex-shrink: 0;
+      overflow: visible;
+    }
+    .icon--fill { fill: currentColor; stroke: none; }
+    .icon-sm { font-size: 10px; }
+    .icon-md { font-size: 13px; }
+    .icon-lg { font-size: 20px; }
+
     /* ── Header ──────────────────────────────────────────────── */
     .header {
       background: var(--primary);
-      border-bottom: none;
       padding: 11px 14px;
       display: flex;
       align-items: center;
@@ -81,7 +91,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      font-size: 14px;
       color: #ffffff;
       box-shadow: 0 0 10px rgba(255,255,255,0.20);
       border: 1px solid rgba(255,255,255,0.20);
@@ -116,7 +126,6 @@
       font-weight: 600;
       padding: 2px 8px;
       cursor: help;
-      backdrop-filter: blur(4px);
     }
 
     .btn--header {
@@ -130,29 +139,44 @@
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       transition: background 0.15s, border-color 0.15s;
     }
-
     .btn--header:hover {
       background: rgba(255,255,255,0.22);
       border-color: rgba(255,255,255,0.35);
       color: #ffffff;
     }
 
-    /* ── Collapsible Settings Panel ──────────────────────────── */
+    /* ── Settings Panel (collapsible) ─────────────────────────── */
     .settings-wrapper {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
       box-shadow: var(--shadow-aura);
+      position: relative;
     }
 
+    .settings-wrapper::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -1px;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(30, 48, 112, 0.20) 30%,
+        rgba(30, 48, 112, 0.35) 50%,
+        rgba(30, 48, 112, 0.20) 70%,
+        transparent 100%);
+      pointer-events: none;
+    }
+
+    /* Toggle row: full-width button */
     .settings-toggle {
       width: 100%;
       background: none;
       border: none;
-      padding: 8px 14px;
+      padding: 9px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -160,8 +184,8 @@
       font-family: var(--font);
       color: var(--text);
       transition: background 0.12s;
+      gap: 8px;
     }
-
     .settings-toggle:hover { background: var(--bg); }
 
     .settings-toggle__left {
@@ -173,29 +197,56 @@
       color: var(--primary);
       text-transform: uppercase;
       letter-spacing: 0.6px;
+      min-width: 0;
+      flex: 1;
     }
 
-    .settings-toggle__left i { font-size: 10px; }
-
-    .settings-toggle__chevron {
+    /* Connection status badge (visible when panel is collapsed) */
+    .connection-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(30, 48, 112, 0.07);
+      border: 1px solid rgba(30, 48, 112, 0.15);
+      border-radius: 999px;
+      padding: 2px 8px;
       font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0;
+      text-transform: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .connection-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--status-no-key);
+    }
+    .connection-dot--ready { background: var(--status-ready); }
+
+    .chevron-icon {
+      font-size: 11px;
       color: var(--text-muted);
       transition: transform 0.2s;
+      flex-shrink: 0;
     }
+    .chevron-icon.open { transform: rotate(180deg); }
 
-    .settings-toggle__chevron.open { transform: rotate(180deg); }
-
+    /* Settings form panel */
     .settings {
       padding: 10px 14px 12px;
       display: flex;
       flex-direction: column;
       gap: 8px;
       overflow: hidden;
-      transition: max-height 0.25s ease, opacity 0.2s;
+      transition: max-height 0.25s ease, opacity 0.2s, padding 0.2s;
       max-height: 300px;
       opacity: 1;
     }
-
     .settings.collapsed {
       max-height: 0;
       opacity: 0;
@@ -215,16 +266,11 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      min-width: 56px;
+      min-width: 60px;
       display: flex;
       align-items: center;
       gap: 5px;
-    }
-
-    .settings__label i {
-      font-size: 10px;
-      color: var(--primary);
-      opacity: 0.8;
+      flex-shrink: 0;
     }
 
     select, input[type="number"], input[type="text"], input[type="password"] {
@@ -238,47 +284,63 @@
       outline: none;
       transition: border-color 0.18s, box-shadow 0.18s;
     }
-
     select:focus, input:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 3px var(--primary-glow), 0 0 12px var(--border-aura);
     }
-
     select { cursor: pointer; }
 
     .api-key-row {
       display: flex;
       gap: 4px;
       flex: 1;
-    }
-
-    .api-key-row input {
-      flex: 1;
       min-width: 0;
     }
+    .api-key-row input { flex: 1; min-width: 0; }
 
     /* ── Collapsible Sections ─────────────────────────────────── */
     .collapsible-section {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      position: relative;
+    }
+    .collapsible-section::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -1px;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(30, 48, 112, 0.20) 30%,
+        rgba(30, 48, 112, 0.35) 50%,
+        rgba(30, 48, 112, 0.20) 70%,
+        transparent 100%);
+      pointer-events: none;
     }
 
+    /* Header row: toggle button + action buttons side-by-side */
     .collapsible-section__header {
-      width: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    .collapsible-section__toggle {
+      flex: 1;
+      min-width: 0;
       background: none;
       border: none;
       padding: 7px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 6px;
       cursor: pointer;
       font-family: var(--font);
       color: var(--text);
       transition: background 0.12s;
     }
-
-    .collapsible-section__header:hover { background: var(--bg); }
+    .collapsible-section__toggle:hover { background: var(--bg); }
 
     .section-title {
       display: flex;
@@ -291,16 +353,12 @@
       color: var(--text-muted);
     }
 
-    .section-title i {
-      font-size: 10px;
-      color: var(--primary);
-      opacity: 0.75;
-    }
-
     .section-actions {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
+      padding-right: 10px;
+      flex-shrink: 0;
     }
 
     .collapsible-section__body {
@@ -309,15 +367,12 @@
       max-height: 300px;
       opacity: 1;
     }
-
     .collapsible-section__body.collapsed {
       max-height: 0;
       opacity: 0;
     }
 
-    .collapsible-section__body-inner {
-      padding: 0 14px 10px;
-    }
+    .collapsible-section__body-inner { padding: 0 14px 10px; }
 
     /* ── Chat History ─────────────────────────────────────────── */
     .chat-section {
@@ -329,7 +384,7 @@
     }
 
     .chat-section__label {
-      padding: 7px 14px 4px;
+      padding: 7px 14px 5px;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
@@ -343,8 +398,6 @@
       border-bottom: 1px solid var(--border);
     }
 
-    .chat-section__label .section-title { color: var(--text-muted); }
-
     #chat-history {
       flex: 1;
       overflow-y: auto;
@@ -353,48 +406,13 @@
       flex-direction: column;
       gap: 10px;
     }
-
     #chat-history::-webkit-scrollbar { width: 4px; }
     #chat-history::-webkit-scrollbar-track { background: transparent; }
-    #chat-history::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 2px;
-    }
+    #chat-history::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
     /* ── Chat Bubbles ─────────────────────────────────────────── */
-    .chat-row {
-      display: flex;
-      align-items: flex-end;
-      gap: 7px;
-    }
-
-    .chat-row--user { flex-direction: row-reverse; }
-
-    .chat-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      flex-shrink: 0;
-    }
-
-    .chat-avatar--user {
-      background: var(--primary);
-      color: #fff;
-      box-shadow: 0 0 8px var(--primary-glow);
-    }
-
-    .chat-avatar--assistant {
-      background: var(--ai-bubble);
-      color: var(--primary);
-      border: 1px solid var(--border-aura);
-    }
-
     .chat-bubble {
-      max-width: 80%;
+      max-width: 85%;
       border-radius: var(--radius-lg);
       padding: 8px 12px;
       display: flex;
@@ -403,20 +421,20 @@
     }
 
     .chat-bubble--user {
+      align-self: flex-end;
       background: var(--user-bubble);
       border-bottom-right-radius: 3px;
       box-shadow: 0 2px 10px rgba(30, 48, 112, 0.25), 0 0 20px rgba(30, 48, 112, 0.12);
     }
-
     .chat-bubble--user .chat-label { color: rgba(255,255,255,0.65); }
     .chat-bubble--user .chat-text  { color: #ffffff; }
 
     .chat-bubble--assistant {
+      align-self: flex-start;
       background: var(--ai-bubble);
       border-bottom-left-radius: 3px;
       border: 1px solid var(--border-aura);
     }
-
     .chat-bubble--assistant .chat-label { color: var(--primary); }
     .chat-bubble--assistant .chat-text  { color: var(--ai-text); }
 
@@ -443,19 +461,12 @@
       font-size: 12px;
       margin-top: 24px;
       line-height: 1.6;
-      padding: 16px;
+      padding: 20px 16px;
       background: var(--surface);
       border: 1px dashed var(--border-aura);
       border-radius: var(--radius-lg);
     }
-
-    .chat-empty i {
-      font-size: 24px;
-      color: var(--primary);
-      opacity: 0.3;
-      display: block;
-      margin-bottom: 8px;
-    }
+    .chat-empty .icon { font-size: 26px; display: block; margin: 0 auto 10px; opacity: 0.25; color: var(--primary); }
 
     /* ── Input Area ───────────────────────────────────────────── */
     .input-section {
@@ -489,12 +500,10 @@
       min-height: 72px;
       max-height: 120px;
     }
-
     textarea:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 3px var(--primary-glow), 0 0 18px rgba(30, 48, 112, 0.12);
     }
-
     textarea::placeholder { color: var(--text-muted); }
 
     .input-actions {
@@ -503,18 +512,20 @@
       margin-top: 8px;
     }
 
+    /* ── Buttons ──────────────────────────────────────────────── */
     .btn {
       border: none;
       border-radius: var(--radius);
-      padding: 7px 14px;
+      padding: 6px 12px;
       font-size: 12px;
       font-weight: 600;
       font-family: var(--font);
       cursor: pointer;
       transition: background 0.15s, opacity 0.15s, box-shadow 0.18s;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
+      white-space: nowrap;
     }
 
     .btn--primary {
@@ -524,21 +535,19 @@
       justify-content: center;
       box-shadow: 0 2px 10px rgba(30, 48, 112, 0.30), 0 0 20px rgba(30, 48, 112, 0.15);
     }
-
     .btn--primary:hover:not(:disabled) {
       background: var(--primary-hover);
       box-shadow: 0 4px 16px rgba(30, 48, 112, 0.40), 0 0 28px rgba(30, 48, 112, 0.20);
     }
-
     .btn--primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
 
     .btn--ghost {
       background: transparent;
       color: var(--text-muted);
       border: 1px solid var(--border);
-      padding: 5px 9px;
+      padding: 4px 8px;
+      font-size: 11px;
     }
-
     .btn--ghost:hover {
       background: var(--bg);
       color: var(--primary);
@@ -549,10 +558,9 @@
       background: transparent;
       border: 1px solid var(--border);
       color: var(--text-muted);
-      padding: 5px 8px;
+      padding: 5px 7px;
       border-radius: 6px;
     }
-
     .btn--icon:hover {
       background: var(--bg);
       color: var(--primary);
@@ -585,6 +593,7 @@
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
     }
 
     /* ── Toast ────────────────────────────────────────────────── */
@@ -609,12 +618,7 @@
       gap: 7px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.25);
     }
-
-    .toast--visible {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
+    .toast--visible { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast--warning { background: #b45309; }
     .toast--error   { background: #b91c1c; }
 
@@ -628,14 +632,11 @@
       transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
       position: relative;
     }
-
-    .drop-zone:hover,
-    .drop-zone--active {
+    .drop-zone:hover, .drop-zone--active {
       border-color: var(--primary);
       background: var(--drop-zone-active-bg);
       box-shadow: 0 0 0 3px var(--primary-glow), 0 0 16px rgba(30, 48, 112, 0.10);
     }
-
     .drop-zone__label {
       font-size: 11px;
       color: var(--text-muted);
@@ -645,15 +646,7 @@
       justify-content: center;
       gap: 6px;
     }
-
-    .drop-zone__label i { color: var(--primary); opacity: 0.7; }
-
-    .drop-zone__label strong {
-      color: var(--primary);
-      font-weight: 600;
-    }
-
-    /* Make the file input cover the drop zone so it also acts as a click target */
+    .drop-zone__label strong { color: var(--primary); font-weight: 600; }
     .drop-zone input[type="file"] {
       position: absolute;
       inset: 0;
@@ -681,14 +674,12 @@
       align-items: center;
       gap: 4px;
     }
-
     #skills-library-list {
       margin-top: 6px;
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
     }
-
     .skill-tag {
       background: #e8ecf8;
       color: var(--primary);
@@ -698,50 +689,116 @@
       padding: 2px 9px;
       border: 1px solid rgba(30, 48, 112, 0.12);
     }
-
     .skill-tag--remote {
       background: #e8f5e9;
       color: #2e7d32;
       border-color: rgba(46, 125, 50, 0.15);
     }
 
-    /* ── Aura glow on panel borders ───────────────────────────── */
-    .settings-wrapper,
-    .collapsible-section,
-    .input-section {
-      position: relative;
-    }
-
-    .settings-wrapper::after,
-    .collapsible-section::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: -1px;
-      height: 1px;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(30, 48, 112, 0.20) 30%,
-        rgba(30, 48, 112, 0.35) 50%,
-        rgba(30, 48, 112, 0.20) 70%,
-        transparent 100%);
-      pointer-events: none;
-    }
-
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
-    .chevron-icon { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
-    .chevron-icon.open { transform: rotate(180deg); }
   </style>
 </head>
 <body>
+
+<!-- ── Inline SVG Sprite (Heroicons v2, MIT) ──────────────────── -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <!-- sparkles -->
+  <symbol id="icon-sparkles" viewBox="0 0 24 24">
+    <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"/>
+  </symbol>
+  <!-- arrow-path (refresh) -->
+  <symbol id="icon-refresh" viewBox="0 0 24 24">
+    <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+  </symbol>
+  <!-- trash -->
+  <symbol id="icon-trash" viewBox="0 0 24 24">
+    <path d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+  </symbol>
+  <!-- adjustments-horizontal (sliders) -->
+  <symbol id="icon-sliders" viewBox="0 0 24 24">
+    <path d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
+  </symbol>
+  <!-- chevron-up -->
+  <symbol id="icon-chevron-up" viewBox="0 0 24 24">
+    <path d="m4.5 15.75 7.5-7.5 7.5 7.5"/>
+  </symbol>
+  <!-- chevron-down -->
+  <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+    <path d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+  </symbol>
+  <!-- link (provider) -->
+  <symbol id="icon-link" viewBox="0 0 24 24">
+    <path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+  </symbol>
+  <!-- cpu-chip (model) -->
+  <symbol id="icon-chip" viewBox="0 0 24 24">
+    <path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z"/>
+  </symbol>
+  <!-- face-smile (agent) -->
+  <symbol id="icon-agent" viewBox="0 0 24 24">
+    <path d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z"/>
+  </symbol>
+  <!-- key -->
+  <symbol id="icon-key" viewBox="0 0 24 24">
+    <path d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 0 1 21.75 8.25Z"/>
+  </symbol>
+  <!-- eye -->
+  <symbol id="icon-eye" viewBox="0 0 24 24">
+    <path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
+    <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+  </symbol>
+  <!-- eye-slash -->
+  <symbol id="icon-eye-slash" viewBox="0 0 24 24">
+    <path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/>
+  </symbol>
+  <!-- puzzle-piece -->
+  <symbol id="icon-puzzle" viewBox="0 0 24 24">
+    <path d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.959.401v0a.656.656 0 0 0 .658-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z"/>
+  </symbol>
+  <!-- x-mark -->
+  <symbol id="icon-xmark" viewBox="0 0 24 24">
+    <path d="M6 18 18 6M6 6l12 12"/>
+  </symbol>
+  <!-- squares-2x2 (layers) -->
+  <symbol id="icon-layers" viewBox="0 0 24 24">
+    <path d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/>
+  </symbol>
+  <!-- chat-bubble-left-right (comments) -->
+  <symbol id="icon-chat" viewBox="0 0 24 24">
+    <path d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
+  </symbol>
+  <!-- code-bracket (file-code) -->
+  <symbol id="icon-code" viewBox="0 0 24 24">
+    <path d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/>
+  </symbol>
+  <!-- information-circle -->
+  <symbol id="icon-info" viewBox="0 0 24 24">
+    <path d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/>
+  </symbol>
+  <!-- check-circle -->
+  <symbol id="icon-check" viewBox="0 0 24 24">
+    <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+  </symbol>
+  <!-- document-duplicate (clone/variants) -->
+  <symbol id="icon-clone" viewBox="0 0 24 24">
+    <path d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.676a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/>
+  </symbol>
+  <!-- bolt (generate) -->
+  <symbol id="icon-bolt" viewBox="0 0 24 24">
+    <path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/>
+  </symbol>
+  <!-- wifi (connection) - filled for status dot alternative -->
+  <symbol id="icon-signal" viewBox="0 0 24 24">
+    <path d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 17.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z"/>
+  </symbol>
+</svg>
 
   <!-- Header -->
   <header class="header">
     <div class="header__brand">
       <div class="header__icon">
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
       </div>
       <div>
         <div class="header__title">AI Design Copilot</div>
@@ -751,10 +808,11 @@
     <div class="header__actions">
       <span id="ctx-badge" class="ctx-badge hidden" title="Design system context"></span>
       <button class="btn--header" id="refresh-ctx-btn" type="button" title="Refresh document context">
-        <i class="fa-solid fa-rotate"></i> Context
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+        Context
       </button>
-      <button class="btn--header" id="clear-btn" type="button" title="Clear chat history">
-        <i class="fa-solid fa-trash-can"></i>
+      <button class="btn--header" id="clear-btn" type="button" title="Clear chat history" aria-label="Clear chat history">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg>
       </button>
     </div>
   </header>
@@ -763,15 +821,25 @@
   <div class="settings-wrapper">
     <button class="settings-toggle" id="settings-toggle" type="button" aria-expanded="true" aria-controls="settings-panel">
       <span class="settings-toggle__left">
-        <i class="fa-solid fa-sliders"></i>
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sliders"/></svg>
         Configuration
+        <!-- Connection status badge — shown only when panel is collapsed -->
+        <span class="connection-badge hidden" id="connection-badge" title="LLM connection status">
+          <span class="connection-dot" id="connection-dot"></span>
+          <span id="connection-text">—</span>
+        </span>
       </span>
-      <i class="fa-solid fa-chevron-up chevron-icon open" id="settings-chevron"></i>
+      <svg class="icon chevron-icon open icon-sm" id="settings-chevron" aria-hidden="true">
+        <use href="#icon-chevron-up"/>
+      </svg>
     </button>
     <div class="settings" id="settings-panel">
-      <!-- Provider selection -->
+      <!-- Provider -->
       <div class="settings__row">
-        <span class="settings__label"><i class="fa-solid fa-plug"></i>Provider</span>
+        <label class="settings__label" for="provider-select">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
+          Provider
+        </label>
         <select id="provider-select" aria-label="LLM Provider">
           <option value="github-copilot">GitHub Copilot</option>
           <option value="openai">OpenAI</option>
@@ -779,11 +847,13 @@
         </select>
       </div>
 
-      <!-- Model selection (populated dynamically per provider) -->
+      <!-- Model -->
       <div class="settings__row">
-        <span class="settings__label"><i class="fa-solid fa-microchip"></i>Model</span>
+        <label class="settings__label" for="model-select">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
+          Model
+        </label>
         <select id="model-select" aria-label="Model">
-          <!-- Options injected by ui.ts syncProviderUI() -->
           <option value="gpt-5.2">GPT-5.2</option>
           <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
           <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
@@ -792,18 +862,24 @@
         </select>
       </div>
 
-      <!-- Agent selection -->
+      <!-- Agent -->
       <div class="settings__row">
-        <span class="settings__label"><i class="fa-solid fa-robot"></i>Agent</span>
+        <label class="settings__label" for="agent-select">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-agent"/></svg>
+          Agent
+        </label>
         <select id="agent-select" aria-label="Agent">
           <option value="ux-designer">UX Designer</option>
           <option value="design-system">Design System</option>
         </select>
       </div>
 
-      <!-- API Key (label and placeholder updated dynamically per provider) -->
+      <!-- API Key -->
       <div class="settings__row">
-        <span class="settings__label" id="api-key-label"><i class="fa-solid fa-key"></i>GH Token</span>
+        <span class="settings__label" id="api-key-label">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
+          <span id="api-key-label-text">GH Token</span>
+        </span>
         <div class="api-key-row">
           <input
             type="password"
@@ -812,8 +888,9 @@
             autocomplete="off"
             aria-label="API Key"
           />
-          <button class="btn btn--icon" id="api-key-toggle" type="button" title="Show/hide key">
-            <i class="fa-solid fa-eye" id="api-key-toggle-icon"></i>
+          <button class="btn btn--icon" id="api-key-toggle" type="button" title="Show/hide key" aria-label="Toggle key visibility">
+            <svg class="icon icon-sm" id="api-key-icon-eye" aria-hidden="true"><use href="#icon-eye"/></svg>
+            <svg class="icon icon-sm hidden" id="api-key-icon-eye-slash" aria-hidden="true"><use href="#icon-eye-slash"/></svg>
           </button>
         </div>
       </div>
@@ -822,64 +899,76 @@
 
   <!-- Custom Agents & Skills (collapsible) -->
   <div class="collapsible-section" aria-label="Custom agents and skills">
-    <button class="collapsible-section__header" id="custom-section-toggle" type="button" aria-expanded="false" aria-controls="custom-section-body">
-      <span class="section-title">
-        <i class="fa-solid fa-puzzle-piece"></i>
-        Custom Agents &amp; Skills
-      </span>
-      <span class="section-actions">
-        <button class="btn btn--ghost" id="clear-custom-btn" type="button" style="padding:3px 8px;font-size:10px" title="Remove all custom agents and skills" onclick="event.stopPropagation()">
-          <i class="fa-solid fa-xmark"></i> Clear
+    <div class="collapsible-section__header">
+      <button class="collapsible-section__toggle" id="custom-section-toggle" type="button"
+              aria-expanded="false" aria-controls="custom-section-body">
+        <span class="section-title">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-puzzle"/></svg>
+          Custom Agents &amp; Skills
+        </span>
+        <svg class="icon chevron-icon icon-sm" id="custom-section-chevron" aria-hidden="true">
+          <use href="#icon-chevron-down"/>
+        </svg>
+      </button>
+      <div class="section-actions">
+        <button class="btn btn--ghost" id="clear-custom-btn" type="button" title="Remove all custom agents and skills">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
+          Clear
         </button>
-        <i class="fa-solid fa-chevron-down chevron-icon" id="custom-section-chevron"></i>
-      </span>
-    </button>
+      </div>
+    </div>
     <div class="collapsible-section__body collapsed" id="custom-section-body">
       <div class="collapsible-section__body-inner">
-        <div
-          id="drop-zone"
-          class="drop-zone"
-          role="button"
-          aria-label="Drop copilot.json here or click to browse"
-          title="Drop a copilot.json config file to load custom agents and skills"
-        >
+        <div id="drop-zone" class="drop-zone" role="button"
+             aria-label="Drop copilot.json here or click to browse"
+             title="Drop a copilot.json config file to load custom agents and skills">
           <p class="drop-zone__label">
-            <i class="fa-solid fa-file-code"></i>
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
             Drop <strong>copilot.json</strong> or <strong>click to browse</strong>
           </p>
-          <input
-            type="file"
-            id="config-file-input"
-            accept=".json,application/json"
-            aria-label="Select copilot config file"
-            tabindex="-1"
-          />
+          <input type="file" id="config-file-input" accept=".json,application/json"
+                 aria-label="Select copilot config file" tabindex="-1"/>
         </div>
-        <p id="custom-config-summary"><i class="fa-solid fa-circle-info"></i> No custom config loaded.</p>
+        <p id="custom-config-summary">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
+          No custom config loaded.
+        </p>
       </div>
     </div>
   </div>
 
   <!-- Skills Library (collapsible) -->
   <div class="collapsible-section" aria-label="Skills library">
-    <button class="collapsible-section__header" id="skills-section-toggle" type="button" aria-expanded="false" aria-controls="skills-section-body">
-      <span class="section-title">
-        <i class="fa-solid fa-layer-group"></i>
-        Skills Library
-      </span>
-      <span class="section-actions">
-        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button" style="padding:3px 8px;font-size:10px" title="Remove extra runtime-loaded skills (bundled skills remain active)" onclick="event.stopPropagation()">
-          <i class="fa-solid fa-xmark"></i> Clear extra
+    <div class="collapsible-section__header">
+      <button class="collapsible-section__toggle" id="skills-section-toggle" type="button"
+              aria-expanded="false" aria-controls="skills-section-body">
+        <span class="section-title">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-layers"/></svg>
+          Skills Library
+        </span>
+        <svg class="icon chevron-icon icon-sm" id="skills-section-chevron" aria-hidden="true">
+          <use href="#icon-chevron-down"/>
+        </svg>
+      </button>
+      <div class="section-actions">
+        <button class="btn btn--ghost" id="clear-skills-library-btn" type="button"
+                title="Remove extra runtime-loaded skills (bundled skills remain active)">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
+          Clear
         </button>
-        <button class="btn btn--ghost" id="load-skills-library-btn" type="button" style="padding:3px 8px;font-size:10px" title="Update skills from github.com/flpbalada/my-opencode-config" onclick="event.stopPropagation()">
-          <i class="fa-solid fa-rotate"></i> Update
+        <button class="btn btn--ghost" id="load-skills-library-btn" type="button"
+                title="Update skills from github.com/flpbalada/my-opencode-config">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+          Update
         </button>
-        <i class="fa-solid fa-chevron-down chevron-icon" id="skills-section-chevron"></i>
-      </span>
-    </button>
+      </div>
+    </div>
     <div class="collapsible-section__body collapsed" id="skills-section-body">
       <div class="collapsible-section__body-inner">
-        <p id="skills-library-summary"><i class="fa-solid fa-circle-check"></i> Skills library active in all agents.</p>
+        <p id="skills-library-summary">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-check"/></svg>
+          Skills library active in all agents.
+        </p>
         <div id="skills-library-list"></div>
       </div>
     </div>
@@ -889,13 +978,13 @@
   <div class="chat-section">
     <div class="chat-section__label">
       <span class="section-title">
-        <i class="fa-solid fa-comments"></i>
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
         Chat
       </span>
     </div>
     <div id="chat-history" role="log" aria-live="polite" aria-label="Chat history">
       <p class="chat-empty">
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-sparkles"/></svg>
         Start by typing a prompt below.<br>
         <em>Example: "Create a mobile login screen with 3 variants"</em>
       </p>
@@ -905,56 +994,55 @@
   <!-- Input Area -->
   <section class="input-section">
     <div class="variants-row">
-      <span class="settings__label"><i class="fa-solid fa-clone"></i>Variants</span>
-      <input
-        type="number"
-        id="variants-input"
-        value="1"
-        min="1"
-        max="5"
-        style="width:52px"
-        aria-label="Number of variants"
-      />
+      <label class="settings__label" for="variants-input">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-clone"/></svg>
+        Variants
+      </label>
+      <input type="number" id="variants-input" value="1" min="1" max="5"
+             style="width:52px" aria-label="Number of variants"/>
       <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
     </div>
-    <textarea
-      id="prompt-input"
-      placeholder="Describe the screen you want to generate…"
-      aria-label="Prompt"
-    ></textarea>
+    <textarea id="prompt-input" placeholder="Describe the screen you want to generate…"
+              aria-label="Prompt"></textarea>
     <div class="input-actions">
       <button class="btn btn--primary" id="generate-btn" type="button">
         <span id="spinner" class="spinner hidden"></span>
-        <i class="fa-solid fa-bolt" id="generate-icon"></i>
+        <svg class="icon icon-sm" id="generate-icon" aria-hidden="true"><use href="#icon-bolt"/></svg>
         <span id="generate-label">Generate</span>
       </button>
     </div>
-    <p class="hint">
-      <i class="fa-solid fa-keyboard"></i>
-      Ctrl+Enter / ⌘+Enter to send
-    </p>
+    <p class="hint">Ctrl+Enter / ⌘+Enter to send</p>
   </section>
 
-  <!-- Toast notification -->
+  <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <!-- Collapsible section logic -->
+  <!-- Page-level interaction logic (runs before dist/ui.js) -->
   <script>
     (function () {
-      function setupCollapsible(toggleId, bodyId, chevronId, startOpen) {
-        var toggle = document.getElementById(toggleId);
-        var body = document.getElementById(bodyId);
+      /* ── Collapsible: Settings ──────────────────────────────── */
+      var settingsToggle  = document.getElementById('settings-toggle');
+      var settingsPanel   = document.getElementById('settings-panel');
+      var settingsChevron = document.getElementById('settings-chevron');
+      var connBadge       = document.getElementById('connection-badge');
+
+      if (settingsToggle && settingsPanel) {
+        settingsToggle.addEventListener('click', function () {
+          var isOpen = !settingsPanel.classList.contains('collapsed');
+          settingsPanel.classList.toggle('collapsed', isOpen);
+          if (settingsChevron) settingsChevron.classList.toggle('open', !isOpen);
+          settingsToggle.setAttribute('aria-expanded', String(!isOpen));
+          // Show badge only when panel is collapsed
+          if (connBadge) connBadge.classList.toggle('hidden', !isOpen);
+        });
+      }
+
+      /* ── Collapsible: generic helper ────────────────────────── */
+      function setupCollapsible(toggleId, bodyId, chevronId) {
+        var toggle  = document.getElementById(toggleId);
+        var body    = document.getElementById(bodyId);
         var chevron = document.getElementById(chevronId);
         if (!toggle || !body) return;
-        if (!startOpen) {
-          body.classList.add('collapsed');
-          if (chevron) chevron.classList.remove('open');
-          toggle.setAttribute('aria-expanded', 'false');
-        } else {
-          body.classList.remove('collapsed');
-          if (chevron) chevron.classList.add('open');
-          toggle.setAttribute('aria-expanded', 'true');
-        }
         toggle.addEventListener('click', function () {
           var isOpen = !body.classList.contains('collapsed');
           body.classList.toggle('collapsed', isOpen);
@@ -962,43 +1050,31 @@
           toggle.setAttribute('aria-expanded', String(!isOpen));
         });
       }
+      setupCollapsible('custom-section-toggle', 'custom-section-body', 'custom-section-chevron');
+      setupCollapsible('skills-section-toggle',  'skills-section-body',  'skills-section-chevron');
 
-      // Settings: starts open
-      var settingsToggle = document.getElementById('settings-toggle');
-      var settingsPanel = document.getElementById('settings-panel');
-      var settingsChevron = document.getElementById('settings-chevron');
-      if (settingsToggle && settingsPanel) {
-        settingsToggle.addEventListener('click', function () {
-          var isOpen = !settingsPanel.classList.contains('collapsed');
-          settingsPanel.classList.toggle('collapsed', isOpen);
-          if (settingsChevron) settingsChevron.classList.toggle('open', !isOpen);
-          settingsToggle.setAttribute('aria-expanded', String(!isOpen));
-        });
-      }
-
-      setupCollapsible('custom-section-toggle', 'custom-section-body', 'custom-section-chevron', false);
-      setupCollapsible('skills-section-toggle', 'skills-section-body', 'skills-section-chevron', false);
-
-      // API key toggle icon update
-      var apiToggle = document.getElementById('api-key-toggle');
-      var apiInput = document.getElementById('api-key-input');
-      var apiIcon = document.getElementById('api-key-toggle-icon');
-      if (apiToggle && apiInput && apiIcon) {
+      /* ── API key eye toggle ──────────────────────────────────── */
+      var apiToggle     = document.getElementById('api-key-toggle');
+      var apiInput      = document.getElementById('api-key-input');
+      var apiIconEye    = document.getElementById('api-key-icon-eye');
+      var apiIconSlash  = document.getElementById('api-key-icon-eye-slash');
+      if (apiToggle && apiInput) {
         apiToggle.addEventListener('click', function () {
           var isPassword = apiInput.type === 'password';
           apiInput.type = isPassword ? 'text' : 'password';
-          apiIcon.className = isPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+          if (apiIconEye)   apiIconEye.classList.toggle('hidden', !isPassword);
+          if (apiIconSlash) apiIconSlash.classList.toggle('hidden', isPassword);
         });
       }
 
-      // Generate button: hide icon when spinner is shown
-      var generateIcon = document.getElementById('generate-icon');
-      var spinner = document.getElementById('spinner');
-      if (generateIcon && spinner) {
-        var observer = new MutationObserver(function () {
-          generateIcon.style.display = spinner.classList.contains('hidden') ? '' : 'none';
-        });
-        observer.observe(spinner, { attributes: true, attributeFilter: ['class'] });
+      /* ── Generate icon: hide when spinner active ─────────────── */
+      var genIcon  = document.getElementById('generate-icon');
+      var spinner  = document.getElementById('spinner');
+      if (genIcon && spinner) {
+        new MutationObserver(function () {
+          var spinnerIsHidden = spinner.classList.contains('hidden');
+          genIcon.classList.toggle('hidden', !spinnerIsHidden);
+        }).observe(spinner, { attributes: true, attributeFilter: ['class'] });
       }
     })();
   </script>

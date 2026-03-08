@@ -14,38 +14,24 @@ Supported providers:
 <table>
   <tr>
     <td align="center" width="50%">
-      <strong>Vue principale</strong><br/>
-      Interface complète avec configuration et zone de chat
+      <strong>Configuration ouverte</strong><br/>
+      Icônes SVG inline, sélecteurs provider / model / agent / clé API
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/3731e7b2-d85a-49e0-b84d-897c8caf3f10" alt="Vue principale du plugin" width="280"/>
+      <img src="https://github.com/user-attachments/assets/314fa2d8-cffd-43cd-b2e5-747fd7bbd466" alt="Configuration ouverte avec icônes" width="280"/>
     </td>
     <td align="center" width="50%">
-      <strong>Configuration repliée</strong><br/>
-      Sections collapsibles pour maximiser l'espace chat
+      <strong>Badge · Pas de clé (🟠)</strong><br/>
+      Configuration repliée — badge orange indique qu'aucune clé API n'est configurée
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/12c1ec54-03d5-4d74-b520-0d3024d5a46f" alt="Configuration repliée" width="280"/>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <strong>Custom Agents & Skills</strong><br/>
-      Import d'agents personnalisés via <code>copilot.json</code>
-      <br/><br/>
-      <img src="https://github.com/user-attachments/assets/a6046b9b-5b62-41ad-81b7-aefa85acff03" alt="Section Custom Agents dépliée" width="280"/>
-    </td>
-    <td align="center" width="50%">
-      <strong>Skills Library</strong><br/>
-      28 frameworks UX/produit intégrés et actifs
-      <br/><br/>
-      <img src="https://github.com/user-attachments/assets/7ba1f85e-fa9a-4658-a56b-c03b1b8a412a" alt="Skills Library dépliée" width="280"/>
+      <img src="https://github.com/user-attachments/assets/26d21897-64a0-47f9-a55d-9085b7249054" alt="Badge connexion orange — pas de clé" width="280"/>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
-      <strong>Chat en conversation</strong><br/>
-      Bulles utilisateur (bleu foncé) et réponses IA avec avatars
+      <strong>Badge · Connecté (🟢)</strong><br/>
+      Configuration repliée — badge vert confirme que la clé API est configurée et le provider actif
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/4d76c0d7-bddd-4d1a-8992-e38aa24ce085" alt="Chat avec conversation active" width="280"/>
+      <img src="https://github.com/user-attachments/assets/c57be4b3-79be-47a5-8d0b-6cc399f7320f" alt="Badge connexion vert — clé configurée" width="280"/>
     </td>
   </tr>
 </table>
