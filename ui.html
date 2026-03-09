@@ -877,6 +877,13 @@
       line-height: 1.5;
     }
 
+    .settings-key-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
     .onboarding-tips {
       list-style: none;
       background: var(--surface);
@@ -1067,7 +1074,7 @@
       <p class="chat-empty">
         <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-sparkles"/></svg>
         Start by typing a prompt below.<br>
-        <em>Example: "Create a mobile login screen with 3 variants"</em>
+        <em>Example: "Create a mobile login screen with 3 versions"</em>
       </p>
     </div>
   </div>
@@ -1077,10 +1084,10 @@
     <div class="variants-row">
       <label class="settings__label" for="variants-input">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-clone"/></svg>
-        Variants
+        Versions
       </label>
       <input type="number" id="variants-input" value="1" min="1" max="5"
-             style="width:52px" aria-label="Number of variants"/>
+             style="width:52px" aria-label="Number of versions"/>
       <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
     </div>
     <textarea id="prompt-input" placeholder="Describe the screen you want to generate…"
@@ -1170,6 +1177,8 @@
             </button>
           </div>
         </div>
+
+        <p class="settings-key-hint" id="api-key-hint"></p>
       </div>
 
       <!-- ── Section: Custom Agents & Skills ── -->
@@ -1267,7 +1276,7 @@
           <li>🎨 Describe a screen and watch it appear in Figma</li>
           <li>🤖 Supports GitHub Copilot, OpenAI, and Anthropic</li>
           <li>📐 Respects your design system's components and styles</li>
-          <li>🔀 Generate multiple variants of a screen at once</li>
+          <li>🔀 Generate multiple versions of a screen at once</li>
         </ul>
       </div>
 
@@ -1316,6 +1325,7 @@
             </div>
           </div>
         </div>
+        <p class="onboarding-hint" id="ob-api-key-hint"></p>
         <p class="onboarding-hint">
           🔒 Your key is stored locally in your browser and never shared.
         </p>
@@ -1368,7 +1378,7 @@
         </p>
         <ul class="onboarding-tips" aria-label="Usage tips">
           <li>💬 <strong>Prompt</strong> — Describe any screen: "Create a mobile login screen"</li>
-          <li>🔀 <strong>Variants</strong> — Set a number to generate multiple versions at once</li>
+          <li>🔀 <strong>Versions</strong> — Set a number to generate multiple versions at once</li>
           <li>🔄 <strong>Context</strong> — Click "Context" so AI reads your Figma document</li>
           <li>⚙️ <strong>Settings</strong> — Change provider or model at any time</li>
         </ul>

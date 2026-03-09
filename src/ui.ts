@@ -349,21 +349,24 @@ const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string 
 };
 
 /** Key labels and placeholders per provider for the API key input field. */
-const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string }> = {
+const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string }> = {
   "github-copilot": {
     label: "GH Token",
     placeholder: "ghp_… (copilot scope)",
     storageKey: "copilot_github_token",
+    hint: "🔑 Get a Personal Access Token (classic) with the copilot scope at github.com → Settings → Developer settings → Personal access tokens.",
   },
   openai: {
     label: "API Key",
     placeholder: "sk-… (OpenAI API key)",
     storageKey: "copilot_openai_key",
+    hint: "🔑 Get your API key at platform.openai.com/api-keys.",
   },
   anthropic: {
     label: "API Key",
     placeholder: "sk-ant-… (Anthropic API key)",
     storageKey: "copilot_anthropic_key",
+    hint: "🔑 Get your API key at console.anthropic.com → API Keys.",
   },
 };
 
@@ -393,6 +396,10 @@ function syncProviderUI(provider: LLMProvider): void {
   const keyLabelText = document.getElementById("api-key-label-text");
   if (keyLabelText) keyLabelText.textContent = info.label;
   keyInput.placeholder = info.placeholder;
+
+  // Update API key retrieval hint
+  const keyHint = document.getElementById("api-key-hint");
+  if (keyHint) keyHint.textContent = info.hint;
 
   // Restore previously saved API key for this provider
   const savedKey = localStorage.getItem(info.storageKey) ?? "";
@@ -1048,6 +1055,10 @@ function syncOnboardingProviderUI(provider: LLMProvider): void {
     keyInput.placeholder = info.placeholder;
     keyInput.value = localStorage.getItem(info.storageKey) ?? "";
   }
+
+  // Update API key retrieval hint
+  const keyHint = document.getElementById("ob-api-key-hint");
+  if (keyHint) keyHint.textContent = info.hint;
 }
 
 /**
