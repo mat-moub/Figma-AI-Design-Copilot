@@ -69,25 +69,25 @@ On first launch the plugin automatically shows a 3-step onboarding overlay (plus
       <strong>Step 1 — Welcome</strong><br/>
       Introduction to the plugin's capabilities
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/2c6ab80d-8aaa-43c1-bbde-37dea45a0d75" alt="Onboarding step 1 — Welcome screen" width="200"/>
+      <img src="screenshots/onboarding-step-1.png" alt="Onboarding step 1 — Welcome screen" width="200"/>
     </td>
     <td align="center" width="25%">
       <strong>Step 2 — Configure provider</strong><br/>
       Pick provider, model, and enter API key
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/ba5af1b5-30c4-49f8-aa37-b9d09005c9f2" alt="Onboarding step 2 — Configure AI provider" width="200"/>
+      <img src="screenshots/onboarding-step-2.png" alt="Onboarding step 2 — Configure AI provider" width="200"/>
     </td>
     <td align="center" width="25%">
       <strong>Step 3 — Functional context</strong> <em>(optional)</em><br/>
       Describe your product so the AI generates relevant screens
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/48b35b50-21ca-4087-8e71-2b19f0bc42e4" alt="Onboarding step 3 — Functional context (optional)" width="200"/>
+      <img src="screenshots/onboarding-step-3.png" alt="Onboarding step 3 — Functional context (optional)" width="200"/>
     </td>
     <td align="center" width="25%">
       <strong>You're all set!</strong><br/>
       Usage tips and the final dismissal screen
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/a7553aa0-e8af-49b6-b6d9-b89c74cd2de9" alt="Onboarding final screen — You're all set!" width="200"/>
+      <img src="screenshots/onboarding-final.png" alt="Onboarding final screen — You're all set!" width="200"/>
     </td>
   </tr>
 </table>
