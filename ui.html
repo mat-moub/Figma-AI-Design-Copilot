@@ -606,6 +606,7 @@
       box-shadow: 0 4px 16px rgba(30, 48, 112, 0.40), 0 0 28px rgba(30, 48, 112, 0.20);
     }
     .btn--primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+    #generate-btn #generate-icon { font-size: 11px; }
 
     .btn--ghost {
       background: transparent;
@@ -1161,17 +1162,17 @@
              style="width:52px" aria-label="Number of versions"/>
       <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
     </div>
-    <!-- ── Bottom row: generate (left) + hint (right) ─ -->
+    <!-- ── Bottom row: hint (left) + generate (right) ─ -->
     <div class="input-bottom">
+      <p class="hint">
+        <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
+        Ctrl+Enter / ⌘+Enter
+      </p>
       <button class="btn btn--primary" id="generate-btn" type="button">
         <span id="spinner" class="spinner hidden"></span>
         <i class="fa-solid fa-wand-magic-sparkles" id="generate-icon" aria-hidden="true"></i>
         <span id="generate-label">Generate</span>
       </button>
-      <p class="hint">
-        <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
-        Ctrl+Enter / ⌘+Enter
-      </p>
     </div>
   </section>
 
