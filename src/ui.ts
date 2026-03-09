@@ -409,24 +409,30 @@ const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string 
 };
 
 /** Key labels and placeholders per provider for the API key input field. */
-const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string }> = {
+const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string; icon: string; instructionsHtml: string }> = {
   "github-copilot": {
     label: "GH Token",
     placeholder: "ghp_… (copilot scope)",
     storageKey: "copilot_github_token",
     hint: "🔑 Get a Personal Access Token (classic) with the copilot scope at github.com → Settings → Developer settings → Personal access tokens.",
+    icon: '<i class="fa-brands fa-github" aria-hidden="true"></i>',
+    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-github" aria-hidden="true"></i> GitHub Copilot — How to get your token</div><ol><li>Go to <strong>github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)</strong>.</li><li>Click <strong>Generate new token (classic)</strong>.</li><li>Select the <strong>copilot</strong> scope (under <em>GitHub Copilot</em>).</li><li>Copy the token (<code>ghp_…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Requires an active <strong>GitHub Copilot subscription</strong>.</p>`,
   },
   openai: {
     label: "API Key",
     placeholder: "sk-… (OpenAI API key)",
     storageKey: "copilot_openai_key",
     hint: "🔑 Get your API key at platform.openai.com/api-keys.",
+    icon: '<i class="fa-brands fa-openai" aria-hidden="true"></i>',
+    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-openai" aria-hidden="true"></i> OpenAI — How to get your API key</div><ol><li>Go to <strong>platform.openai.com/api-keys</strong>.</li><li>Click <strong>Create new secret key</strong>.</li><li>Copy the key (<code>sk-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Ensure your account has sufficient credits. Errors 401/429 are shown in the chat.</p>`,
   },
   anthropic: {
     label: "API Key",
     placeholder: "sk-ant-… (Anthropic API key)",
     storageKey: "copilot_anthropic_key",
     hint: "🔑 Get your API key at console.anthropic.com → API Keys.",
+    icon: '<svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg>',
+    instructionsHtml: `<div class="ob-inst-header"><svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg> Anthropic — How to get your API key</div><ol><li>Go to <strong>console.anthropic.com → API Keys</strong>.</li><li>Click <strong>Create key</strong>.</li><li>Copy the key (<code>sk-ant-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
   },
 };
 
@@ -1127,9 +1133,13 @@ function syncOnboardingProviderUI(provider: LLMProvider): void {
     keyInput.value = localStorage.getItem(info.storageKey) ?? "";
   }
 
-  // Update API key retrieval hint
-  const keyHint = document.getElementById("ob-api-key-hint");
-  if (keyHint) keyHint.textContent = info.hint;
+  // Update provider icon
+  const providerIcon = document.getElementById("ob-provider-icon");
+  if (providerIcon) providerIcon.innerHTML = info.icon;
+
+  // Update API token retrieval instructions
+  const instructions = document.getElementById("ob-token-instructions");
+  if (instructions) instructions.innerHTML = info.instructionsHtml;
 }
 
 /**
