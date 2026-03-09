@@ -194,20 +194,35 @@
     }
     .connection-dot--ready { background: var(--status-ready); }
 
-    /* ── Agent Bar (agent select + skills info on main page) ──── */
-    .agent-bar {
+    /* ── Options Bar (checkboxes + skills info on main page) ──── */
+    .options-bar {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 7px 14px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
 
-    .agent-bar select {
-      flex: 1;
-      min-width: 0;
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-option input[type="checkbox"] {
+      accent-color: var(--primary);
+      width: 13px;
+      height: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
     }
 
     .agents-skills-info {
@@ -216,6 +231,28 @@
       white-space: nowrap;
       flex-shrink: 0;
       font-style: italic;
+      margin-left: auto;
+    }
+
+    /* ── Functional context textarea in settings ──────────────── */
+    .functional-context-textarea {
+      width: 100%;
+      min-height: 72px;
+      resize: vertical;
+      font-size: 11px;
+      font-family: inherit;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      box-sizing: border-box;
+      margin-top: 6px;
+    }
+
+    .functional-context-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
     }
 
     /* ── Settings Overlay ─────────────────────────────────────── */
@@ -1049,16 +1086,16 @@
     </div>
   </div>
 
-  <!-- ── Agent Bar: agent selector + loaded agents/skills info ─ -->
-  <div class="agent-bar" id="agent-bar">
-    <label class="settings__label" for="agent-select">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-agent"/></svg>
-      Agent
+  <!-- ── Options Bar: generation mode checkboxes + loaded skills info ─ -->
+  <div class="options-bar" id="options-bar">
+    <label class="checkbox-option" title="Strictly enforce your Figma design system components and tokens">
+      <input type="checkbox" id="keep-design-system" />
+      Keep existing design system
     </label>
-    <select id="agent-select" aria-label="Agent">
-      <option value="ux-designer">UX Designer</option>
-      <option value="design-system">Design System</option>
-    </select>
+    <label class="checkbox-option" title="Load advanced UX frameworks and design principles into the prompt">
+      <input type="checkbox" id="advanced-ux-skills" />
+      Advanced UX skills
+    </label>
     <span class="agents-skills-info" id="agents-skills-info"></span>
   </div>
 
@@ -1181,16 +1218,37 @@
         <p class="settings-key-hint" id="api-key-hint"></p>
       </div>
 
-      <!-- ── Section: Custom Agents & Skills ── -->
+      <!-- ── Section: Functional Context ── -->
+      <div class="settings-section">
+        <div class="settings-section__header">
+          <div class="settings-section__title">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
+            Functional Context
+          </div>
+        </div>
+        <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:0 0 6px">
+          Describe your product, industry, or target users. This context is automatically
+          injected into every generation to produce more relevant screens.
+        </p>
+        <textarea
+          id="functional-context-input"
+          class="functional-context-textarea"
+          placeholder="e.g. We are building a B2B SaaS for HR managers in mid-sized companies. Our users need to track employee onboarding and performance reviews…"
+          aria-label="Functional context"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <!-- ── Section: Custom Skills ── -->
       <div class="settings-section">
         <div class="settings-section__header">
           <div class="settings-section__title">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-puzzle"/></svg>
-            Custom Agents &amp; Skills
+            Custom Skills
           </div>
           <div class="settings-section__actions">
             <button class="btn btn--ghost" id="clear-custom-btn" type="button"
-                    title="Remove all custom agents and skills">
+                    title="Remove all custom skills">
               <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
               Clear
             </button>
@@ -1198,7 +1256,7 @@
         </div>
         <div id="drop-zone" class="drop-zone" role="button"
              aria-label="Drop copilot.json here or click to browse"
-             title="Drop a copilot.json config file to load custom agents and skills">
+             title="Drop a copilot.json config file to load custom skills">
           <p class="drop-zone__label">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
             Drop <strong>copilot.json</strong> or <strong>click to browse</strong>
@@ -1331,40 +1389,32 @@
         </p>
       </div>
 
-      <!-- ── Step 3: Custom Agent (optional) ── -->
+      <!-- ── Step 3: Functional Context (optional) ── -->
       <div class="onboarding-step hidden" id="onboarding-step-2">
         <h2 class="onboarding-title">
-          Create your first custom agent
+          Add your functional context
           <span class="onboarding-badge" aria-label="Optional step">Optional</span>
         </h2>
         <p class="onboarding-desc">
-          Give your agent a context specific to your application. It will use your design
-          system and all available skills automatically.
+          Describe your product, industry, or target users. The AI will use this business context
+          in every generation to produce screens that fit your application.
         </p>
         <div class="onboarding-configure">
-          <!-- Agent name -->
-          <div class="settings__row">
-            <label class="settings__label" for="ob-agent-name">
-              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-agent"/></svg>
-              Name
-            </label>
-            <input type="text" id="ob-agent-name" placeholder="My Company Agent"
-                   aria-label="Agent name" style="flex:1"/>
-          </div>
-          <!-- System prompt -->
+          <!-- Functional context -->
           <div>
             <label for="ob-agent-prompt" class="settings__label">
               <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
-              System prompt
+              Functional context
             </label>
             <textarea id="ob-agent-prompt" class="onboarding-textarea"
-                      aria-label="Agent system prompt"
-                      spellcheck="false">You are a UX expert in a company about... (insert your application functional context here). Create powerful figma components respecting existing design system. Use skills available in skills folder.</textarea>
+                      aria-label="Functional context"
+                      spellcheck="false">We are building an application for... (describe your product, industry, or target users here). Generate screens that match our brand and workflows.</textarea>
           </div>
         </div>
         <p class="onboarding-hint">
-          💡 Your agent will appear in the Agent dropdown and can be customised later in Settings.
-          Click <strong>Skip for now</strong> to start without a custom agent.
+          💡 This context will be automatically applied to all AI generations. You can update it
+          anytime in <strong>Settings → Functional Context</strong>.
+          Click <strong>Skip for now</strong> to start without it.
         </p>
       </div>
 
@@ -1379,8 +1429,10 @@
         <ul class="onboarding-tips" aria-label="Usage tips">
           <li>💬 <strong>Prompt</strong> — Describe any screen: "Create a mobile login screen"</li>
           <li>🔀 <strong>Versions</strong> — Set a number to generate multiple versions at once</li>
+          <li>✅ <strong>Keep existing design system</strong> — Enforce your Figma components</li>
+          <li>🎓 <strong>Advanced UX skills</strong> — Apply UX frameworks to generation</li>
           <li>🔄 <strong>Context</strong> — Click "Context" so AI reads your Figma document</li>
-          <li>⚙️ <strong>Settings</strong> — Change provider or model at any time</li>
+          <li>⚙️ <strong>Settings</strong> — Change provider, model, or functional context</li>
         </ul>
       </div>
 
