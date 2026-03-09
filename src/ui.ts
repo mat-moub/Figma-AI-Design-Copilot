@@ -166,6 +166,18 @@ function setupEventListeners(): void {
   refreshCtxBtn.addEventListener("click", requestDocumentContext);
   apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
 
+  // ── Multiple versions toggle ────────────────────────────────────────────
+  const versionsToggleBtn = document.getElementById("versions-toggle-btn");
+  const variantsRow = document.getElementById("variants-row");
+  if (versionsToggleBtn && variantsRow) {
+    versionsToggleBtn.addEventListener("click", () => {
+      const expanded = !variantsRow.classList.contains("hidden");
+      variantsRow.classList.toggle("hidden", expanded);
+      versionsToggleBtn.classList.toggle("active", !expanded);
+      versionsToggleBtn.setAttribute("aria-expanded", String(!expanded));
+    });
+  }
+
   // ── Provider selection ─────────────────────────────────────────────────
   const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
   if (providerSelect) {
@@ -554,6 +566,17 @@ function buildFullFunctionalContext(): string {
 
 // ── Chat UI helpers ───────────────────────────────────────────────────────────
 
+/** Returns the HTML markup for the empty-state chat bubble. */
+function chatEmptyStateHTML(): string {
+  return `<div class="chat-empty" id="chat-empty-state">
+    <span class="chat-empty__label">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
+      AI
+    </span>
+    <p class="chat-empty__text">Start by typing a prompt below.<br><em>Example: "Create a mobile login screen"</em></p>
+  </div>`;
+}
+
 function appendUserMessage(content: string): void {
   appendChatMessage("user", content);
 }
@@ -564,6 +587,10 @@ function appendAssistantMessage(content: string, skillsUsed?: string[]): void {
 
 function appendChatMessage(role: "user" | "assistant", content: string, skillsUsed?: string[]): void {
   const container = getEl<HTMLDivElement>("chat-history");
+
+  // Remove the empty-state bubble on first real message
+  const emptyState = document.getElementById("chat-empty-state");
+  if (emptyState) emptyState.remove();
   const bubble = document.createElement("div");
   bubble.className = `chat-bubble chat-bubble--${role}`;
 
@@ -597,7 +624,7 @@ function appendChatMessage(role: "user" | "assistant", content: string, skillsUs
 
 function clearHistory(): void {
   const container = getEl<HTMLDivElement>("chat-history");
-  container.innerHTML = "";
+  container.innerHTML = chatEmptyStateHTML();
   chatHistory = [];
   showToast("Chat history cleared.");
 }

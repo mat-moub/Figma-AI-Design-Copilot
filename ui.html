@@ -196,14 +196,11 @@
 
     /* ── Options Bar (checkboxes + skills info on main page) ──── */
     .options-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 7px 14px;
       display: flex;
       align-items: center;
       gap: 12px;
-      flex-shrink: 0;
       flex-wrap: wrap;
+      padding-top: 7px;
     }
 
     .checkbox-option {
@@ -498,17 +495,32 @@
     }
 
     .chat-empty {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 12px;
-      margin-top: 24px;
-      line-height: 1.6;
-      padding: 20px 16px;
-      background: var(--surface);
-      border: 1px dashed var(--border-aura);
+      align-self: flex-start;
+      max-width: 85%;
+      background: var(--ai-bubble);
       border-radius: var(--radius-lg);
+      border-bottom-left-radius: 3px;
+      border: 1px solid var(--border-aura);
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
-    .chat-empty .icon { font-size: 26px; display: block; margin: 0 auto 10px; opacity: 0.25; color: var(--primary); }
+    .chat-empty__label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chat-empty__text {
+      font-size: 12px;
+      color: var(--ai-text);
+      line-height: 1.55;
+    }
 
     /* ── Input Area ───────────────────────────────────────────── */
     .input-section {
@@ -524,6 +536,36 @@
       align-items: center;
       gap: 8px;
       margin-bottom: 8px;
+    }
+
+    /* ── Versions toggle button ───────────────────────────────── */
+    .btn--versions {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      font-family: var(--font);
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn--versions:hover,
+    .btn--versions.active {
+      background: var(--bg);
+      color: var(--primary);
+      border-color: var(--border-aura);
+    }
+
+    .variants-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 6px;
     }
 
     textarea {
@@ -1086,19 +1128,6 @@
     </div>
   </div>
 
-  <!-- ── Options Bar: generation mode checkboxes + loaded skills info ─ -->
-  <div class="options-bar" id="options-bar">
-    <label class="checkbox-option" title="Strictly enforce your Figma design system components and tokens">
-      <input type="checkbox" id="keep-design-system" />
-      Keep existing design system
-    </label>
-    <label class="checkbox-option" title="Load advanced UX frameworks and design principles into the prompt">
-      <input type="checkbox" id="advanced-ux-skills" />
-      Advanced UX skills
-    </label>
-    <span class="agents-skills-info" id="agents-skills-info"></span>
-  </div>
-
   <!-- ── Chat History ────────────────────────────────────────── -->
   <div class="chat-section">
     <div class="chat-section__label">
@@ -1108,25 +1137,18 @@
       </span>
     </div>
     <div id="chat-history" role="log" aria-live="polite" aria-label="Chat history">
-      <p class="chat-empty">
-        <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-        Start by typing a prompt below.<br>
-        <em>Example: "Create a mobile login screen with 3 versions"</em>
-      </p>
+      <div class="chat-empty" id="chat-empty-state">
+        <span class="chat-empty__label">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
+          AI
+        </span>
+        <p class="chat-empty__text">Start by typing a prompt below.<br><em>Example: "Create a mobile login screen"</em></p>
+      </div>
     </div>
   </div>
 
   <!-- ── Input Area ─────────────────────────────────────────── -->
   <section class="input-section">
-    <div class="variants-row">
-      <label class="settings__label" for="variants-input">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-clone"/></svg>
-        Versions
-      </label>
-      <input type="number" id="variants-input" value="1" min="1" max="5"
-             style="width:52px" aria-label="Number of versions"/>
-      <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
-    </div>
     <textarea id="prompt-input" placeholder="Describe the screen you want to generate…"
               aria-label="Prompt"></textarea>
     <div class="input-actions">
@@ -1135,6 +1157,31 @@
         <svg class="icon icon-sm" id="generate-icon" aria-hidden="true"><use href="#icon-bolt"/></svg>
         <span id="generate-label">Generate</span>
       </button>
+      <button class="btn--versions" id="versions-toggle-btn" type="button" aria-expanded="false" title="Set number of versions">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-clone"/></svg>
+        Multiple versions
+      </button>
+    </div>
+    <div class="variants-row hidden" id="variants-row">
+      <label class="settings__label" for="variants-input">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-clone"/></svg>
+        Versions
+      </label>
+      <input type="number" id="variants-input" value="1" min="1" max="5"
+             style="width:52px" aria-label="Number of versions"/>
+      <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
+    </div>
+    <!-- ── Options: generation mode checkboxes + loaded skills info ─ -->
+    <div class="options-bar" id="options-bar">
+      <label class="checkbox-option" title="Strictly enforce your Figma design system components and tokens">
+        <input type="checkbox" id="keep-design-system" />
+        Keep existing design system
+      </label>
+      <label class="checkbox-option" title="Load advanced UX frameworks and design principles into the prompt">
+        <input type="checkbox" id="advanced-ux-skills" />
+        Advanced UX skills
+      </label>
+      <span class="agents-skills-info" id="agents-skills-info"></span>
     </div>
     <p class="hint">Ctrl+Enter / ⌘+Enter to send</p>
   </section>
