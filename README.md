@@ -21,7 +21,7 @@ Supported providers:
     </td>
     <td align="center" width="33%">
       <strong>Main view — Multiple versions</strong><br/>
-      Versions counter revealed by the toggle button
+      Versions counter revealed by the checkbox
       <br/><br/>
       <img src="screenshots/main-view-versions.png" alt="Main view — Multiple versions panel expanded" width="220"/>
     </td>
@@ -107,7 +107,7 @@ The plugin UI is split into two distinct views:
 | **Header** | Brand logo, Context refresh button, Clear chat button, **Settings** button |
 | **Info bar** | Connection dot (🟠 no key / 🟢 ready) + current provider · model label |
 | **Chat** | Scrollable conversation history; shows an AI-bubble placeholder when empty |
-| **Input** | Prompt textarea · **Generate** button · **Multiple versions** toggle (reveals version counter) · **Keep existing design system** checkbox · **Advanced UX skills** checkbox |
+| **Input** | Prompt textarea · **Multiple versions** checkbox (reveals version counter) · **Generate** button · **Keep existing design system** checkbox · **Advanced UX skills** checkbox |
 
 ### Settings view (full-screen overlay)
 

@@ -200,7 +200,7 @@
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      padding-top: 7px;
+      padding-top: 4px;
     }
 
     .checkbox-option {
@@ -535,38 +535,20 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-top: 8px;
       margin-bottom: 8px;
     }
 
-    /* ── Versions toggle button ───────────────────────────────── */
-    .btn--versions {
-      background: transparent;
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-      padding: 4px 8px;
-      font-size: 11px;
-      border-radius: var(--radius);
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-      font-family: var(--font);
-      font-weight: 500;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
-    }
-    .btn--versions:hover,
-    .btn--versions.active {
-      background: var(--bg);
-      color: var(--primary);
-      border-color: var(--border-aura);
-    }
-
-    .variants-row {
+    .input-controls {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      padding-top: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
     }
+
+    .versions-checkbox { font-size: 12px; }
 
     textarea {
       width: 100%;
@@ -593,7 +575,8 @@
     .input-actions {
       display: flex;
       gap: 6px;
-      margin-top: 8px;
+      flex: 1;
+      min-width: 150px;
     }
 
     /* ── Buttons ──────────────────────────────────────────────── */
@@ -1151,16 +1134,18 @@
   <section class="input-section">
     <textarea id="prompt-input" placeholder="Describe the screen you want to generate…"
               aria-label="Prompt"></textarea>
-    <div class="input-actions">
-      <button class="btn btn--primary" id="generate-btn" type="button">
-        <span id="spinner" class="spinner hidden"></span>
-        <svg class="icon icon-sm" id="generate-icon" aria-hidden="true"><use href="#icon-bolt"/></svg>
-        <span id="generate-label">Generate</span>
-      </button>
-      <button class="btn--versions" id="versions-toggle-btn" type="button" aria-expanded="false" title="Set number of versions">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-clone"/></svg>
+    <div class="input-controls">
+      <label class="checkbox-option versions-checkbox" title="Enable generating multiple versions">
+        <input type="checkbox" id="multiple-versions-toggle" />
         Multiple versions
-      </button>
+      </label>
+      <div class="input-actions">
+        <button class="btn btn--primary" id="generate-btn" type="button">
+          <span id="spinner" class="spinner hidden"></span>
+          <svg class="icon icon-sm" id="generate-icon" aria-hidden="true"><use href="#icon-bolt"/></svg>
+          <span id="generate-label">Generate</span>
+        </button>
+      </div>
     </div>
     <div class="variants-row hidden" id="variants-row">
       <label class="settings__label" for="variants-input">

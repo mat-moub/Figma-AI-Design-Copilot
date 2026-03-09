@@ -167,16 +167,16 @@ function setupEventListeners(): void {
   apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
 
   // ── Multiple versions toggle ────────────────────────────────────────────
-  const versionsToggleBtn = document.getElementById("versions-toggle-btn");
-  const variantsRow = document.getElementById("variants-row");
-  if (versionsToggleBtn && variantsRow) {
-    versionsToggleBtn.addEventListener("click", () => {
-      const expanded = !variantsRow.classList.contains("hidden");
-      variantsRow.classList.toggle("hidden", expanded);
-      versionsToggleBtn.classList.toggle("active", !expanded);
-      versionsToggleBtn.setAttribute("aria-expanded", String(!expanded));
-    });
-  }
+  const multipleVersionsCheckbox = getEl<HTMLInputElement>("multiple-versions-toggle");
+  const variantsRow = getEl<HTMLDivElement>("variants-row");
+  multipleVersionsCheckbox.addEventListener("change", () => {
+    const enabled = multipleVersionsCheckbox.checked;
+    variantsRow.classList.toggle("hidden", !enabled);
+    if (!enabled) {
+      const variantsInput = getEl<HTMLInputElement>("variants-input");
+      variantsInput.value = "1";
+    }
+  });
 
   // ── Provider selection ─────────────────────────────────────────────────
   const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
@@ -518,6 +518,8 @@ function validateApiKey(config: ModelConfig): string | null {
 }
 
 function getVariantCount(): number {
+  const toggle = document.getElementById("multiple-versions-toggle") as HTMLInputElement | null;
+  if (!toggle?.checked) return 1;
   const el = getEl<HTMLInputElement>("variants-input");
   const val = parseInt(el.value, 10);
   return isNaN(val) || val < 1 ? 1 : Math.min(val, 5);
