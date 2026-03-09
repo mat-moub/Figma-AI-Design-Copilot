@@ -15,13 +15,13 @@ Supported providers:
   <tr>
     <td align="center" width="33%">
       <strong>Main view — empty chat</strong><br/>
-      AI chat-bubble placeholder, prompt input, options below
+      Centered "Start creating a screen" placeholder, checkboxes above Generate
       <br/><br/>
-      <img src="screenshots/main-view.png" alt="Main view — empty chat state with AI bubble placeholder" width="220"/>
+      <img src="screenshots/main-view.png" alt="Main view — empty chat state with centered placeholder" width="220"/>
     </td>
     <td align="center" width="33%">
       <strong>Main view — Multiple versions</strong><br/>
-      Versions counter revealed by the checkbox
+      Versions counter revealed by the checkbox, Generate at bottom
       <br/><br/>
       <img src="screenshots/main-view-versions.png" alt="Main view — Multiple versions panel expanded" width="220"/>
     </td>
@@ -106,8 +106,8 @@ The plugin UI is split into two distinct views:
 |------|---------|
 | **Header** | Brand logo, Context refresh button, Clear chat button, **Settings** button |
 | **Info bar** | Connection dot (🟠 no key / 🟢 ready) + current provider · model label |
-| **Chat** | Scrollable conversation history; shows an AI-bubble placeholder when empty |
-| **Input** | Prompt textarea · **Multiple versions** checkbox (reveals version counter) · **Generate** button · **Keep existing design system** checkbox · **Advanced UX skills** checkbox |
+| **Chat** | Scrollable conversation history; shows a centered "Start creating a screen" placeholder when empty |
+| **Input** | Prompt textarea · **Design system**, **Advanced UX skills**, **Multiple versions** checkboxes (above generate) · **Generate** button (bottom-left) · Ctrl+Enter shortcut hint |
 
 ### Settings view (full-screen overlay)
 
@@ -321,21 +321,15 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 
 ## Generation modes
 
-Instead of selecting an agent from a dropdown, you control generation behaviour through two simple checkboxes on the main view:
+Control generation behaviour through three checkboxes shown above the Generate button on the main view:
 
 | Checkbox | Effect | When to use |
 |----------|--------|-------------|
-| **Keep existing design system** | Enforces your Figma design system — maps generated elements to named components, colours and text styles | When your file already has a complete design system you want the AI to respect |
+| **Design system** | Enforces your Figma design system — maps generated elements to named components, colours and text styles | When your file already has a complete design system you want the AI to respect |
 | **Advanced UX skills** | Adds 28 UX/product-design frameworks to the AI system prompt (cognitive biases, heuristics, Jobs To Be Done…) | When you want psychologically-informed, principle-driven UI layouts |
+| **Multiple versions** | Reveals a counter — generates N independent versions of the same screen | When you want to explore design alternatives |
 
-The two checkboxes are independent and can be combined:
-
-- Neither checked → Basic screen generation (fastest)
-- Only **Keep existing design system** → Design-system-strict output
-- Only **Advanced UX skills** → UX-framework-enriched prompts
-- Both checked → Full pipeline: UX frameworks + design system enforcement
-
-Checkbox states are persisted in `localStorage` and restored on next launch.
+The checkboxes are independent and can be combined freely. States are persisted in `localStorage` and restored on next launch.
 
 ---
 

@@ -568,14 +568,14 @@ function buildFullFunctionalContext(): string {
 
 // ── Chat UI helpers ───────────────────────────────────────────────────────────
 
-/** Returns the HTML markup for the empty-state chat bubble. */
+/** Returns the HTML markup for the empty-state chat placeholder. */
 function chatEmptyStateHTML(): string {
   return `<div class="chat-empty" id="chat-empty-state">
-    <span class="chat-empty__label">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-      AI
-    </span>
-    <p class="chat-empty__text">Start by typing a prompt below.<br><em>Example: "Create a mobile login screen"</em></p>
+    <div class="chat-empty__icon">
+      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+    </div>
+    <p class="chat-empty__title">Start creating a screen</p>
+    <p class="chat-empty__subtitle">Describe any UI screen and I'll design it<br>directly in your Figma file.</p>
   </div>`;
 }
 

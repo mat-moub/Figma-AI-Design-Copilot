@@ -198,9 +198,9 @@
     .options-bar {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
-      padding-top: 4px;
+      padding-top: 8px;
     }
 
     .checkbox-option {
@@ -219,6 +219,14 @@
       width: 13px;
       height: 13px;
       cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .checkbox-option .fa-solid,
+    .checkbox-option .fa-regular {
+      font-size: 11px;
+      color: var(--primary);
+      opacity: 0.75;
       flex-shrink: 0;
     }
 
@@ -495,30 +503,29 @@
     }
 
     .chat-empty {
-      align-self: flex-start;
-      max-width: 85%;
-      background: var(--ai-bubble);
-      border-radius: var(--radius-lg);
-      border-bottom-left-radius: 3px;
-      border: 1px solid var(--border-aura);
-      padding: 8px 12px;
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-    }
-    .chat-empty__label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--primary);
-      display: flex;
       align-items: center;
-      gap: 4px;
+      justify-content: center;
+      gap: 10px;
+      padding: 24px 16px;
+      text-align: center;
     }
-    .chat-empty__text {
-      font-size: 12px;
-      color: var(--ai-text);
+    .chat-empty__icon {
+      font-size: 30px;
+      color: var(--primary);
+      opacity: 0.55;
+      line-height: 1;
+    }
+    .chat-empty__title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .chat-empty__subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
       line-height: 1.55;
     }
 
@@ -536,19 +543,18 @@
       align-items: center;
       gap: 8px;
       margin-top: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
     }
 
-    .input-controls {
+    .input-bottom {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
       margin-top: 8px;
-      flex-wrap: wrap;
     }
 
-    .versions-checkbox { font-size: 12px; }
+    .versions-checkbox { font-size: 11px; }
 
     textarea {
       width: 100%;
@@ -571,13 +577,6 @@
       box-shadow: 0 0 0 3px var(--primary-glow), 0 0 18px rgba(30, 48, 112, 0.12);
     }
     textarea::placeholder { color: var(--text-muted); }
-
-    .input-actions {
-      display: flex;
-      gap: 6px;
-      flex: 1;
-      min-width: 150px;
-    }
 
     /* ── Buttons ──────────────────────────────────────────────── */
     .btn {
@@ -607,6 +606,7 @@
       box-shadow: 0 4px 16px rgba(30, 48, 112, 0.40), 0 0 28px rgba(30, 48, 112, 0.20);
     }
     .btn--primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+    #generate-btn #generate-icon { font-size: 11px; }
 
     .btn--ghost {
       background: transparent;
@@ -642,12 +642,11 @@
     .hint {
       color: var(--text-muted);
       font-size: 10px;
-      margin-top: 5px;
-      text-align: right;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
       gap: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     /* ── Spinner ──────────────────────────────────────────────── */
@@ -979,6 +978,7 @@
       gap: 8px;
     }
   </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
 
@@ -1121,11 +1121,11 @@
     </div>
     <div id="chat-history" role="log" aria-live="polite" aria-label="Chat history">
       <div class="chat-empty" id="chat-empty-state">
-        <span class="chat-empty__label">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-          AI
-        </span>
-        <p class="chat-empty__text">Start by typing a prompt below.<br><em>Example: "Create a mobile login screen"</em></p>
+        <div class="chat-empty__icon">
+          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+        </div>
+        <p class="chat-empty__title">Start creating a screen</p>
+        <p class="chat-empty__subtitle">Describe any UI screen and I'll design it<br>directly in your Figma file.</p>
       </div>
     </div>
   </div>
@@ -1134,41 +1134,46 @@
   <section class="input-section">
     <textarea id="prompt-input" placeholder="Describe the screen you want to generate…"
               aria-label="Prompt"></textarea>
-    <div class="input-controls">
+    <!-- ── Options: generation mode checkboxes above generate button ─ -->
+    <div class="options-bar" id="options-bar">
+      <label class="checkbox-option" title="Strictly enforce your Figma design system components and tokens">
+        <input type="checkbox" id="keep-design-system" />
+        <i class="fa-solid fa-palette" aria-hidden="true"></i>
+        Design system
+      </label>
+      <label class="checkbox-option" title="Load advanced UX frameworks and design principles into the prompt">
+        <input type="checkbox" id="advanced-ux-skills" />
+        <i class="fa-solid fa-brain" aria-hidden="true"></i>
+        Advanced UX skills
+      </label>
       <label class="checkbox-option versions-checkbox" title="Enable generating multiple versions">
         <input type="checkbox" id="multiple-versions-toggle" />
+        <i class="fa-regular fa-clone" aria-hidden="true"></i>
         Multiple versions
       </label>
-      <div class="input-actions">
-        <button class="btn btn--primary" id="generate-btn" type="button">
-          <span id="spinner" class="spinner hidden"></span>
-          <svg class="icon icon-sm" id="generate-icon" aria-hidden="true"><use href="#icon-bolt"/></svg>
-          <span id="generate-label">Generate</span>
-        </button>
-      </div>
+      <span class="agents-skills-info" id="agents-skills-info"></span>
     </div>
     <div class="variants-row hidden" id="variants-row">
       <label class="settings__label" for="variants-input">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-clone"/></svg>
+        <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
         Versions
       </label>
       <input type="number" id="variants-input" value="1" min="1" max="5"
              style="width:52px" aria-label="Number of versions"/>
       <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
     </div>
-    <!-- ── Options: generation mode checkboxes + loaded skills info ─ -->
-    <div class="options-bar" id="options-bar">
-      <label class="checkbox-option" title="Strictly enforce your Figma design system components and tokens">
-        <input type="checkbox" id="keep-design-system" />
-        Keep existing design system
-      </label>
-      <label class="checkbox-option" title="Load advanced UX frameworks and design principles into the prompt">
-        <input type="checkbox" id="advanced-ux-skills" />
-        Advanced UX skills
-      </label>
-      <span class="agents-skills-info" id="agents-skills-info"></span>
+    <!-- ── Bottom row: hint (left) + generate (right) ─ -->
+    <div class="input-bottom">
+      <p class="hint">
+        <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
+        Ctrl+Enter / ⌘+Enter
+      </p>
+      <button class="btn btn--primary" id="generate-btn" type="button">
+        <span id="spinner" class="spinner hidden"></span>
+        <i class="fa-solid fa-wand-magic-sparkles" id="generate-icon" aria-hidden="true"></i>
+        <span id="generate-label">Generate</span>
+      </button>
     </div>
-    <p class="hint">Ctrl+Enter / ⌘+Enter to send</p>
   </section>
 
   <!-- ── Settings Overlay (full-screen, hidden by default) ─────── -->
