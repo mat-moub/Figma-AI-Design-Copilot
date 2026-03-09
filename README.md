@@ -73,9 +73,9 @@ On first launch the plugin automatically shows a 3-step onboarding overlay (plus
     </td>
     <td align="center" width="25%">
       <strong>Step 2 — Configure provider</strong><br/>
-      Pick provider, model, and enter API key
+      Pick provider (with brand icon), model, and enter API key
       <br/><br/>
-      <img src="screenshots/onboarding-step-2.png" alt="Onboarding step 2 — Configure AI provider" width="200"/>
+      <img src="screenshots/onboarding-step-2.png" alt="Onboarding step 2 — Configure AI provider with Font Awesome brand icons" width="200"/>
     </td>
     <td align="center" width="25%">
       <strong>Step 3 — Functional context</strong> <em>(optional)</em><br/>
