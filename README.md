@@ -13,17 +13,23 @@ Supported providers:
 
 <table>
   <tr>
-    <td align="center" width="50%">
-      <strong>Main view</strong><br/>
-      Connection badge + model, generation mode checkboxes, chat interface
+    <td align="center" width="33%">
+      <strong>Main view — empty chat</strong><br/>
+      AI chat-bubble placeholder, prompt input, options below
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/cf2a0c6b-18a4-4b38-a72a-dca25108bb8a" alt="Main view — checkboxes for Keep existing design system and Advanced UX skills" width="260"/>
+      <img src="screenshots/main-view.png" alt="Main view — empty chat state with AI bubble placeholder" width="220"/>
     </td>
-    <td align="center" width="50%">
-      <strong>Settings — Functional Context &amp; Custom Skills</strong><br/>
-      Business context textarea, custom skills drop zone, skills library
+    <td align="center" width="33%">
+      <strong>Main view — Multiple versions</strong><br/>
+      Versions counter revealed by the checkbox
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/a51118d2-6846-4b37-a3a4-b152040d2a4b" alt="Settings overlay — Functional Context section, Custom Skills, Skills Library" width="260"/>
+      <img src="screenshots/main-view-versions.png" alt="Main view — Multiple versions panel expanded" width="220"/>
+    </td>
+    <td align="center" width="33%">
+      <strong>Settings — Model &amp; Custom Skills</strong><br/>
+      Provider, model, API key, functional context, skills
+      <br/><br/>
+      <img src="screenshots/settings-view.png" alt="Settings overlay — Model Configuration, Functional Context, Custom Skills" width="220"/>
     </td>
   </tr>
 </table>
@@ -100,9 +106,8 @@ The plugin UI is split into two distinct views:
 |------|---------|
 | **Header** | Brand logo, Context refresh button, Clear chat button, **Settings** button |
 | **Info bar** | Connection dot (🟠 no key / 🟢 ready) + current provider · model label |
-| **Options bar** | **Keep existing design system** checkbox · **Advanced UX skills** checkbox · loaded custom skills count |
-| **Chat** | Scrollable conversation history |
-| **Input** | Versions counter, prompt textarea, Generate button |
+| **Chat** | Scrollable conversation history; shows an AI-bubble placeholder when empty |
+| **Input** | Prompt textarea · **Multiple versions** checkbox (reveals version counter) · **Generate** button · **Keep existing design system** checkbox · **Advanced UX skills** checkbox |
 
 ### Settings view (full-screen overlay)
 
