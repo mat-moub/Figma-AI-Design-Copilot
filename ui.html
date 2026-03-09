@@ -150,33 +150,7 @@
     }
 
     /* ── Info Bar (connection + model, always visible on main) ── */
-    .info-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 7px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-      gap: 8px;
-      box-shadow: var(--shadow-aura);
-      position: relative;
-    }
-    .info-bar::after {
-      content: '';
-      position: absolute;
-      left: 0; right: 0; bottom: -1px;
-      height: 1px;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(30, 48, 112, 0.20) 30%,
-        rgba(30, 48, 112, 0.35) 50%,
-        rgba(30, 48, 112, 0.20) 70%,
-        transparent 100%);
-      pointer-events: none;
-    }
-
-    .info-bar__model {
+    .connection-badge {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -193,6 +167,31 @@
       background: var(--status-no-key);
     }
     .connection-dot--ready { background: var(--status-ready); }
+
+    /* ── Resize handle between chat and input ─────────────────── */
+    .resize-handle {
+      height: 5px;
+      flex-shrink: 0;
+      background: var(--border);
+      cursor: row-resize;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .resize-handle:hover,
+    .resize-handle--active {
+      background: var(--primary);
+    }
+    .resize-handle::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 2px;
+      border-radius: 2px;
+      background: rgba(30, 48, 112, 0.30);
+    }
 
     /* ── Options Bar (checkboxes + skills info on main page) ──── */
     .options-bar {
@@ -532,9 +531,10 @@
     /* ── Input Area ───────────────────────────────────────────── */
     .input-section {
       background: var(--surface);
-      border-top: 1px solid var(--border);
+      border-top: none;
       padding: 10px 14px 12px;
       flex-shrink: 0;
+      overflow: hidden;
       box-shadow: 0 -2px 12px rgba(30, 48, 112, 0.07);
     }
 
@@ -558,7 +558,7 @@
 
     textarea {
       width: 100%;
-      resize: none;
+      resize: vertical;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
@@ -569,8 +569,8 @@
       line-height: 1.5;
       outline: none;
       transition: border-color 0.18s, box-shadow 0.18s;
-      min-height: 72px;
-      max-height: 120px;
+      min-height: 60px;
+      max-height: 280px;
     }
     textarea:focus {
       border-color: var(--primary);
@@ -1103,20 +1103,16 @@
     </div>
   </header>
 
-  <!-- ── Info Bar: connection status + model (always visible) ── -->
-  <div class="info-bar" id="info-bar">
-    <div class="info-bar__model">
-      <span class="connection-dot" id="connection-dot" title="Connection status"></span>
-      <span id="connection-text">Not configured — open Settings</span>
-    </div>
-  </div>
-
   <!-- ── Chat History ────────────────────────────────────────── -->
   <div class="chat-section">
     <div class="chat-section__label">
       <span class="section-title">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
         Chat
+      </span>
+      <span class="connection-badge" role="status" aria-live="polite" aria-label="AI provider status">
+        <span class="connection-dot" id="connection-dot" title="Connection status"></span>
+        <span id="connection-text">Not configured — open Settings</span>
       </span>
     </div>
     <div id="chat-history" role="log" aria-live="polite" aria-label="Chat history">
@@ -1129,6 +1125,9 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Resize handle ──────────────────────────────────────── -->
+  <div class="resize-handle" id="resize-handle" title="Drag to resize" aria-hidden="true"></div>
 
   <!-- ── Input Area ─────────────────────────────────────────── -->
   <section class="input-section">
@@ -1529,6 +1528,51 @@
           genIcon.classList.toggle('hidden', !spinnerIsHidden);
         }).observe(spinner, { attributes: true, attributeFilter: ['class'] });
       }
+
+      /**
+       * Resize handle: drag to redistribute space between the chat section
+       * and the input section.  Dragging up shrinks the input area (grows
+       * the chat); dragging down grows the input area (shrinks the chat).
+       */
+      (function () {
+        var handle       = document.getElementById('resize-handle');
+        var inputSection = document.querySelector('.input-section');
+        if (!handle || !inputSection) return;
+
+        /* Min height: textarea min-height (60) + options bar + generate row +
+           vertical padding ≈ 150px. Max height leaves at least 60px for chat. */
+        var MIN_INPUT_H = 150;
+        var MAX_INPUT_H = 400;
+        var startY      = 0;
+        var startH      = 0;
+        var pendingH    = null;
+
+        function onMouseMove(e) {
+          var delta = startY - e.clientY;
+          pendingH = Math.min(MAX_INPUT_H, Math.max(MIN_INPUT_H, startH + delta));
+          requestAnimationFrame(function () {
+            if (pendingH !== null) {
+              inputSection.style.height = pendingH + 'px';
+              pendingH = null;
+            }
+          });
+        }
+
+        function onMouseUp() {
+          handle.classList.remove('resize-handle--active');
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup',   onMouseUp);
+        }
+
+        handle.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          startY = e.clientY;
+          startH = inputSection.offsetHeight;
+          handle.classList.add('resize-handle--active');
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup',   onMouseUp);
+        });
+      })();
     })();
   </script>
 
