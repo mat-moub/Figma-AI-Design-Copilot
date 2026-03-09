@@ -50,19 +50,30 @@ export class DesignSystemAgent {
 
   /**
    * Generate design-system-compliant screens for the given prompt.
+   *
+   * @param prompt            Natural language request from the designer.
+   * @param context           Figma document context.
+   * @param modelConfig       AI model configuration.
+   * @param history           Previous chat messages.
+   * @param functionalContext Optional business/functional context appended to the system prompt.
    */
   async generate(
     prompt: string,
     context: DocumentContext,
     modelConfig: ModelConfig,
-    history: ChatMessage[] = []
+    history: ChatMessage[] = [],
+    functionalContext?: string
   ): Promise<UIScreen[]> {
+    const agentPrompt = functionalContext
+      ? `${this.config.systemPrompt}\n\n## Business Context\n\n${functionalContext}`
+      : this.config.systemPrompt;
+
     const screens = await generateScreen({
       prompt,
       context,
       modelConfig,
       history,
-      agentPrompt: this.config.systemPrompt,
+      agentPrompt,
       aiService: this.aiService,
     });
 

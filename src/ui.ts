@@ -9,7 +9,6 @@
 import { AIService } from "./services/ai-service";
 import { UXDesignerAgent } from "./agents/ux-designer-agent";
 import { DesignSystemAgent } from "./agents/design-system-agent";
-import { CustomAgent } from "./agents/custom-agent";
 import { CustomAgentRegistry } from "./services/custom-agent-registry";
 import { BUNDLED_SKILLS } from "./data/skills-library";
 import {
@@ -19,7 +18,6 @@ import {
   clearSkillsLibraryFromStorage,
 } from "./services/skills-library-service";
 import type {
-  AgentType,
   ChatMessage,
   CopilotConfig,
   DocumentContext,
@@ -27,7 +25,6 @@ import type {
   LLMProvider,
   ModelConfig,
   PluginToUIMessage,
-  SkillType,
   UIScreen,
 } from "./types/ui-types";
 
@@ -35,6 +32,15 @@ import type {
 
 /** After this many milliseconds without a context refresh, warn the designer. */
 const CONTEXT_STALE_MS = 10 * 60 * 1000; // 10 minutes
+
+/** localStorage key for the user's functional/business context. */
+const FUNCTIONAL_CONTEXT_KEY = "copilot_functional_context";
+
+/** localStorage key for the "Keep existing design system" checkbox. */
+const KEEP_DESIGN_SYSTEM_KEY = "copilot_keep_design_system";
+
+/** localStorage key for the "Advanced UX skills" checkbox. */
+const ADVANCED_UX_SKILLS_KEY = "copilot_advanced_ux_skills";
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -73,6 +79,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
   if (providerSelect) providerSelect.value = savedProvider;
   syncProviderUI(savedProvider);
+
+  // Restore checkbox states
+  const keepDsEl = document.getElementById("keep-design-system") as HTMLInputElement | null;
+  if (keepDsEl) keepDsEl.checked = localStorage.getItem(KEEP_DESIGN_SYSTEM_KEY) === "1";
+  const advUXEl = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
+  if (advUXEl) advUXEl.checked = localStorage.getItem(ADVANCED_UX_SKILLS_KEY) === "1";
+
+  // Restore functional context in settings textarea
+  const savedContext = localStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "";
+  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
+  if (contextInput) contextInput.value = savedContext;
 
   setupEventListeners();
   requestDocumentContext();
@@ -180,6 +197,29 @@ function setupEventListeners(): void {
     });
   }
 
+  // ── Options checkboxes: persist state ──────────────────────────────────
+  const keepDsCheckbox = document.getElementById("keep-design-system") as HTMLInputElement | null;
+  if (keepDsCheckbox) {
+    keepDsCheckbox.addEventListener("change", () => {
+      localStorage.setItem(KEEP_DESIGN_SYSTEM_KEY, keepDsCheckbox.checked ? "1" : "0");
+    });
+  }
+
+  const advUXCheckbox = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
+  if (advUXCheckbox) {
+    advUXCheckbox.addEventListener("change", () => {
+      localStorage.setItem(ADVANCED_UX_SKILLS_KEY, advUXCheckbox.checked ? "1" : "0");
+    });
+  }
+
+  // ── Functional context: persist on change ──────────────────────────────
+  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
+  if (contextInput) {
+    contextInput.addEventListener("input", () => {
+      localStorage.setItem(FUNCTIONAL_CONTEXT_KEY, contextInput.value.trim());
+    });
+  }
+
   // ── Custom agents / skills: file-drop zone ──────────────────────────────
   setupDropZone();
 
@@ -241,7 +281,9 @@ async function handleGenerate(): Promise<void> {
   }
 
   const variants = getVariantCount();
-  const selectedAgent = getSelectedAgent();
+  const keepDesignSystem = getKeepDesignSystem();
+  const advancedUXSkills = getAdvancedUXSkills();
+  const fullContext = buildFullFunctionalContext();
 
   appendUserMessage(prompt);
   promptEl.value = "";
@@ -258,20 +300,26 @@ async function handleGenerate(): Promise<void> {
   try {
     let screens: UIScreen[];
 
-    const skillsUsed = getAgentActiveSkills(selectedAgent, variants);
+    const skillsUsed = buildActiveSkillsList(keepDesignSystem, advancedUXSkills, variants);
 
-    if (selectedAgent === "design-system") {
-      screens = await dsAgent.generate(enrichedPrompt, context, modelConfig, chatHistory);
-    } else if (selectedAgent === "ux-designer") {
-      screens = await uxAgent.generate(enrichedPrompt, variants, context, modelConfig, chatHistory);
+    if (advancedUXSkills) {
+      // UX Designer agent: includes UX frameworks in system prompt
+      screens = await uxAgent.generate(
+        enrichedPrompt, variants, context, modelConfig, chatHistory,
+        fullContext || undefined, keepDesignSystem
+      );
+    } else if (keepDesignSystem) {
+      // Design System agent: strictly enforces design system components
+      screens = await dsAgent.generate(
+        enrichedPrompt, context, modelConfig, chatHistory,
+        fullContext || undefined
+      );
     } else {
-      // Custom agent — id stored directly in the select value
-      const customConfig = registry.getAgent(selectedAgent);
-      if (!customConfig) {
-        throw new Error(`Custom agent "${selectedAgent}" not found. Try reloading your config.`);
-      }
-      const customAgent = new CustomAgent(customConfig);
-      screens = await customAgent.generate(enrichedPrompt, variants, context, modelConfig, chatHistory);
+      // Default: UX Designer without enforced design system
+      screens = await uxAgent.generate(
+        enrichedPrompt, variants, context, modelConfig, chatHistory,
+        fullContext || undefined, false
+      );
     }
 
     const summary = formatScreensSummary(screens);
@@ -463,10 +511,45 @@ function getVariantCount(): number {
   return isNaN(val) || val < 1 ? 1 : Math.min(val, 5);
 }
 
-/** Returns the built-in AgentType or a custom agent id string. */
-function getSelectedAgent(): AgentType | string {
-  const el = getEl<HTMLSelectElement>("agent-select");
-  return el.value;
+/** Returns true when "Keep existing design system" checkbox is checked. */
+function getKeepDesignSystem(): boolean {
+  const el = document.getElementById("keep-design-system") as HTMLInputElement | null;
+  return el?.checked ?? false;
+}
+
+/** Returns true when "Advanced UX skills" checkbox is checked. */
+function getAdvancedUXSkills(): boolean {
+  const el = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
+  return el?.checked ?? false;
+}
+
+/** Returns the functional context text entered by the user. */
+function getFunctionalContext(): string {
+  return (localStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "").trim();
+}
+
+/**
+ * Build an additional system-prompt block from user-provided custom skills.
+ * Each custom skill contributes a `promptModifier` that extends the agent's
+ * behaviour without requiring TypeScript changes.
+ */
+function buildCustomSkillsAddition(): string {
+  const skills = registry.getSkills();
+  if (skills.length === 0) return "";
+  return skills.map((s) => s.promptModifier).join("\n\n");
+}
+
+/**
+ * Combine the functional context and custom-skill prompt modifiers into a
+ * single string to append to the agent system prompt.
+ */
+function buildFullFunctionalContext(): string {
+  const parts: string[] = [];
+  const ctx = getFunctionalContext();
+  if (ctx) parts.push(ctx);
+  const customSkills = buildCustomSkillsAddition();
+  if (customSkills) parts.push(customSkills);
+  return parts.join("\n\n");
 }
 
 // ── Chat UI helpers ───────────────────────────────────────────────────────────
@@ -609,67 +692,45 @@ function formatScreensSummary(screens: UIScreen[]): string {
 
 /**
  * Returns the human-readable names of the skills that will be invoked for the
- * given agent and variant count.  Used to annotate assistant chat bubbles with
- * the skills that were active during a generation request, giving the designer
- * full transparency into what the agent did.
+ * current checkbox configuration and variant count. Used to annotate assistant
+ * chat bubbles with the skills that were active during a generation request.
  */
-function getAgentActiveSkills(selectedAgent: AgentType | string, variants: number): string[] {
+function buildActiveSkillsList(keepDesignSystem: boolean, advancedUXSkills: boolean, variants: number): string[] {
   const SKILL_LABELS: Record<string, string> = {
     "generate-screen":     "Generate Screen",
     "generate-variants":   "Generate Variants",
     "apply-design-system": "Apply Design System",
   };
 
-  if (selectedAgent === "ux-designer") {
-    const base = variants > 1 ? ["generate-variants"] : ["generate-screen"];
-    return [...base, "apply-design-system"].map((s) => SKILL_LABELS[s]);
+  const base = variants > 1 ? "generate-variants" : "generate-screen";
+  const skills: string[] = [base];
+
+  // Design system is applied when the checkbox is checked (either mode)
+  if (keepDesignSystem) {
+    skills.push("apply-design-system");
   }
 
-  if (selectedAgent === "design-system") {
-    return ["generate-screen", "apply-design-system"].map((s) => SKILL_LABELS[s]);
+  const labels = skills.map((s) => SKILL_LABELS[s]);
+
+  if (advancedUXSkills) labels.push("Advanced UX skills");
+
+  // Always include custom skills from the registry
+  const customSkills = registry.getSkills();
+  for (const s of customSkills) {
+    labels.push(s.name);
   }
 
-  // Custom agent — derive from its skill list stored in the registry
-  const customConfig = registry.getAgent(selectedAgent);
-  if (customConfig) {
-    return customConfig.skills.map((s) => SKILL_LABELS[s] ?? s);
-  }
-
-  return [];
+  return labels;
 }
 
-// ── Custom agents: agent dropdown ─────────────────────────────────────────────
+// ── Custom agents: config loading ─────────────────────────────────────────────
 
 /**
- * Sync the agent <select> with the current registry.
- * Built-in options are always present; custom agent options are appended and
- * prefixed with a separator so the user can distinguish them.
+ * Refresh the info badge shown in the options bar.
+ * Called whenever the custom-config registry or external skills list changes
+ * so that the main page always reflects the current state.
  */
 function populateCustomAgentOptions(): void {
-  const select = getEl<HTMLSelectElement>("agent-select");
-
-  // Remove previously added custom options (everything after the built-in ones)
-  const builtInCount = 2; // "ux-designer" + "design-system"
-  while (select.options.length > builtInCount) {
-    select.remove(select.options.length - 1);
-  }
-
-  const customAgents = registry.getAgents();
-  if (customAgents.length > 0) {
-    // Separator
-    const sep = document.createElement("option");
-    sep.disabled = true;
-    sep.textContent = "── Custom Agents ──";
-    select.appendChild(sep);
-
-    for (const agent of customAgents) {
-      const opt = document.createElement("option");
-      opt.value = agent.id;
-      opt.textContent = agent.name;
-      select.appendChild(opt);
-    }
-  }
-
   // Keep the main-page info badge in sync
   updateAgentsSkillsInfo();
 }
@@ -719,7 +780,7 @@ async function loadConfigFile(file: File): Promise<void> {
     populateCustomAgentOptions();
     renderCustomConfigSummary();
     showToast(
-      `Loaded ${pluralize(registry.agentCount, "agent")} and ${pluralize(registry.skillCount, "skill")} from ${file.name}.`
+      `Loaded ${pluralize(registry.skillCount, "skill")} from ${file.name}.`
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to parse config file.";
@@ -731,61 +792,45 @@ function clearCustomConfig(): void {
   registry.clear();
   populateCustomAgentOptions();
   renderCustomConfigSummary();
-  // Reset agent select to default
-  const select = getEl<HTMLSelectElement>("agent-select");
-  select.value = "ux-designer";
-  showToast("Custom agents and skills cleared.");
+  showToast("Custom skills cleared.");
 }
 
-/** Update the summary list of loaded custom agents and skills (settings panel). */
+/** Update the summary list of loaded custom skills (settings panel). */
 function renderCustomConfigSummary(): void {
   const summary = document.getElementById("custom-config-summary");
   if (!summary) return;
 
-  const agents = registry.getAgents();
   const skills = registry.getSkills();
 
-  if (agents.length === 0 && skills.length === 0) {
+  if (skills.length === 0) {
     summary.textContent = "No custom config loaded.";
   } else {
-    const lines: string[] = [];
-    if (agents.length > 0) {
-      lines.push(`Agents: ${agents.map((a) => a.name).join(", ")}`);
-    }
-    if (skills.length > 0) {
-      lines.push(`Skills: ${skills.map((s) => s.name).join(", ")}`);
-    }
-    summary.textContent = lines.join(" · ");
+    summary.textContent = `Skills: ${skills.map((s) => s.name).join(", ")}`;
   }
 
-  // Also refresh the compact info shown in the main-page agent bar
+  // Also refresh the compact info shown in the main-page options bar
   updateAgentsSkillsInfo();
 }
 
 /**
- * Update the compact agents-and-skills info shown in the main-page agent bar.
+ * Update the compact skills info shown in the main-page options bar.
  *
- * Called whenever the custom-agent registry or the external skills list changes
+ * Called whenever the custom-config registry or the external skills list changes
  * so that the main page always reflects the current state of the Settings
  * configuration without requiring the user to open Settings to verify.
  *
  * Output format examples:
  *   - ""                                  (nothing loaded)
- *   - "1 custom agent"
- *   - "2 custom agents · 3 custom skills"
- *   - "1 custom agent · +5 remote"
+ *   - "3 custom skills"
+ *   - "3 custom skills · +5 remote"
  */
 function updateAgentsSkillsInfo(): void {
   const infoEl = document.getElementById("agents-skills-info");
   if (!infoEl) return;
 
-  const agents = registry.getAgents();
   const skills = registry.getSkills();
   const parts: string[] = [];
 
-  if (agents.length > 0) {
-    parts.push(pluralize(agents.length, "custom agent"));
-  }
   if (skills.length > 0) {
     parts.push(pluralize(skills.length, "custom skill"));
   }
@@ -899,21 +944,18 @@ function renderSkillsLibrary(): void {
 
 // ── Onboarding ────────────────────────────────────────────────────────────────
 
+/** localStorage key for the onboarding completion flag. */
 const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
 const ONBOARDING_TOTAL_STEPS = 4;
 
-/** All built-in skills, used as the default set for onboarding-created agents. */
-const ALL_SKILL_TYPES: SkillType[] = ["generate-screen", "generate-variants", "apply-design-system"];
-
 /**
- * Default system prompt pre-filled in the step-4 agent textarea.
- * If the user hasn't changed this text we skip creating the agent.
+ * Default placeholder shown in the onboarding functional context textarea.
+ * If the user hasn't changed this text we skip saving it.
  */
 const OB_AGENT_DEFAULT_PROMPT =
-  "You are a UX expert in a company about... " +
-  "(insert your application functional context here). " +
-  "Create powerful figma components respecting existing design system. " +
-  "Use skills available in skills folder.";
+  "We are building an application for... " +
+  "(describe your product, industry, or target users here). " +
+  "Generate screens that match our brand and workflows.";
 
 let onboardingStep = 0;
 
@@ -1094,44 +1136,24 @@ function dismissOnboarding(): void {
 }
 
 /**
- * Read the optional custom-agent fields from step 3 and, if the user has
- * edited the default system prompt, register and persist the new agent so
- * it is immediately available in the Agent dropdown.
+ * Read the optional functional context from onboarding step 3 and persist it
+ * to localStorage so all agents can use it automatically.
  *
- * If the textarea still contains the unmodified placeholder text the agent
- * is silently skipped — no action is taken.
+ * Silently skipped if the user left the default placeholder unchanged.
  */
 function applyOnboardingCustomAgent(): void {
-  const nameInput   = document.getElementById("ob-agent-name")   as HTMLInputElement   | null;
   const promptInput = document.getElementById("ob-agent-prompt") as HTMLTextAreaElement | null;
 
-  const systemPrompt = promptInput?.value.trim() ?? "";
+  const functionalContext = promptInput?.value.trim() ?? "";
 
   // Skip silently if the user left the default placeholder unchanged
-  if (!systemPrompt || systemPrompt === OB_AGENT_DEFAULT_PROMPT) return;
+  if (!functionalContext || functionalContext === OB_AGENT_DEFAULT_PROMPT) return;
 
-  const agentName = nameInput?.value.trim() || "My Custom Agent";
-  const id = `onboarding-agent-${Date.now()}`;
+  localStorage.setItem(FUNCTIONAL_CONTEXT_KEY, functionalContext);
 
-  try {
-    registry.load({
-      agents: [{
-        id,
-        name: agentName,
-        systemPrompt,
-        skills: ALL_SKILL_TYPES,
-      }],
-    });
-    registry.saveToStorage();
-    populateCustomAgentOptions();
-    renderCustomConfigSummary();
+  // Reflect the saved value in the settings functional context field
+  const settingsInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
+  if (settingsInput) settingsInput.value = functionalContext;
 
-    // Auto-select the newly created agent in the main dropdown
-    const agentSelect = document.getElementById("agent-select") as HTMLSelectElement | null;
-    if (agentSelect) agentSelect.value = id;
-
-    showToast(`Custom agent "${agentName}" created!`);
-  } catch {
-    showToast("Could not create the agent — please check the name and prompt, then try again from Settings.");
-  }
+  showToast("Functional context saved!");
 }

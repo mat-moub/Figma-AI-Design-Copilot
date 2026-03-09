@@ -52,19 +52,27 @@ export class UXDesignerAgent {
   /**
    * Generate UI screens for the given prompt.
    *
-   * @param prompt       Natural language request from the designer.
-   * @param variants     Number of screen variants to generate.
-   * @param context      Figma document context.
-   * @param modelConfig  AI model configuration.
-   * @param history      Previous chat messages.
+   * @param prompt            Natural language request from the designer.
+   * @param variants          Number of screen variants to generate.
+   * @param context           Figma document context.
+   * @param modelConfig       AI model configuration.
+   * @param history           Previous chat messages.
+   * @param functionalContext Optional business/functional context appended to the system prompt.
+   * @param applyDs           Whether to enforce the design system after generation (default: true).
    */
   async generate(
     prompt: string,
     variants: number,
     context: DocumentContext,
     modelConfig: ModelConfig,
-    history: ChatMessage[] = []
+    history: ChatMessage[] = [],
+    functionalContext?: string,
+    applyDs = true
   ): Promise<UIScreen[]> {
+    const agentPrompt = functionalContext
+      ? `${this.config.systemPrompt}\n\n## Business Context\n\n${functionalContext}`
+      : this.config.systemPrompt;
+
     if (variants > 1) {
       // Use the variants skill
       const screens = await generateVariants({
@@ -73,10 +81,10 @@ export class UXDesignerAgent {
         context,
         modelConfig,
         history,
-        agentPrompt: this.config.systemPrompt,
+        agentPrompt,
         aiService: this.aiService,
       });
-      return applyDesignSystem({ screens, designSystem: context.designSystem });
+      return applyDs ? applyDesignSystem({ screens, designSystem: context.designSystem }) : screens;
     }
 
     // Use the single screen skill
@@ -85,9 +93,9 @@ export class UXDesignerAgent {
       context,
       modelConfig,
       history,
-      agentPrompt: this.config.systemPrompt,
+      agentPrompt,
       aiService: this.aiService,
     });
-    return applyDesignSystem({ screens, designSystem: context.designSystem });
+    return applyDs ? applyDesignSystem({ screens, designSystem: context.designSystem }) : screens;
   }
 }

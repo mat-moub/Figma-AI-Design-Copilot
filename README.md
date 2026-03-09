@@ -13,23 +13,17 @@ Supported providers:
 
 <table>
   <tr>
-    <td align="center" width="33%">
+    <td align="center" width="50%">
       <strong>Main view</strong><br/>
-      Connection badge + model always visible, agent selector, chat interface
+      Connection badge + model, generation mode checkboxes, chat interface
       <br/><br/>
-      <img src="screenshots/main-view.png" alt="Main view — connection badge, agent selector, chat" width="240"/>
+      <img src="https://github.com/user-attachments/assets/cf2a0c6b-18a4-4b38-a72a-dca25108bb8a" alt="Main view — checkboxes for Keep existing design system and Advanced UX skills" width="260"/>
     </td>
-    <td align="center" width="33%">
-      <strong>Settings (full-screen overlay)</strong><br/>
-      Model config, API key, custom agents drag-and-drop, skills library
+    <td align="center" width="50%">
+      <strong>Settings — Functional Context &amp; Custom Skills</strong><br/>
+      Business context textarea, custom skills drop zone, skills library
       <br/><br/>
-      <img src="screenshots/settings-view.png" alt="Settings overlay — model, API key, custom agents, skills library" width="240"/>
-    </td>
-    <td align="center" width="33%">
-      <strong>Skill chips in chat</strong><br/>
-      Every AI response shows the skills that were invoked (e.g. Generate Variants, Apply Design System)
-      <br/><br/>
-      <img src="screenshots/chat-skill-chips.png" alt="Chat showing skill chip tags on each assistant message" width="240"/>
+      <img src="https://github.com/user-attachments/assets/a51118d2-6846-4b37-a3a4-b152040d2a4b" alt="Settings overlay — Functional Context section, Custom Skills, Skills Library" width="260"/>
     </td>
   </tr>
 </table>
@@ -47,14 +41,15 @@ Supported providers:
 7. [Core concepts](#core-concepts)
 8. [Authentication & BYOK](#authentication--byok)
 9. [Available providers and models](#available-providers-and-models)
-10. [Agents](#agents)
-11. [Skills](#skills)
-12. [Custom agents & skills (`copilot.json`)](#custom-agents--skills-copilotjson)
-13. [External skills library](#external-skills-library)
-14. [Data flow — single request](#data-flow--single-request)
-15. [Build & develop](#build--develop)
-16. [Testing](#testing)
-17. [Key types quick reference](#key-types-quick-reference)
+10. [Generation modes](#generation-modes)
+11. [Functional context](#functional-context)
+12. [Skills](#skills)
+13. [Custom skills (`copilot.json`)](#custom-skills-copilotjson)
+14. [External skills library](#external-skills-library)
+15. [Data flow — single request](#data-flow--single-request)
+16. [Build & develop](#build--develop)
+17. [Testing](#testing)
+18. [Key types quick reference](#key-types-quick-reference)
 
 ---
 
@@ -77,10 +72,10 @@ On first launch the plugin automatically shows a 3-step onboarding overlay (plus
       <img src="https://github.com/user-attachments/assets/ba5af1b5-30c4-49f8-aa37-b9d09005c9f2" alt="Onboarding step 2 — Configure AI provider" width="200"/>
     </td>
     <td align="center" width="25%">
-      <strong>Step 3 — Custom agent</strong> <em>(optional)</em><br/>
-      Create a domain-specific agent with a pre-filled system prompt
+      <strong>Step 3 — Functional context</strong> <em>(optional)</em><br/>
+      Describe your product so the AI generates relevant screens
       <br/><br/>
-      <img src="https://github.com/user-attachments/assets/ae504023-f2b9-42bc-afc7-16402d08d426" alt="Onboarding step 3 — Create your first custom agent (optional)" width="200"/>
+      <img src="https://github.com/user-attachments/assets/48b35b50-21ca-4087-8e71-2b19f0bc42e4" alt="Onboarding step 3 — Functional context (optional)" width="200"/>
     </td>
     <td align="center" width="25%">
       <strong>You're all set!</strong><br/>
@@ -91,7 +86,7 @@ On first launch the plugin automatically shows a 3-step onboarding overlay (plus
   </tr>
 </table>
 
-The onboarding is shown **only once** (on first install). The welcome screen refers to **3 quick steps** — the final "You're all set!" screen is a completion reward, shown in the progress breadcrumb but not counted as a step so it doesn't feel intimidating. Settings entered in step 2 are immediately applied to the plugin — no need to re-enter them in the Settings panel. If a custom agent is created in step 3, it is instantly available in the Agent dropdown. The onboarding can be re-triggered by clearing `localStorage` in the browser dev tools (key: `copilot_onboarding_done`).
+The onboarding is shown **only once** (on first install). Settings entered in step 2 are immediately applied to the plugin. The functional context entered in step 3 is saved to `Settings → Functional Context` and automatically injected into every generation. The onboarding can be re-triggered by clearing `localStorage` (key: `copilot_onboarding_done`).
 
 ---
 
@@ -105,9 +100,9 @@ The plugin UI is split into two distinct views:
 |------|---------|
 | **Header** | Brand logo, Context refresh button, Clear chat button, **Settings** button |
 | **Info bar** | Connection dot (🟠 no key / 🟢 ready) + current provider · model label |
-| **Agent bar** | Agent selector dropdown (includes custom agents loaded from Settings) + loaded agents/skills count |
+| **Options bar** | **Keep existing design system** checkbox · **Advanced UX skills** checkbox · loaded custom skills count |
 | **Chat** | Scrollable conversation history |
-| **Input** | Variants counter, prompt textarea, Generate button |
+| **Input** | Versions counter, prompt textarea, Generate button |
 
 ### Settings view (full-screen overlay)
 
@@ -116,7 +111,8 @@ Clicking the **Settings** button opens a full-screen overlay that completely cov
 | Section | Content |
 |---------|---------|
 | **Model Configuration** | Provider selector, Model selector, API key input with show/hide toggle |
-| **Custom Agents & Skills** | Drag-and-drop zone for `copilot.json` files + loaded config summary |
+| **Functional Context** | Free-text textarea to describe your product/industry — automatically injected into every generation |
+| **Custom Skills** | Drag-and-drop zone for `copilot.json` files + loaded skills summary |
 | **Skills Library** | 28 bundled UX/design skills tags + Update (remote fetch) / Clear buttons |
 
 The Settings overlay is closed with the **Close** button in its header. Any changes to provider/model/API key are reflected immediately in the info bar on the main page.
@@ -136,7 +132,8 @@ The Settings overlay is closed with the **Close** button in its header. Any chan
 ┌────────────────▼────────────────────────────┐
 │  Plugin iframe  (ui.ts → dist/ui.js)         │
 │  • Chat interface                            │
-│  • Provider / agent / model / variant select │
+│  • Provider / model / generation mode select │
+│  • Functional context + custom skills        │
 │  • Routes requests to the selected provider  │
 └──────┬─────────────────┬────────────────────┘
        │ GitHub Copilot  │ OpenAI / Anthropic
@@ -317,17 +314,34 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 
 ---
 
-## Agents
+## Generation modes
 
-Agents provide the **system prompt** and decide which **skills** to invoke.
+Instead of selecting an agent from a dropdown, you control generation behaviour through two simple checkboxes on the main view:
 
-| Agent | File | Skills used | Best for |
-|-------|------|------------|----------|
-| UX Designer *(default)* | `agents/ux-designer-agent.ts` | generate-screen, generate-variants, apply-design-system | Full-featured UI generation with variants |
-| Design System | `agents/design-system-agent.ts` | generate-screen, apply-design-system | Strict component mapping, no variants |
-| Custom (user-defined) | `agents/custom-agent.ts` | As configured in `copilot.json` | Domain-specific generation without code |
+| Checkbox | Effect | When to use |
+|----------|--------|-------------|
+| **Keep existing design system** | Enforces your Figma design system — maps generated elements to named components, colours and text styles | When your file already has a complete design system you want the AI to respect |
+| **Advanced UX skills** | Adds 28 UX/product-design frameworks to the AI system prompt (cognitive biases, heuristics, Jobs To Be Done…) | When you want psychologically-informed, principle-driven UI layouts |
 
-Every agent's system prompt automatically includes the 28 bundled UX/product-design frameworks from `src/data/skills-library.ts`.
+The two checkboxes are independent and can be combined:
+
+- Neither checked → Basic screen generation (fastest)
+- Only **Keep existing design system** → Design-system-strict output
+- Only **Advanced UX skills** → UX-framework-enriched prompts
+- Both checked → Full pipeline: UX frameworks + design system enforcement
+
+Checkbox states are persisted in `localStorage` and restored on next launch.
+
+---
+
+## Functional context
+
+Set a free-text description of your product in **Settings → Functional Context**. This text is automatically appended to the AI system prompt on every generation — no manual copy-paste required.
+
+**Example:**
+> We are building a B2B SaaS for HR managers in mid-sized companies. Our users need to track employee onboarding and performance reviews. The design language is professional and minimal.
+
+The functional context is also asked for during onboarding (step 3) so first-time users can set it immediately. It can be updated at any time in Settings. Custom skill `promptModifier` strings from `copilot.json` are always appended alongside the functional context.
 
 ---
 
@@ -345,32 +359,29 @@ Skills call `aiService.generateScreens()`, which delegates to the configured pro
 
 ---
 
-## Custom agents & skills (`copilot.json`)
+## Custom skills (`copilot.json`)
 
-Drop a `copilot.json` file into the plugin panel (drag-and-drop or file picker) to register your own agents and skills without writing TypeScript.
+Drop a `copilot.json` file into the plugin panel (drag-and-drop or file picker in **Settings → Custom Skills**) to register your own skills without writing TypeScript. Custom skills are **always applied** to every generation regardless of the checkbox state.
 
 ```jsonc
 {
   "version": "1",
-  "agents": [
-    {
-      "id": "brand-agent",
-      "name": "Brand Agent",
-      "systemPrompt": "You are a senior product designer for Acme Corp. Always use the Acme colour palette…",
-      "skills": ["generate-screen", "generate-variants", "apply-design-system"]
-    }
-  ],
   "skills": [
     {
       "id": "dark-mode",
       "name": "Dark Mode",
       "promptModifier": "Generate all screens in dark mode with high contrast ratios."
+    },
+    {
+      "id": "accessibility",
+      "name": "Accessibility",
+      "promptModifier": "Ensure all interactive elements have sufficient contrast and clear focus indicators."
     }
   ]
 }
 ```
 
-Custom agents appear in the **Agent** dropdown. Custom skills append their `promptModifier` to the agent's system prompt. The registry persists to `localStorage` so configs survive plugin restarts.
+Custom skill `promptModifier` strings are appended to the AI system prompt alongside the functional context. The registry persists to `localStorage` so configs survive plugin restarts.
 
 ---
 
@@ -388,9 +399,11 @@ Code-related skills (prefixed with `react-`, `typescript-`, `css-`, etc.) are fi
 User selects Provider + Model + API Key
 User types prompt → handleGenerate() in ui.ts
   │
-  ├─ getModelConfig()    → { provider, model, openaiKey | anthropicKey | githubToken }
-  ├─ getSelectedAgent()  → "ux-designer" | "design-system" | custom id
-  ├─ agent.generate(prompt, variants, context, modelConfig, history)
+  ├─ getModelConfig()           → { provider, model, openaiKey | anthropicKey | githubToken }
+  ├─ getKeepDesignSystem()      → true | false  (checkbox)
+  ├─ getAdvancedUXSkills()      → true | false  (checkbox)
+  ├─ buildFullFunctionalContext() → functionalContext + custom skill promptModifiers
+  ├─ agent.generate(prompt, variants, context, modelConfig, history, fullContext, applyDs)
   │     │
   │     ├─ generateScreen / generateVariants  (skill)
   │     │     └─ aiService.generateScreens()
@@ -400,7 +413,7 @@ User types prompt → handleGenerate() in ui.ts
   │     │                       ├─ OpenAIProvider        → api.openai.com
   │     │                       └─ AnthropicProvider     → api.anthropic.com
   │     │                                ← JSON array of UIScreen[]
-  │     └─ applyDesignSystem()  (optional skill)
+  │     └─ applyDesignSystem()  (when "Keep existing design system" is checked)
   │
   ├─ appendAssistantMessage()  (show summary in chat)
   └─ postMessage({ type: "build-screens", screens })
@@ -433,7 +446,7 @@ Load the plugin in Figma:
 Tests live in `src/__tests__/` and use Jest + ts-jest. There is no Figma API mock — the plugin sandbox (`main.ts`) is intentionally excluded from the test suite. All tests exercise pure TypeScript logic.
 
 ```bash
-npm test                      # run all 80 tests
+npm test                      # run all 89 tests
 npm test -- --watch           # watch mode
 npm test -- providers         # run provider suite only
 npm test -- generate-screen   # run a single suite
@@ -467,8 +480,13 @@ interface ModelConfig {
   anthropicKey?: string; // Anthropic API key (sk-ant-…)
 }
 
-type AgentType = "ux-designer" | "design-system";
 type SkillType = "generate-screen" | "generate-variants" | "apply-design-system";
+
+interface CustomSkillConfig {
+  id: string;
+  name: string;
+  promptModifier: string; // appended to every agent system prompt
+}
 
 // Messages between iframe ↔ plugin sandbox
 type UIToPluginMessage  = GetContextMessage | BuildScreensMessage;
