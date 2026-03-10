@@ -14,16 +14,16 @@ Supported providers:
 <table>
   <tr>
     <td align="center" width="33%">
-      <strong>Main view — empty chat</strong><br/>
-      Centered "Start creating a screen" placeholder, checkboxes above Generate
+      <strong>Generate mode</strong><br/>
+      Mode toggle active on Generate tab, checkboxes above Generate button
       <br/><br/>
-      <img src="screenshots/main-view.png" alt="Main view — empty chat state with centered placeholder" width="220"/>
+      <img src="screenshots/main-view.png" alt="Main view — Generate mode with mode toggle and generate options" width="220"/>
     </td>
     <td align="center" width="33%">
-      <strong>Main view — Multiple versions</strong><br/>
-      Versions counter revealed by the checkbox, Generate at bottom
+      <strong>Ask mode</strong><br/>
+      Ask tab active, generation checkboxes hidden, Ask button
       <br/><br/>
-      <img src="screenshots/main-view-versions.png" alt="Main view — Multiple versions panel expanded" width="220"/>
+      <img src="screenshots/main-view-ask.png" alt="Main view — Ask mode with conversational interface" width="220"/>
     </td>
     <td align="center" width="33%">
       <strong>Settings — Model &amp; Custom Skills</strong><br/>
@@ -106,8 +106,9 @@ The plugin UI is split into two distinct views:
 |------|---------|
 | **Header** | Brand logo, Context refresh button, Clear chat button, **Settings** button |
 | **Info bar** | Connection dot (🟠 no key / 🟢 ready) + current provider · model label |
-| **Chat** | Scrollable conversation history; shows a centered "Start creating a screen" placeholder when empty |
-| **Input** | Prompt textarea · **Design system**, **Advanced UX skills**, **Multiple versions** checkboxes (above generate) · **Generate** button (bottom-left) · Ctrl+Enter shortcut hint |
+| **Chat** | Scrollable conversation history; shows a contextual placeholder when empty |
+| **Mode toggle** | **Generate** tab (creates Figma frames) · **Ask** tab (conversational design Q&A) |
+| **Input** | Prompt textarea · **Design system**, **Advanced UX skills**, **Multiple versions** checkboxes (Generate mode only, above button) · **Generate / Ask** button · Ctrl+Enter shortcut hint |
 
 ### Settings view (full-screen overlay)
 
@@ -319,9 +320,30 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 
 ---
 
-## Generation modes
+## Interaction modes
 
-Control generation behaviour through three checkboxes shown above the Generate button on the main view:
+The input area at the bottom of the main view has a **mode toggle** with two tabs:
+
+| Mode | Button | What it does |
+|------|--------|--------------|
+| **✨ Generate** | `Generate` | Sends the prompt through the agent pipeline and builds real Figma frames in the document |
+| **💬 Ask** | `Ask` | Sends the question to the AI as a conversational design Q&A — no Figma frame is created |
+
+**Generate mode** is the default. Switch to **Ask mode** when you want to:
+- Get design advice, feedback, or inspiration without committing to a frame
+- Ask "what layout should I use for X?", "how do I improve this screen's accessibility?", etc.
+- Iterate on an idea conversationally before generating
+
+The selected mode is persisted in `localStorage` and restored on next launch.
+Ctrl+Enter / ⌘+Enter always submits the current mode's action.
+
+In **Ask mode**, the generation-specific checkboxes (Design system, Advanced UX skills, Multiple versions) are automatically hidden to keep the interface clean and unambiguous.
+
+---
+
+## Generation options
+
+Control generation behaviour through three checkboxes shown above the Generate button (visible in **Generate mode** only):
 
 | Checkbox | Effect | When to use |
 |----------|--------|-------------|
@@ -392,11 +414,11 @@ Code-related skills (prefixed with `react-`, `typescript-`, `css-`, etc.) are fi
 
 ---
 
-## Data flow — single request
+## Data flow — Generate mode
 
 ```
 User selects Provider + Model + API Key
-User types prompt → handleGenerate() in ui.ts
+User types prompt → handleGenerate() in ui.ts  [Generate tab active]
   │
   ├─ getModelConfig()           → { provider, model, openaiKey | anthropicKey | githubToken }
   ├─ getKeepDesignSystem()      → true | false  (checkbox)
@@ -417,6 +439,21 @@ User types prompt → handleGenerate() in ui.ts
   ├─ appendAssistantMessage()  (show summary in chat)
   └─ postMessage({ type: "build-screens", screens })
         └─ main.ts → figma-builder.ts → Figma frames inserted into document
+```
+
+## Data flow — Ask mode
+
+```
+User types question → handleAsk() in ui.ts  [Ask tab active]
+  │
+  ├─ getModelConfig()           → { provider, model, key }
+  ├─ aiService.ask(question, context, modelConfig, history)
+  │     └─ createProvider(config)  → LLMProvider instance
+  │           └─ provider.chat(messages, modelId)   ← conversational system prompt
+  │                 ← plain-text answer (no JSON, no Figma frames)
+  │
+  └─ appendAssistantMessage()  (show answer directly in chat)
+        No postMessage to main.ts — Figma document is untouched.
 ```
 
 ---

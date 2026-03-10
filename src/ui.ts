@@ -42,11 +42,21 @@ const KEEP_DESIGN_SYSTEM_KEY = "copilot_keep_design_system";
 /** localStorage key for the "Advanced UX skills" checkbox. */
 const ADVANCED_UX_SKILLS_KEY = "copilot_advanced_ux_skills";
 
+/** localStorage key for the active interaction mode. */
+const INTERACTION_MODE_KEY = "copilot_interaction_mode";
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 let documentContext: DocumentContext | null = null;
 let chatHistory: ChatMessage[] = [];
 let contextFetchedAt: number | null = null;
+
+/**
+ * Active interaction mode.
+ *   "generate" → produce Figma frames (default)
+ *   "ask"      → conversational design Q&A, no frames created
+ */
+let interactionMode: "generate" | "ask" = "generate";
 
 /**
  * Extra skills loaded at runtime from the GitHub library.
@@ -90,6 +100,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const savedContext = localStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "";
   const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
   if (contextInput) contextInput.value = savedContext;
+
+  // Restore interaction mode (generate | ask)
+  const savedMode = localStorage.getItem(INTERACTION_MODE_KEY);
+  if (savedMode === "ask" || savedMode === "generate") {
+    setInteractionMode(savedMode);
+  }
 
   setupEventListeners();
   requestDocumentContext();
@@ -154,17 +170,34 @@ function setupEventListeners(): void {
   const refreshCtxBtn = getEl<HTMLButtonElement>("refresh-ctx-btn");
   const apiKeyToggle = getEl<HTMLButtonElement>("api-key-toggle");
 
-  generateBtn.addEventListener("click", () => void handleGenerate());
+  // Single action button dispatches to the active mode handler
+  generateBtn.addEventListener("click", () => {
+    if (interactionMode === "ask") {
+      void handleAsk();
+    } else {
+      void handleGenerate();
+    }
+  });
 
   promptInput.addEventListener("keydown", (e: KeyboardEvent) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-      void handleGenerate();
+      if (interactionMode === "ask") {
+        void handleAsk();
+      } else {
+        void handleGenerate();
+      }
     }
   });
 
   clearBtn.addEventListener("click", clearHistory);
   refreshCtxBtn.addEventListener("click", requestDocumentContext);
   apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
+
+  // ── Mode tabs ───────────────────────────────────────────────────────────
+  const tabGenerate = document.getElementById("mode-tab-generate");
+  const tabAsk      = document.getElementById("mode-tab-ask");
+  if (tabGenerate) tabGenerate.addEventListener("click", () => setInteractionMode("generate"));
+  if (tabAsk)      tabAsk.addEventListener("click",      () => setInteractionMode("ask"));
 
   // ── Multiple versions toggle ────────────────────────────────────────────
   const multipleVersionsCheckbox = getEl<HTMLInputElement>("multiple-versions-toggle");
@@ -355,6 +388,97 @@ async function handleGenerate(): Promise<void> {
     chatHistory.push({ role: "user", content: prompt });
     chatHistory.push({ role: "assistant", content: `Error: ${message}` });
     showToast(message, "error");
+  }
+}
+
+// ── Core: Ask ─────────────────────────────────────────────────────────────────
+
+/**
+ * Handle a user question in "Ask" mode.
+ * Sends the question to the LLM as a conversational design Q&A request.
+ * No Figma frame is generated — the AI response is shown directly in the chat.
+ */
+async function handleAsk(): Promise<void> {
+  const promptEl = getEl<HTMLTextAreaElement>("prompt-input");
+  const question = promptEl.value.trim();
+  if (!question) {
+    showToast("Please enter a question.", "warning");
+    return;
+  }
+
+  const modelConfig = getModelConfig();
+  const missingKeyMsg = validateApiKey(modelConfig);
+  if (missingKeyMsg) {
+    showToast(missingKeyMsg, "warning");
+    return;
+  }
+
+  const context: DocumentContext = documentContext ?? {
+    designSystem: { components: [], colors: [], textStyles: [] },
+    screens: [],
+    pages: [],
+  };
+
+  appendUserMessage(question);
+  promptEl.value = "";
+  setGenerating(true);
+
+  try {
+    const answer = await aiService.ask(question, context, modelConfig, chatHistory);
+
+    appendAssistantMessage(answer);
+    chatHistory.push({ role: "user", content: question });
+    chatHistory.push({ role: "assistant", content: answer });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    appendAssistantMessage(`❌ ${message}`);
+    chatHistory.push({ role: "user", content: question });
+    chatHistory.push({ role: "assistant", content: `Error: ${message}` });
+    showToast(message, "error");
+  } finally {
+    setGenerating(false);
+  }
+}
+
+// ── Mode switching ────────────────────────────────────────────────────────────
+
+/**
+ * Switch the interaction mode between "generate" and "ask".
+ * Updates the tab UI, input placeholder, button label, and persists the choice.
+ */
+function setInteractionMode(mode: "generate" | "ask"): void {
+  interactionMode = mode;
+  localStorage.setItem(INTERACTION_MODE_KEY, mode);
+
+  const inputSection = document.getElementById("input-section");
+  const tabGenerate  = document.getElementById("mode-tab-generate");
+  const tabAsk       = document.getElementById("mode-tab-ask");
+  const promptEl     = document.getElementById("prompt-input") as HTMLTextAreaElement | null;
+  const generateLabel = document.getElementById("generate-label");
+  const generateIcon  = document.getElementById("generate-icon");
+
+  if (mode === "ask") {
+    inputSection?.classList.add("mode--ask");
+    tabAsk?.classList.add("mode-tab--active");
+    tabGenerate?.classList.remove("mode-tab--active");
+    tabAsk?.setAttribute("aria-selected", "true");
+    tabGenerate?.setAttribute("aria-selected", "false");
+    if (promptEl) promptEl.placeholder = "Ask a design question…";
+    if (generateLabel) generateLabel.textContent = "Ask";
+    if (generateIcon) {
+      generateIcon.className = "fa-solid fa-comments";
+    }
+  } else {
+    inputSection?.classList.remove("mode--ask");
+    tabGenerate?.classList.add("mode-tab--active");
+    tabAsk?.classList.remove("mode-tab--active");
+    tabGenerate?.setAttribute("aria-selected", "true");
+    tabAsk?.setAttribute("aria-selected", "false");
+    if (promptEl) promptEl.placeholder = "Describe the screen you want to generate…";
+    if (generateLabel) generateLabel.textContent = "Generate";
+    if (generateIcon) {
+      generateIcon.className = "fa-solid fa-wand-magic-sparkles";
+    }
   }
 }
 
@@ -576,6 +700,15 @@ function buildFullFunctionalContext(): string {
 
 /** Returns the HTML markup for the empty-state chat placeholder. */
 function chatEmptyStateHTML(): string {
+  if (interactionMode === "ask") {
+    return `<div class="chat-empty" id="chat-empty-state">
+    <div class="chat-empty__icon">
+      <i class="fa-solid fa-comments" aria-hidden="true"></i>
+    </div>
+    <p class="chat-empty__title">Ask a design question</p>
+    <p class="chat-empty__subtitle">Get AI design advice, feedback, or ideas.<br>No Figma frame will be created.</p>
+  </div>`;
+  }
   return `<div class="chat-empty" id="chat-empty-state">
     <div class="chat-empty__icon">
       <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
@@ -644,7 +777,13 @@ function setGenerating(active: boolean): void {
   const spinner = document.getElementById("spinner");
   const label = document.getElementById("generate-label");
   btn.disabled = active;
-  if (label) label.textContent = active ? "Generating…" : "Generate";
+  if (label) {
+    if (active) {
+      label.textContent = interactionMode === "ask" ? "Asking…" : "Generating…";
+    } else {
+      label.textContent = interactionMode === "ask" ? "Ask" : "Generate";
+    }
+  }
   if (spinner) spinner.classList.toggle("hidden", !active);
 }
 
