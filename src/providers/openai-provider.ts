@@ -6,7 +6,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 /**
  * LLM provider that calls the OpenAI Chat Completions API directly (BYOK).
  *
- * Supported models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo.
+ * Supported models: gpt-5-mini, gpt-5, gpt-5.2, gpt-5.3, codex.
  * Requires an OpenAI API key (sk-…).
  */
 export class OpenAIProvider implements LLMProvider {

@@ -520,15 +520,16 @@ const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string 
     { value: "gemini-3-pro", label: "Gemini 3 Pro" },
   ],
   openai: [
-    { value: "gpt-4o", label: "GPT-4o" },
-    { value: "gpt-4o-mini", label: "GPT-4o mini" },
-    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-    { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+    { value: "gpt-5-mini", label: "GPT-5 mini" },
+    { value: "gpt-5", label: "GPT-5" },
+    { value: "gpt-5.2", label: "GPT-5.2" },
+    { value: "gpt-5.3", label: "GPT-5.3" },
+    { value: "codex", label: "Codex" },
   ],
   anthropic: [
-    { value: "claude-opus-4-5", label: "Claude Opus 4.5" },
-    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
     { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+    { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
   ],
 };
 

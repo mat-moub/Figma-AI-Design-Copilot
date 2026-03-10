@@ -12,7 +12,7 @@ interface AnthropicMessage {
 /**
  * LLM provider that calls the Anthropic Messages API directly (BYOK).
  *
- * Supported models: claude-opus-4-5, claude-sonnet-4-5, claude-haiku-4-5.
+ * Supported models: claude-haiku-4-5, claude-sonnet-4-6, claude-opus-4-6.
  * Requires an Anthropic API key (sk-ant-…).
  *
  * The Anthropic Messages API separates the `system` prompt from the

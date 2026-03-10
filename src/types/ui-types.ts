@@ -72,16 +72,17 @@ export type CopilotModel =
 
 /** Models available directly on the OpenAI API. */
 export type OpenAIModel =
-  | "gpt-4o"
-  | "gpt-4o-mini"
-  | "gpt-4-turbo"
-  | "gpt-3.5-turbo";
+  | "gpt-5-mini"
+  | "gpt-5"
+  | "gpt-5.2"
+  | "gpt-5.3"
+  | "codex";
 
 /** Models available directly on the Anthropic API. */
 export type AnthropicModel =
-  | "claude-opus-4-5"
-  | "claude-sonnet-4-5"
-  | "claude-haiku-4-5";
+  | "claude-haiku-4-5"
+  | "claude-sonnet-4-6"
+  | "claude-opus-4-6";
 
 /** Union of all model IDs supported across providers. */
 export type AIModel = CopilotModel | OpenAIModel | AnthropicModel;
