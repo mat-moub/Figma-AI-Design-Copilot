@@ -378,8 +378,8 @@ html = make_html("""
     </div>
   </div>
   <div class="onboarding-nav">
-    <div class="onboarding-nav__right" style="width:100%">
-      <button class="btn btn--primary" type="button" style="flex:1">Get started!</button>
+    <div class="onboarding-nav__right">
+      <button class="btn btn--primary" id="ob-next-btn" type="button">Get started 🚀</button>
     </div>
   </div>
 </div>
