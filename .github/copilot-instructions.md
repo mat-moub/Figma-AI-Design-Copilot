@@ -81,7 +81,7 @@ npm test             # Run Jest unit tests
 
 ## Updating README Screenshots
 
-Screenshots live in `screenshots/` and are referenced by the README. They are **380 × 600 px PNG** files named after the step they represent:
+Screenshots live in `screenshots/` and are referenced by the README. They are **420 × 640 px PNG** files named after the step they represent:
 
 | File | Step |
 |------|------|
@@ -116,7 +116,7 @@ These two together enable pixel-perfect, Font-Awesome–aware screenshots.
    ```
 
 2. **Run `scripts/gen-screenshots.py`** — it renders each HTML snapshot
-   through Chromium headless (at 380 × 800) then crops to 380 × 600:
+   through Chromium headless (at 420 × 900) then crops to 420 × 640:
 
    ```bash
    python3 scripts/gen-screenshots.py
@@ -139,16 +139,16 @@ These two together enable pixel-perfect, Font-Awesome–aware screenshots.
 
 The script uses three ingredients:
 
-1. **Chromium headless** (`/usr/bin/chromium`) — renders HTML at 380 × 800 px  
+1. **Chromium headless** (`/usr/bin/chromium`) — renders HTML at 420 × 900 px  
 2. **Local Font Awesome** from `node_modules/@fortawesome/fontawesome-free/css/all.min.css`  
    loaded via `file://` URL so icon fonts work without internet  
-3. **Pillow** — crops the 380 × 800 render down to 380 × 600
+3. **Pillow** — crops the 420 × 900 render down to 420 × 640
 
 Each screenshot is built by:
 - Extracting the `<style>` block and `<svg>` symbol defs straight from `ui.html`
 - Wrapping a hand-crafted HTML body (replicating the desired UI state) in that CSS
-- Running `chromium --headless=new --screenshot --window-size=380,800 file://…`
-- Cropping to 380 × 600
+- Running `chromium --headless=new --screenshot --window-size=420,900 file://…`
+- Cropping to 420 × 640
 
 ### Adding or updating a screenshot
 
@@ -174,18 +174,18 @@ SVG_DEFS = re.search(
     src, re.DOTALL
 ).group(1)
 
-def render(body_html, out_path, crop_h=600):
+def render(body_html, out_path, crop_h=640):
     html = f\"\"\"<!DOCTYPE html><html><head>
       <link rel=\"stylesheet\" href=\"file://{os.path.abspath(FA_CSS)}\">
-      <style>{UI_CSS} html{{width:380px}} body{{width:380px;height:auto;min-height:800px;overflow:visible}}</style>
+      <style>{UI_CSS} html{{width:420px}} body{{width:420px;height:auto;min-height:900px;overflow:visible}}</style>
     </head><body>{SVG_DEFS}{body_html}</body></html>\"\"\"
     with tempfile.NamedTemporaryFile(suffix=".html", mode="w", delete=False) as f:
         f.write(html); tmp = f.name
     tmp_png = tmp.replace(".html", ".png")
     subprocess.run(["chromium", "--headless=new", "--no-sandbox",
-                    "--disable-gpu", "--window-size=380,800",
+                    "--disable-gpu", "--window-size=420,900",
                     f"--screenshot={tmp_png}", f"file://{tmp}"], check=True)
-    Image.open(tmp_png).crop((0, 0, 380, crop_h)).save(out_path)
+    Image.open(tmp_png).crop((0, 0, 420, crop_h)).save(out_path)
     for p in [tmp, tmp_png]: os.unlink(p)
 
 # Usage — write HTML using exact ui.html class names so CSS applies unchanged:

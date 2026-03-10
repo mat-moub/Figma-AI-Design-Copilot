@@ -30,7 +30,7 @@ svg_match = re.search(
 SVG_DEFS = svg_match.group(1)
 FA_LINK = f'<link rel="stylesheet" href="file://{FA_CSS}">'
 
-RENDER_H = 640  # body is fixed to H px; no crop needed for most screenshots
+RENDER_H = 900  # render taller than H so nothing gets clipped by viewport
 
 # Target dimensions matching figma.showUI({ width: 420, height: 640 })
 W = 420
@@ -47,11 +47,12 @@ def make_html(body_html: str, extra_css: str = "") -> str:
   <style>
     {UI_CSS}
     /* ── Screenshot overrides ── */
-    html {{ width: {W}px; height: {H}px; }}
+    html {{ width: {W}px; }}
     body {{
       width: {W}px;
-      height: {H}px !important;
-      overflow: hidden !important;
+      height: auto !important;
+      min-height: {RENDER_H}px;
+      overflow: visible !important;
     }}
     {extra_css}
   </style>
@@ -77,16 +78,15 @@ def screenshot(html: str, out_path: str, crop_h: int = H):
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--run-all-compositor-stages-before-draw",
-            f"--window-size={W},{H}",
+            f"--window-size={W},{RENDER_H}",
             f"--screenshot={tmp_png}",
             f"file://{tmp_html}",
         ], capture_output=True, text=True, timeout=30)
 
-        # Crop to target height if needed (e.g. for scrollable pages)
+        # Crop to target height
         img = Image.open(tmp_png)
-        if img.size[1] > crop_h:
-            img = img.crop((0, 0, W, crop_h))
-        img.save(out_path)
+        cropped = img.crop((0, 0, W, crop_h))
+        cropped.save(out_path)
     finally:
         for p in [tmp_html, tmp_png]:
             try: os.unlink(p)
@@ -121,11 +121,14 @@ MAIN_HEADER = """
   </div>
 </header>"""
 
-# The original .input-section has overflow:hidden, which makes its flex automatic
-# minimum size 0 — causing the flex layout to collapse it. We fix this by setting
-# an explicit min-height so the section gets its proper space.
+# For main-view pages: pin the chat-section to a fixed height so the input-section
+# below it gets its natural height (~200 px) and both fit within the 640 px crop.
+# Header ~50px + chat 380px + resize 5px + input ~205px = ~640px total.
 MAIN_LAYOUT_CSS = """
-.input-section { min-height: 190px !important; flex-shrink: 0 !important; }
+body { display: flex; flex-direction: column; }
+.chat-section { flex: 0 0 380px !important; height: 380px !important; overflow: hidden; }
+.resize-handle { height: 5px; flex-shrink: 0; }
+.input-section { flex-shrink: 0; overflow: hidden; }
 """
 
 # ══════════════════════════════════════════════════════════════════════════════
