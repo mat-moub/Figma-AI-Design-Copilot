@@ -149,6 +149,59 @@ export class AIService {
   }
 
   /**
+   * Send a free-form design question to the AI and return its plain-text answer.
+   * Unlike `generateScreens`, this method does NOT produce Figma frames — it is
+   * used by the "Ask" mode for conversational design advice.
+   *
+   * @param question  The designer's question or request.
+   * @param context   The Figma document context (used for awareness only).
+   * @param config    Provider, model, and API key configuration.
+   * @param history   Previous chat messages for multi-turn conversations.
+   */
+  async ask(
+    question: string,
+    context: DocumentContext,
+    config: ModelConfig,
+    history: ChatMessage[] = []
+  ): Promise<string> {
+    const provider = createProvider(config);
+
+    const components =
+      context.designSystem.components.length > 0
+        ? context.designSystem.components.join(", ")
+        : "None found";
+    const colors =
+      context.designSystem.colors.length > 0
+        ? context.designSystem.colors.join(", ")
+        : "None found";
+    const screens =
+      context.screens.length > 0
+        ? context.screens.join(", ")
+        : "None found";
+
+    const systemContent =
+      `You are an expert UI/UX design consultant integrated into Figma. ` +
+      `Answer the designer's questions with clear, actionable advice. ` +
+      `You have awareness of the designer's Figma document:\n` +
+      `  - Design System Components: ${components}\n` +
+      `  - Design System Colors: ${colors}\n` +
+      `  - Existing Screens: ${screens}\n\n` +
+      `Respond in plain text. Be concise and helpful. Do NOT output JSON.`;
+
+    const systemMessage: ChatMessage = { role: "system", content: systemContent };
+    const conversationHistory = history.filter((m) => m.role !== "system");
+    const userMessage: ChatMessage = { role: "user", content: question };
+
+    const messages: ChatMessage[] = [
+      systemMessage,
+      ...conversationHistory,
+      userMessage,
+    ];
+
+    return provider.chat(messages, String(config.model));
+  }
+
+  /**
    * Build a human-readable prompt for display in the chat history.
    */
   formatUserPrompt(

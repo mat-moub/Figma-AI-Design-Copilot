@@ -12,13 +12,20 @@
       --bg: #f0f2f8;
       --surface: #ffffff;
       --border: #d4d8e8;
-      --border-aura: rgba(30, 48, 112, 0.18);
 
+      /* ── Brand colour (blue) – app chrome, focus rings, links ── */
       --primary: #1e3070;
       --primary-hover: #162558;
       --primary-light: #2d46a0;
       --primary-text: #ffffff;
       --primary-glow: rgba(30, 48, 112, 0.35);
+      --border-aura: rgba(30, 48, 112, 0.18);
+
+      /* ── Action colour (green) – primary CTA buttons only ─────── */
+      --action: #16a34a;
+      --action-hover: #15803d;
+      --action-text: #ffffff;
+      --action-glow: rgba(22, 163, 74, 0.35);
 
       --text: #1a1d2e;
       --text-muted: #6b7280;
@@ -538,6 +545,58 @@
       box-shadow: 0 -2px 12px rgba(30, 48, 112, 0.07);
     }
 
+    /* ── Mode toggle (Generate / Ask tabs) ───────────────────── */
+    .mode-toggle {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2px;
+      /* Center the toggle; top margin 0, bottom margin separates from textarea */
+      margin-top: 0;
+      margin-right: auto;
+      margin-bottom: 8px;
+      margin-left: auto;
+      gap: 2px;
+      width: -webkit-fit-content;
+      width: fit-content;
+    }
+    .mode-tab {
+      border: none;
+      border-radius: calc(var(--radius-lg) - 2px);
+      padding: 5px 18px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      background: transparent;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .mode-tab:hover:not(.mode-tab--active) {
+      background: var(--surface);
+      color: var(--text);
+    }
+    .mode-tab--active {
+      background: var(--primary);
+      color: var(--primary-text);
+      box-shadow: 0 1px 6px rgba(30, 48, 112, 0.25);
+    }
+    .mode-tab:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+    /* Ask mode: dim generation-only controls */
+    .input-section.mode--ask .options-bar,
+    .input-section.mode--ask .variants-row {
+      display: none;
+    }
+
     .variants-row {
       display: flex;
       align-items: center;
@@ -595,15 +654,13 @@
     }
 
     .btn--primary {
-      background: var(--primary);
-      color: var(--primary-text);
-      flex: 1;
-      justify-content: center;
-      box-shadow: 0 2px 10px rgba(30, 48, 112, 0.30), 0 0 20px rgba(30, 48, 112, 0.15);
+      background: var(--action);
+      color: var(--action-text);
+      box-shadow: 0 2px 10px rgba(22, 163, 74, 0.30), 0 0 20px rgba(22, 163, 74, 0.15);
     }
     .btn--primary:hover:not(:disabled) {
-      background: var(--primary-hover);
-      box-shadow: 0 4px 16px rgba(30, 48, 112, 0.40), 0 0 28px rgba(30, 48, 112, 0.20);
+      background: var(--action-hover);
+      box-shadow: 0 4px 16px rgba(22, 163, 74, 0.40), 0 0 28px rgba(22, 163, 74, 0.20);
     }
     .btn--primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
     #generate-btn #generate-icon { font-size: 11px; }
@@ -976,6 +1033,11 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-left: auto;
+    }
+
+    #ob-next-btn {
+      flex: none;
     }
 
     /* ── Onboarding: provider icon + instructions ─────────────── */
@@ -1194,7 +1256,22 @@
   <div class="resize-handle" id="resize-handle" title="Drag to resize" aria-hidden="true"></div>
 
   <!-- ── Input Area ─────────────────────────────────────────── -->
-  <section class="input-section">
+  <section class="input-section" id="input-section">
+    <!-- ── Mode toggle: Generate / Ask ─────────────────────── -->
+    <div class="mode-toggle" role="tablist" aria-label="Interaction mode">
+      <button class="mode-tab mode-tab--active" id="mode-tab-generate" role="tab"
+              aria-selected="true" aria-controls="input-section" type="button"
+              title="Generate Figma screens from your prompt">
+        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+        Generate
+      </button>
+      <button class="mode-tab" id="mode-tab-ask" role="tab"
+              aria-selected="false" aria-controls="input-section" type="button"
+              title="Ask the AI a design question — no Figma frame is created">
+        <i class="fa-solid fa-comments" aria-hidden="true"></i>
+        Ask
+      </button>
+    </div>
     <textarea id="prompt-input" placeholder="Describe the screen you want to generate…"
               aria-label="Prompt"></textarea>
     <!-- ── Options: generation mode checkboxes above generate button ─ -->
@@ -1225,7 +1302,7 @@
              style="width:52px" aria-label="Number of versions"/>
       <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
     </div>
-    <!-- ── Bottom row: hint (left) + generate (right) ─ -->
+    <!-- ── Bottom row: hint (left) + generate/ask (right) ─ -->
     <div class="input-bottom">
       <p class="hint">
         <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
@@ -1432,6 +1509,7 @@
         </p>
         <ul class="onboarding-features" aria-label="Key features">
           <li>🎨 Describe a screen and watch it appear in Figma</li>
+          <li>💬 Ask design questions in <strong>Ask mode</strong> — no frame needed</li>
           <li>🤖 Supports GitHub Copilot, OpenAI, and Anthropic</li>
           <li>📐 Respects your design system's components and styles</li>
           <li>🔀 Generate multiple versions of a screen at once</li>
@@ -1532,7 +1610,8 @@
           Here are some tips to get the most out of the plugin.
         </p>
         <ul class="onboarding-tips" aria-label="Usage tips">
-          <li>💬 <strong>Prompt</strong> — Describe any screen: "Create a mobile login screen"</li>
+          <li>✨ <strong>Generate mode</strong> — Describe a screen and watch it appear in Figma</li>
+          <li>💬 <strong>Ask mode</strong> — Ask design questions and get AI advice without creating frames</li>
           <li>🔀 <strong>Versions</strong> — Set a number to generate multiple versions at once</li>
           <li>✅ <strong>Keep existing design system</strong> — Enforce your Figma components</li>
           <li>🎓 <strong>Advanced UX skills</strong> — Apply UX frameworks to generation</li>

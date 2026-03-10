@@ -81,7 +81,7 @@ npm test             # Run Jest unit tests
 
 ## Updating README Screenshots
 
-Screenshots live in `screenshots/` and are referenced by the README. They are **380 × 600 px PNG** files named after the step they represent:
+Screenshots live in `screenshots/` and are referenced by the README. They are **420 × 640 px PNG** files named after the step they represent:
 
 | File | Step |
 |------|------|
@@ -89,153 +89,114 @@ Screenshots live in `screenshots/` and are referenced by the README. They are **
 | `onboarding-step-2.png` | Step 2 — Configure provider |
 | `onboarding-step-3.png` | Step 3 — Functional context |
 | `onboarding-final.png` | Final — You're all set! |
-| `main-view.png` | Main plugin view |
+| `main-view.png` | Main plugin view (Generate mode) |
+| `main-view-ask.png` | Main plugin view (Ask mode) |
+| `main-view-versions.png` | Main plugin view (Multiple versions) |
+| `chat-skill-chips.png` | Chat with skill chip tags |
 | `settings-view.png` | Settings panel |
 
 ### Sandbox constraints
 
 In the CI/coding-agent sandbox the following are **unavailable**:
-- The browser (Playwright) cannot connect to `localhost` — local HTTP servers are unreachable.
+- The Playwright agent browser cannot connect to `localhost` — local HTTP servers are unreachable.
 - External CDNs (cdnjs, fonts.googleapis.com …) are blocked.
-- `puppeteer` / `playwright` Node packages are not installed.
 - The actual Figma desktop app is not running.
 
-As a result, screenshots must be generated **programmatically with Python + Pillow**.
+However, **Chromium is pre-installed** at `/usr/bin/chromium` and the
+`@fortawesome/fontawesome-free` npm package is in `devDependencies`.
+These two together enable pixel-perfect, Font-Awesome–aware screenshots.
 
 ### Procedure
 
-1. **Install Pillow** (already available in the sandbox after the first `pip install`):
+1. **Ensure the npm package is installed** (run `npm install` if `node_modules/` is missing):
 
    ```bash
-   pip install Pillow
+   npm install
+   pip install Pillow   # needed only for the final crop step
    ```
 
-2. **Run the generation script** (see template below), writing the output PNG directly to `screenshots/`.
+2. **Run `scripts/gen-screenshots.py`** — it renders each HTML snapshot
+   through Chromium headless (at 420 × 900) then crops to 420 × 640:
+
+   ```bash
+   python3 scripts/gen-screenshots.py
+   ```
 
 3. **Verify dimensions** with:
 
    ```bash
    python3 -c "
-   from PIL import Image
-   img = Image.open('screenshots/onboarding-step-2.png')
-   print(img.size)   # should be (380, 600)
+   from PIL import Image, os
+   for f in os.listdir('screenshots'):
+       if f.endswith('.png'):
+           print(f, Image.open('screenshots/' + f).size)
    "
    ```
 
-4. **Commit** the updated PNG via `report_progress`.
+4. **Commit** the updated PNGs via `report_progress`.
 
-### Python screenshot template
+### How `scripts/gen-screenshots.py` works
 
-The script below renders a faithful approximation of the plugin's onboarding step 2 using only Pillow. Adapt colors, layout, and text to match any future UI changes.
+The script uses three ingredients:
+
+1. **Chromium headless** (`/usr/bin/chromium`) — renders HTML at 420 × 900 px  
+2. **Local Font Awesome** from `node_modules/@fortawesome/fontawesome-free/css/all.min.css`  
+   loaded via `file://` URL so icon fonts work without internet  
+3. **Pillow** — crops the 420 × 900 render down to 420 × 640
+
+Each screenshot is built by:
+- Extracting the `<style>` block and `<svg>` symbol defs straight from `ui.html`
+- Wrapping a hand-crafted HTML body (replicating the desired UI state) in that CSS
+- Running `chromium --headless=new --screenshot --window-size=420,900 file://…`
+- Cropping to 420 × 640
+
+### Adding or updating a screenshot
+
+1. Open `scripts/gen-screenshots.py`.
+2. Find or add a section for the screenshot you want to change.
+3. Edit the HTML body to match the desired UI state, using the same class names as `ui.html`.
+4. Re-run `python3 scripts/gen-screenshots.py` and commit.
+
+### Key patterns
 
 ```python
-from PIL import Image, ImageDraw, ImageFont
+import re, subprocess, tempfile, os
+from PIL import Image
 
-# ── Palette (mirrors ui.html CSS variables) ────────────────────────
-BG          = (240, 242, 248)   # --bg
-SURFACE     = (255, 255, 255)   # --surface
-BORDER      = (212, 216, 232)   # --border
-PRIMARY     = ( 30,  48, 112)   # --primary
-TEXT        = ( 26,  29,  46)   # --text
-TEXT_MUTED  = (107, 114, 128)   # --text-muted
+FA_CSS = "node_modules/@fortawesome/fontawesome-free/css/all.min.css"
 
-W, H = 380, 600
-img  = Image.new("RGB", (W, H), BG)
-draw = ImageDraw.Draw(img)
+with open("ui.html") as f:
+    src = f.read()
 
-# Load system fonts (DejaVu ships with most Linux distros)
-def _font(bold=False, size=11):
-    name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-    try:
-        return ImageFont.truetype(f"/usr/share/fonts/truetype/dejavu/{name}", size)
-    except OSError:
-        return ImageFont.load_default()
+UI_CSS = re.search(r"<style>(.*?)</style>", src, re.DOTALL).group(1)
+SVG_DEFS = re.search(
+    r'(<svg xmlns="http://www\.w3\.org/2000/svg" style="display:none">.*?</svg>)',
+    src, re.DOTALL
+).group(1)
 
-font_sm      = _font(size=9)
-font_sm_bold = _font(bold=True, size=9)
-font_reg     = _font(size=11)
-font_bold    = _font(bold=True, size=11)
-font_title   = _font(bold=True, size=14)
-font_header  = _font(bold=True, size=12)
+def render(body_html, out_path, crop_h=640):
+    html = f\"\"\"<!DOCTYPE html><html><head>
+      <link rel=\"stylesheet\" href=\"file://{os.path.abspath(FA_CSS)}\">
+      <style>{UI_CSS} html{{width:420px}} body{{width:420px;height:auto;min-height:900px;overflow:visible}}</style>
+    </head><body>{SVG_DEFS}{body_html}</body></html>\"\"\"
+    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", delete=False) as f:
+        f.write(html); tmp = f.name
+    tmp_png = tmp.replace(".html", ".png")
+    subprocess.run(["chromium", "--headless=new", "--no-sandbox",
+                    "--disable-gpu", "--window-size=420,900",
+                    f"--screenshot={tmp_png}", f"file://{tmp}"], check=True)
+    Image.open(tmp_png).crop((0, 0, 420, crop_h)).save(out_path)
+    for p in [tmp, tmp_png]: os.unlink(p)
 
-def rrect(draw, xy, r, fill, outline=None, lw=1):
-    draw.rounded_rectangle(xy, radius=r, fill=fill, outline=outline, width=lw)
-
-# ── Header bar ────────────────────────────────────────────────────
-draw.rectangle([0, 0, W, 38], fill=PRIMARY)
-draw.text((14, 12), "✨  AI Design Copilot", fill=(255, 255, 255), font=font_header)
-# Progress dots  (dot 2 active = provider step)
-for i, active in enumerate([False, True, False, False]):
-    x = W - 70 + i * 16
-    draw.ellipse([x-3, 16, x+3, 22],
-                 fill=(255, 255, 255) if active else (180, 190, 220))
-
-# ── Title + description ───────────────────────────────────────────
-Y = 38
-draw.text((W//2, Y + 20), "Configure your AI provider",
-          fill=TEXT, font=font_title, anchor="mm")
-draw.text((W//2, Y + 41), "Choose a provider and enter your API key.",
-          fill=TEXT_MUTED, font=font_sm, anchor="mm")
-draw.text((W//2, Y + 54), "You can change this later in Settings.",
-          fill=TEXT_MUTED, font=font_sm, anchor="mm")
-
-# ── Configure box (provider / model / key rows) ───────────────────
-BX, BY, BW = 14, Y + 70, W - 28
-rrect(draw, [BX, BY, BX + BW, BY + 120], 10, SURFACE, BORDER)
-PX, PY, LW = BX + 12, BY + 10, 65
-IX = PX + LW + 10   # input/select start-x
-
-for row_offset, label, value in [
-    (4,  "⬡ Provider", "GitHub Copilot"),
-    (40, "⬢ Model",    "GPT-5.2"),
-    (76, "⬡ GH Token", "ghp_… (copilot scope)"),
-]:
-    ry = PY + row_offset
-    draw.text((PX, ry + 2), label, fill=TEXT_MUTED, font=font_sm)
-    rrect(draw, [IX, ry - 2, BX + BW - 12, ry + 18], 5, BG, BORDER)
-    color = TEXT if row_offset < 70 else TEXT_MUTED
-    draw.text((IX + 6, ry + 2), value, fill=color, font=font_sm)
-    if row_offset < 70:   # dropdowns get a chevron
-        draw.text((BX + BW - 22, ry + 2), "▾", fill=TEXT_MUTED, font=font_sm)
-
-# ── Instructions box ──────────────────────────────────────────────
-IY = BY + 130
-rrect(draw, [BX, IY, BX + BW, IY + 170], 10, SURFACE, BORDER)
-IPX, IPY = BX + 14, IY + 12
-draw.text((IPX, IPY), "GitHub Copilot — How to get your token",
-          fill=PRIMARY, font=font_sm_bold)
-steps = [
-    "1. Go to github.com → Settings → Developer settings →",
-    "   Personal access tokens → Tokens (classic).",
-    "2. Click Generate new token (classic).",
-    "3. Select the copilot scope (under GitHub Copilot).",
-    "4. Copy the token (ghp_…) and paste it in the field above.",
-]
-sy = IPY + 18
-for s in steps:
-    draw.text((IPX, sy), s, fill=TEXT_MUTED, font=font_sm)
-    sy += 13
-draw.text((IPX, sy + 4),
-          "⚠️  Requires an active GitHub Copilot subscription.",
-          fill=TEXT_MUTED, font=font_sm)
-
-# ── Security hint ─────────────────────────────────────────────────
-draw.text((W//2, IY + 183),
-          "🔒 Your key is stored locally and never shared.",
-          fill=TEXT_MUTED, font=font_sm, anchor="mm")
-
-# ── Bottom nav ────────────────────────────────────────────────────
-NY = H - 52
-draw.rectangle([0, NY, W, H], fill=SURFACE)
-draw.line([0, NY, W, NY], fill=BORDER, width=1)
-rrect(draw, [14, NY + 12, 100, NY + 34], 6, BG, BORDER)
-draw.text((57, NY + 23), "← Back", fill=TEXT_MUTED, font=font_sm, anchor="mm")
-rrect(draw, [W - 110, NY + 12, W - 14, NY + 34], 6, PRIMARY)
-draw.text((W - 62, NY + 23), "Next →", fill=(255, 255, 255),
-          font=font_sm_bold, anchor="mm")
-
-img.save("screenshots/onboarding-step-2.png")
-print("✅  screenshots/onboarding-step-2.png written (380×600)")
+# Usage — write HTML using exact ui.html class names so CSS applies unchanged:
+render(\"\"\"
+<section class=\"input-section\">
+  <div class=\"mode-toggle\">
+    <button class=\"mode-tab mode-tab--active\">
+      <i class=\"fa-solid fa-wand-magic-sparkles\"></i> Generate
+    </button>
+  </div>
+  <!-- ... rest of UI ... -->
+</section>
+\"\"\", "screenshots/my-screenshot.png")
 ```
-
-> **Tip:** Duplicate and adapt this script for other steps (`onboarding-step-3.png`, `main-view.png`, …), keeping the same 380 × 600 canvas and color palette.
