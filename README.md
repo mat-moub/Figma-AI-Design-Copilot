@@ -305,18 +305,19 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 
 | UI label | API model id | Best for |
 |----------|-------------|----------|
-| GPT-4o | `gpt-4o` | Best overall reasoning + fast |
-| GPT-4o mini | `gpt-4o-mini` | Fastest, most cost-effective |
-| GPT-4 Turbo | `gpt-4-turbo` | High-quality generation |
-| GPT-3.5 Turbo | `gpt-3.5-turbo` | Legacy, cheapest |
+| GPT-5 mini | `gpt-5-mini` | Fastest, most cost-effective |
+| GPT-5 | `gpt-5` | Best overall reasoning + fast |
+| GPT-5.2 | `gpt-5.2` | High-quality generation |
+| GPT-5.3 | `gpt-5.3` | Advanced generation |
+| Codex | `codex` | Code-focused generation |
 
 ### Anthropic
 
 | UI label | API model id | Best for |
 |----------|-------------|----------|
-| Claude Opus 4.5 | `claude-opus-4-5` | Best quality, complex layouts |
-| Claude Sonnet 4.5 | `claude-sonnet-4-5` | Balanced quality/speed |
 | Claude Haiku 4.5 | `claude-haiku-4-5` | Fast, cost-effective |
+| Claude Sonnet 4.6 | `claude-sonnet-4-6` | Balanced quality/speed |
+| Claude Opus 4.6 | `claude-opus-4-6` | Best quality, complex layouts |
 
 ---
 
@@ -504,8 +505,8 @@ The `providers.test.ts` suite specifically validates:
 type LLMProvider = "github-copilot" | "openai" | "anthropic";
 
 type CopilotModel = "gpt-5.2" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash" | "gemini-3-pro";
-type OpenAIModel  = "gpt-4o" | "gpt-4o-mini" | "gpt-4-turbo" | "gpt-3.5-turbo";
-type AnthropicModel = "claude-opus-4-5" | "claude-sonnet-4-5" | "claude-haiku-4-5";
+type OpenAIModel  = "gpt-5-mini" | "gpt-5" | "gpt-5.2" | "gpt-5.3" | "codex";
+type AnthropicModel = "claude-haiku-4-5" | "claude-sonnet-4-6" | "claude-opus-4-6";
 type AIModel = CopilotModel | OpenAIModel | AnthropicModel;
 
 interface ModelConfig {

@@ -134,7 +134,7 @@ describe("OpenAIProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new OpenAIProvider("sk-test");
-    const result = await provider.chat([systemMsg, userMsg], "gpt-4o");
+    const result = await provider.chat([systemMsg, userMsg], "gpt-5");
 
     expect(result).toBe("openai response");
 
@@ -145,7 +145,7 @@ describe("OpenAIProvider", () => {
     expect(headers["Authorization"]).toBe("Bearer sk-test");
 
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body["model"]).toBe("gpt-4o");
+    expect(body["model"]).toBe("gpt-5");
     expect(body["messages"]).toEqual([
       { role: "system", content: "You are a designer." },
       { role: "user", content: "Create a login screen." },
@@ -155,19 +155,19 @@ describe("OpenAIProvider", () => {
   it("throws a clear message on 401 Unauthorized", async () => {
     global.fetch = mockFetchError(401, "Unauthorized");
     const provider = new OpenAIProvider("sk-bad");
-    await expect(provider.chat([userMsg], "gpt-4o")).rejects.toThrow(/invalid or expired/i);
+    await expect(provider.chat([userMsg], "gpt-5")).rejects.toThrow(/invalid or expired/i);
   });
 
   it("throws a clear message on 429 Too Many Requests", async () => {
     global.fetch = mockFetchError(429, "Rate limited");
     const provider = new OpenAIProvider("sk-good");
-    await expect(provider.chat([userMsg], "gpt-4o")).rejects.toThrow(/rate limit/i);
+    await expect(provider.chat([userMsg], "gpt-5")).rejects.toThrow(/rate limit/i);
   });
 
   it("throws a generic error on other HTTP errors", async () => {
     global.fetch = mockFetchError(503, "Service Unavailable");
     const provider = new OpenAIProvider("sk-good");
-    await expect(provider.chat([userMsg], "gpt-4o")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "gpt-5")).rejects.toThrow(
       /OpenAI API error 503/
     );
   });
@@ -187,7 +187,7 @@ describe("AnthropicProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new AnthropicProvider("sk-ant-test");
-    const result = await provider.chat([systemMsg, userMsg], "claude-sonnet-4-5");
+    const result = await provider.chat([systemMsg, userMsg], "claude-sonnet-4-6");
 
     expect(result).toBe("anthropic response");
 
@@ -204,7 +204,7 @@ describe("AnthropicProvider", () => {
     expect(body["messages"]).toEqual([
       { role: "user", content: "Create a login screen." },
     ]);
-    expect(body["model"]).toBe("claude-sonnet-4-5");
+    expect(body["model"]).toBe("claude-sonnet-4-6");
   });
 
   it("works without a system message (omits the system field)", async () => {
@@ -231,7 +231,7 @@ describe("AnthropicProvider", () => {
     const sys2: ChatMessage = { role: "system", content: "Part 2." };
 
     const provider = new AnthropicProvider("sk-ant-test");
-    await provider.chat([sys1, sys2, userMsg], "claude-opus-4-5");
+    await provider.chat([sys1, sys2, userMsg], "claude-opus-4-6");
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
