@@ -81,7 +81,7 @@ def screenshot(html: str, out_path: str, crop_h: int = H):
             f"--window-size={W},{RENDER_H}",
             f"--screenshot={tmp_png}",
             f"file://{tmp_html}",
-        ], capture_output=True, text=True, timeout=30)
+        ], capture_output=True, text=True, timeout=90)
 
         # Crop to target height
         img = Image.open(tmp_png)
