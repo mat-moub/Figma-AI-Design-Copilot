@@ -21,15 +21,15 @@
       --primary-glow: rgba(30, 48, 112, 0.35);
       --border-aura: rgba(30, 48, 112, 0.18);
 
-      /* ── Action colour (green) – primary CTA buttons only ─────── */
-      --action: #16a34a;
-      --action-hover: #15803d;
+      /* ── Action colour (purple / MudBlazor) – primary CTA buttons only ─ */
+      --action: #594AE2;
+      --action-hover: #4a3db5;
       --action-text: #ffffff;
-      --action-glow: rgba(22, 163, 74, 0.35);
+      --action-glow: rgba(89, 74, 226, 0.35);
 
       --text: #1a1d2e;
       --text-muted: #6b7280;
-      --user-bubble: #1e3070;
+      --user-bubble: #594AE2;
       --ai-bubble: #eef1fb;
       --ai-text: #1a1d2e;
       --drop-zone-active-bg: #e8ecf8;
@@ -450,7 +450,7 @@
       align-self: flex-end;
       background: var(--user-bubble);
       border-bottom-right-radius: 3px;
-      box-shadow: 0 2px 10px rgba(30, 48, 112, 0.25), 0 0 20px rgba(30, 48, 112, 0.12);
+      box-shadow: 0 2px 10px rgba(89, 74, 226, 0.25), 0 0 20px rgba(89, 74, 226, 0.12);
     }
     .chat-bubble--user .chat-label { color: rgba(255,255,255,0.65); }
     .chat-bubble--user .chat-text  { color: #ffffff; }
@@ -656,11 +656,11 @@
     .btn--primary {
       background: var(--action);
       color: var(--action-text);
-      box-shadow: 0 2px 10px rgba(22, 163, 74, 0.30), 0 0 20px rgba(22, 163, 74, 0.15);
+      box-shadow: 0 2px 10px rgba(89, 74, 226, 0.30), 0 0 20px rgba(89, 74, 226, 0.15);
     }
     .btn--primary:hover:not(:disabled) {
       background: var(--action-hover);
-      box-shadow: 0 4px 16px rgba(22, 163, 74, 0.40), 0 0 28px rgba(22, 163, 74, 0.20);
+      box-shadow: 0 4px 16px rgba(89, 74, 226, 0.40), 0 0 28px rgba(89, 74, 226, 0.20);
     }
     .btn--primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
     #generate-btn #generate-icon { font-size: 11px; }
