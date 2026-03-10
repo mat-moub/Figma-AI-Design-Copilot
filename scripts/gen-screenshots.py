@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate 380×600 plugin screenshots using Chromium headless.
-- Renders at 380×800 to avoid cutting off bottom content
-- Crops to 380×600 using Pillow
+Generate 420×640 plugin screenshots using Chromium headless.
+- Plugin opens at 420×640 (see figma.showUI in src/main.ts)
+- Renders at 420×900 to avoid cutting off bottom content
+- Crops to 420×640 using Pillow
 - Font Awesome loaded from local npm package
 """
 import re
@@ -29,7 +30,11 @@ svg_match = re.search(
 SVG_DEFS = svg_match.group(1)
 FA_LINK = f'<link rel="stylesheet" href="file://{FA_CSS}">'
 
-RENDER_H = 800  # render taller, crop to 600
+RENDER_H = 640  # body is fixed to H px; no crop needed for most screenshots
+
+# Target dimensions matching figma.showUI({ width: 420, height: 640 })
+W = 420
+H = 640
 
 def make_html(body_html: str, extra_css: str = "") -> str:
     """Build a standalone HTML file for screenshot rendering."""
@@ -42,12 +47,11 @@ def make_html(body_html: str, extra_css: str = "") -> str:
   <style>
     {UI_CSS}
     /* ── Screenshot overrides ── */
-    html {{ width: 380px; }}
+    html {{ width: {W}px; height: {H}px; }}
     body {{
-      width: 380px;
-      height: auto !important;
-      min-height: {RENDER_H}px;
-      overflow: visible !important;
+      width: {W}px;
+      height: {H}px !important;
+      overflow: hidden !important;
     }}
     {extra_css}
   </style>
@@ -59,7 +63,7 @@ def make_html(body_html: str, extra_css: str = "") -> str:
 </html>"""
 
 
-def screenshot(html: str, out_path: str, crop_h: int = 600):
+def screenshot(html: str, out_path: str, crop_h: int = H):
     """Render HTML to PNG using Chromium, then crop to crop_h pixels tall."""
     with tempfile.NamedTemporaryFile(suffix=".html", mode="w", delete=False, dir="/tmp") as f:
         f.write(html)
@@ -73,15 +77,16 @@ def screenshot(html: str, out_path: str, crop_h: int = 600):
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--run-all-compositor-stages-before-draw",
-            f"--window-size=380,{RENDER_H}",
+            f"--window-size={W},{H}",
             f"--screenshot={tmp_png}",
             f"file://{tmp_html}",
         ], capture_output=True, text=True, timeout=30)
 
-        # Crop to target height
+        # Crop to target height if needed (e.g. for scrollable pages)
         img = Image.open(tmp_png)
-        cropped = img.crop((0, 0, 380, crop_h))
-        cropped.save(out_path)
+        if img.size[1] > crop_h:
+            img = img.crop((0, 0, W, crop_h))
+        img.save(out_path)
     finally:
         for p in [tmp_html, tmp_png]:
             try: os.unlink(p)
@@ -116,19 +121,18 @@ MAIN_HEADER = """
   </div>
 </header>"""
 
-# For main-view style pages, use a fixed-height layout with explicit pixel heights
+# The original .input-section has overflow:hidden, which makes its flex automatic
+# minimum size 0 — causing the flex layout to collapse it. We fix this by setting
+# an explicit min-height so the section gets its proper space.
 MAIN_LAYOUT_CSS = """
-body { display: flex; flex-direction: column; }
-.chat-section { height: 340px; overflow: hidden; flex-shrink: 0; flex-grow: 0; }
-.resize-handle { height: 5px; flex-shrink: 0; }
-.input-section { flex-shrink: 0; }
+.input-section { min-height: 190px !important; flex-shrink: 0 !important; }
 """
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. onboarding-step-1.png — Welcome
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:380px; height:600px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -173,7 +177,7 @@ print("✅ onboarding-step-1.png")
 # 2. onboarding-step-2.png — Configure Provider
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:380px; height:600px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -262,7 +266,7 @@ print("✅ onboarding-step-2.png")
 # 3. onboarding-step-3.png — Functional Context
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:380px; height:600px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -317,7 +321,7 @@ print("✅ onboarding-step-3.png")
 # 4. onboarding-final.png — You're all set!
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:380px; height:600px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -521,7 +525,7 @@ print("✅ main-view-ask.png")
 # 7. settings-view.png — Settings overlay
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="settings-overlay" style="display:flex; position:relative; inset:auto; width:380px; min-height:600px;">
+<div class="settings-overlay" style="display:flex; position:relative; inset:auto; width:420px; min-height:640px;">
   <div class="settings-overlay__header">
     <div class="settings-overlay__title">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-cog"/></svg>
