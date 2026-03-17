@@ -3,7 +3,18 @@
   "id": "figma-ai-design-copilot",
   "api": "1.0.0",
   "main": "dist/code.js",
-  "ui": "ui.html",
+  "ui": "dist/ui.html",
   "editorType": ["figma"],
-  "documentAccess": "dynamic-page"
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": [
+      "https://cdnjs.cloudflare.com",
+      "https://generativelanguage.googleapis.com",
+      "https://api.openai.com",
+      "https://api.githubcopilot.com",
+      "https://api.anthropic.com",
+      "https://api.github.com"
+    ],
+    "reasoning": "Required to call LLM provider APIs (Gemini, OpenAI, GitHub Copilot, Anthropic) and the GitHub skills library."
+  }
 }

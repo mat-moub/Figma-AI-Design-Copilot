@@ -145,6 +145,18 @@ export class AIService {
     ];
 
     const rawResponse = await provider.chat(messages, String(config.model));
+
+    if (config.debug) {
+      /* eslint-disable no-console */
+      console.group("[AI Debug] generateScreens");
+      console.log("System prompt:\n", messages[0].content);
+      console.log("User prompt:\n", userPrompt);
+      console.log("Figma context:", context);
+      console.log("Raw AI response:\n", rawResponse);
+      console.groupEnd();
+      /* eslint-enable no-console */
+    }
+
     return parseScreensFromResponse(rawResponse);
   }
 
@@ -198,7 +210,20 @@ export class AIService {
       userMessage,
     ];
 
-    return provider.chat(messages, String(config.model));
+    const rawResponse = await provider.chat(messages, String(config.model));
+
+    if (config.debug) {
+      /* eslint-disable no-console */
+      console.group("[AI Debug] ask");
+      console.log("System prompt:\n", messages[0].content);
+      console.log("Question:\n", question);
+      console.log("Figma context:", context);
+      console.log("Raw AI response:\n", rawResponse);
+      console.groupEnd();
+      /* eslint-enable no-console */
+    }
+
+    return rawResponse;
   }
 
   /**

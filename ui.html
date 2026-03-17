@@ -481,6 +481,28 @@
       word-break: break-word;
     }
 
+    .chat-typing {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chat-typing__spinner {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(33, 150, 243, 0.22);
+      border-top-color: var(--primary);
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .chat-typing__label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
     /* ── Chat Skill Chips ────────────────────────────────────── */
     .chat-skills {
       display: flex;
@@ -1502,6 +1524,24 @@
         <div id="skills-library-list"></div>
       </div>
 
+      <!-- ── Section: Developer ── -->
+      <div class="settings-section">
+        <div class="settings-section__header">
+          <div class="settings-section__title">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
+            Developer
+          </div>
+        </div>
+        <label class="checkbox-option" title="Log prompts, Figma context and raw AI responses to the browser console">
+          <input type="checkbox" id="debug-mode" />
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
+          Debug mode
+        </label>
+        <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:4px 0 0">
+          Logs prompts &amp; AI responses to the console (F12 → Console).
+        </p>
+      </div>
+
     </div><!-- end settings-overlay__body -->
   </div><!-- end settings-view -->
 
@@ -1669,6 +1709,14 @@
   <!-- Page-level interaction logic (runs before dist/ui.js) -->
   <script>
     (function () {
+      window.addEventListener('error', function (event) {
+        console.error('[UI global error]', event.message, event.error || '');
+      });
+
+      window.addEventListener('unhandledrejection', function (event) {
+        console.error('[UI unhandled rejection]', event.reason);
+      });
+
       /**
        * Settings overlay open/close.
        * Toggling the overlay hides the entire main view so the user cannot
@@ -1749,10 +1797,26 @@
           document.addEventListener('mouseup',   onMouseUp);
         });
       })();
+
+      // If dist/ui.js does not execute, the plugin appears "frozen" except for
+      // this inline script. Surface a visible and explicit diagnostic.
+      setTimeout(function () {
+        if (window.__AICOPILOT_UI_LOADED__) return;
+        console.error('[UI bootstrap] dist/ui.js did not load or execute. Check script path/CSP and rebuild.');
+        var toast = document.getElementById('toast');
+        if (toast) {
+          toast.textContent = 'UI bootstrap failed: dist/ui.js not loaded. Rebuild plugin and reload in Figma.';
+          toast.className = 'toast toast--error toast--visible';
+        }
+      }, 1200);
     })();
   </script>
 
   <!-- Bundled UI script -->
-  <script src="dist/ui.js"></script>
+  <script
+    src="dist/ui.js"
+    onload="console.info('[UI bootstrap] dist/ui.js script tag loaded')"
+    onerror="console.error('[UI bootstrap] Failed to load dist/ui.js')"
+  ></script>
 </body>
 </html>

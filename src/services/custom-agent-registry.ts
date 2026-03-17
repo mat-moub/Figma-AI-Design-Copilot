@@ -12,6 +12,14 @@ import type { CopilotConfig, CustomAgentConfig, CustomSkillConfig } from "../typ
 
 const STORAGE_KEY = "copilot_custom_config";
 
+function getDefaultStorage(): Storage | null {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export class CustomAgentRegistry {
   private agents: Map<string, CustomAgentConfig> = new Map();
   private skills: Map<string, CustomSkillConfig> = new Map();
@@ -38,9 +46,11 @@ export class CustomAgentRegistry {
    * Safe to call in a browser environment; silently ignored if storage is
    * unavailable or the stored data is malformed.
    */
-  loadFromStorage(storage: Storage = localStorage): void {
+  loadFromStorage(storage?: Storage): void {
     try {
-      const raw = storage.getItem(STORAGE_KEY);
+      const targetStorage = storage ?? getDefaultStorage();
+      if (!targetStorage) return;
+      const raw = targetStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const config = JSON.parse(raw) as CopilotConfig;
       this.load(config);
@@ -52,13 +62,16 @@ export class CustomAgentRegistry {
   /**
    * Persist the current registry to `localStorage` so it survives reloads.
    */
-  saveToStorage(storage: Storage = localStorage): void {
+  saveToStorage(storage?: Storage): void {
+    const targetStorage = storage ?? getDefaultStorage();
+    if (!targetStorage) return;
+
     const config: CopilotConfig = {
       version: "1",
       agents: Array.from(this.agents.values()),
       skills: Array.from(this.skills.values()),
     };
-    storage.setItem(STORAGE_KEY, JSON.stringify(config));
+    targetStorage.setItem(STORAGE_KEY, JSON.stringify(config));
   }
 
   // ── Clear ─────────────────────────────────────────────────────────────────
@@ -66,10 +79,11 @@ export class CustomAgentRegistry {
   /**
    * Remove all custom agents and skills from the registry and from storage.
    */
-  clear(storage: Storage = localStorage): void {
+  clear(storage?: Storage): void {
+    const targetStorage = storage ?? getDefaultStorage();
     this.agents.clear();
     this.skills.clear();
-    storage.removeItem(STORAGE_KEY);
+    targetStorage?.removeItem(STORAGE_KEY);
   }
 
   // ── Read ──────────────────────────────────────────────────────────────────

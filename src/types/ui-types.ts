@@ -94,6 +94,19 @@ export interface ModelConfig {
   openaiKey?: string;
   /** Anthropic API key (Anthropic provider, BYOK). */
   anthropicKey?: string;
+  /** When true, log prompts, context, and AI responses to the browser console. */
+  debug?: boolean;
+}
+
+export interface PersistedSettings {
+  provider: LLMProvider;
+  modelByProvider: Partial<Record<LLMProvider, AIModel>>;
+  apiKeyByProvider: Partial<Record<LLMProvider, string>>;
+  keepDesignSystem: boolean;
+  advancedUXSkills: boolean;
+  interactionMode: "generate" | "ask";
+  functionalContext: string;
+  debugMode: boolean;
 }
 
 // ─── Document Context ────────────────────────────────────────────────────────
@@ -207,6 +220,12 @@ export interface ApplyDesignSystemInput {
 export type PluginMessageType =
   | "get-context"
   | "context-ready"
+  | "get-settings"
+  | "save-settings"
+  | "settings-loaded"
+  | "get-onboarding-status"
+  | "onboarding-status"
+  | "set-onboarding-done"
   | "build-screens"
   | "screens-built"
   | "error"
@@ -226,6 +245,33 @@ export interface BuildScreensMessage {
   screens: UIScreen[];
 }
 
+export interface GetSettingsMessage {
+  type: "get-settings";
+}
+
+export interface SaveSettingsMessage {
+  type: "save-settings";
+  settings: PersistedSettings;
+}
+
+export interface SettingsLoadedMessage {
+  type: "settings-loaded";
+  settings: PersistedSettings | null;
+}
+
+export interface GetOnboardingStatusMessage {
+  type: "get-onboarding-status";
+}
+
+export interface OnboardingStatusMessage {
+  type: "onboarding-status";
+  done: boolean;
+}
+
+export interface SetOnboardingDoneMessage {
+  type: "set-onboarding-done";
+}
+
 export interface ScreensBuiltMessage {
   type: "screens-built";
   count: number;
@@ -243,10 +289,16 @@ export interface NotifyMessage {
 
 export type PluginToUIMessage =
   | ContextReadyMessage
+  | SettingsLoadedMessage
+  | OnboardingStatusMessage
   | ScreensBuiltMessage
   | ErrorMessage
   | NotifyMessage;
 
 export type UIToPluginMessage =
   | GetContextMessage
+  | GetSettingsMessage
+  | SaveSettingsMessage
+  | GetOnboardingStatusMessage
+  | SetOnboardingDoneMessage
   | BuildScreensMessage;

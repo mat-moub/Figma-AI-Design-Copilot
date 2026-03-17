@@ -14,6 +14,14 @@ const GITHUB_API_URL =
 
 const STORAGE_KEY = "copilot_skills_library";
 
+function getDefaultStorage(): Storage | null {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Prefixes that identify code-related skills to be excluded.
  * Skills whose folder name starts with any of these are skipped.
@@ -82,9 +90,11 @@ export async function fetchSkillsLibrary(): Promise<ExternalSkillEntry[]> {
  */
 export function saveSkillsLibraryToStorage(
   skills: ExternalSkillEntry[],
-  storage: Storage = localStorage
+  storage?: Storage
 ): void {
-  storage.setItem(STORAGE_KEY, JSON.stringify(skills));
+  const targetStorage = storage ?? getDefaultStorage();
+  if (!targetStorage) return;
+  targetStorage.setItem(STORAGE_KEY, JSON.stringify(skills));
 }
 
 /**
@@ -92,10 +102,12 @@ export function saveSkillsLibraryToStorage(
  * Returns an empty array when storage is empty or the data is corrupt.
  */
 export function loadSkillsLibraryFromStorage(
-  storage: Storage = localStorage
+  storage?: Storage
 ): ExternalSkillEntry[] {
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    const targetStorage = storage ?? getDefaultStorage();
+    if (!targetStorage) return [];
+    const raw = targetStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as ExternalSkillEntry[];
   } catch {
@@ -107,7 +119,8 @@ export function loadSkillsLibraryFromStorage(
  * Remove the persisted skills library entry from localStorage.
  */
 export function clearSkillsLibraryFromStorage(
-  storage: Storage = localStorage
+  storage?: Storage
 ): void {
-  storage.removeItem(STORAGE_KEY);
+  const targetStorage = storage ?? getDefaultStorage();
+  targetStorage?.removeItem(STORAGE_KEY);
 }

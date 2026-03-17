@@ -9,9 +9,9 @@ import type { DocumentContext, DesignSystem } from "../types/ui-types";
  */
 export class ContextEngine {
   /** Extract a full DocumentContext from the open Figma document. */
-  extract(): DocumentContext {
+  async extract(): Promise<DocumentContext> {
     return {
-      designSystem: this.extractDesignSystem(),
+      designSystem: await this.extractDesignSystem(),
       screens: this.extractScreenNames(),
       pages: this.extractPageNames(),
     };
@@ -31,11 +31,11 @@ export class ContextEngine {
     return [...new Set(frames.map((f) => f.name))];
   }
 
-  private extractDesignSystem(): DesignSystem {
+  private async extractDesignSystem(): Promise<DesignSystem> {
     return {
       components: this.extractComponentNames(),
-      colors: this.extractColorNames(),
-      textStyles: this.extractTextStyleNames(),
+      colors: await this.extractColorNames(),
+      textStyles: await this.extractTextStyleNames(),
     };
   }
 
@@ -47,13 +47,13 @@ export class ContextEngine {
     return [...new Set(components.map((c) => c.name))];
   }
 
-  private extractColorNames(): string[] {
-    const paintStyles = figma.getLocalPaintStyles();
+  private async extractColorNames(): Promise<string[]> {
+    const paintStyles = await figma.getLocalPaintStylesAsync();
     return paintStyles.map((style) => style.name);
   }
 
-  private extractTextStyleNames(): string[] {
-    const textStyles = figma.getLocalTextStyles();
+  private async extractTextStyleNames(): Promise<string[]> {
+    const textStyles = await figma.getLocalTextStylesAsync();
     return textStyles.map((style) => style.name);
   }
 }

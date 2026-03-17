@@ -24,9 +24,18 @@ import type {
   ExternalSkillEntry,
   LLMProvider,
   ModelConfig,
+  PersistedSettings,
   PluginToUIMessage,
   UIScreen,
 } from "./types/ui-types";
+
+declare global {
+  interface Window {
+    __AICOPILOT_UI_LOADED__?: boolean;
+  }
+}
+
+window.__AICOPILOT_UI_LOADED__ = true;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -44,6 +53,58 @@ const ADVANCED_UX_SKILLS_KEY = "copilot_advanced_ux_skills";
 
 /** localStorage key for the active interaction mode. */
 const INTERACTION_MODE_KEY = "copilot_interaction_mode";
+
+/** localStorage key for the debug mode toggle. */
+const DEBUG_MODE_KEY = "copilot_debug_mode";
+
+function createInMemoryStorage(): Storage {
+  const store = new Map<string, string>();
+
+  return {
+    get length() {
+      return store.size;
+    },
+    clear(): void {
+      store.clear();
+    },
+    getItem(key: string): string | null {
+      return store.has(key) ? store.get(key)! : null;
+    },
+    key(index: number): string | null {
+      return Array.from(store.keys())[index] ?? null;
+    },
+    removeItem(key: string): void {
+      store.delete(key);
+    },
+    setItem(key: string, value: string): void {
+      store.set(key, String(value));
+    },
+  };
+}
+
+function getSafeStorage(): Storage {
+  try {
+    const storage = window.localStorage;
+    const probeKey = "__aicopilot_storage_probe__";
+    storage.setItem(probeKey, "1");
+    storage.removeItem(probeKey);
+    return storage;
+  } catch {
+    return createInMemoryStorage();
+  }
+}
+
+const safeStorage = getSafeStorage();
+
+function redactSecrets(raw: unknown): string {
+  const text = typeof raw === "string" ? raw : String(raw);
+  return text
+    .replace(/AIza[0-9A-Za-z\-_]{20,}/g, "AIza***")
+    .replace(/sk-ant-[A-Za-z0-9\-_]+/g, "sk-ant-***")
+    .replace(/sk-[A-Za-z0-9\-_]{10,}/g, "sk-***")
+    .replace(/ghp_[A-Za-z0-9]+/g, "ghp_***")
+    .replace(/(key=)[^&\s]+/gi, "$1***");
+}
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -64,6 +125,7 @@ let interactionMode: "generate" | "ask" = "generate";
  * The bundled skills (BUNDLED_SKILLS) are always active in the default agents.
  */
 let externalSkills: ExternalSkillEntry[] = [];
+let typingBubbleEl: HTMLDivElement | null = null;
 
 const aiService = new AIService();
 const uxAgent = new UXDesignerAgent();
@@ -80,55 +142,73 @@ function getEl<T extends HTMLElement>(id: string): T {
 
 // ── Initialise ────────────────────────────────────────────────────────────────
 
-document.addEventListener("DOMContentLoaded", () => {
-  registry.loadFromStorage();
-  populateCustomAgentOptions();
-
-  // Restore provider selection and sync model/key UI before wiring listeners
-  const savedProvider = (localStorage.getItem("copilot_provider") as LLMProvider | null) ?? "gemini";
-  const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
-  if (providerSelect) providerSelect.value = savedProvider;
-  syncProviderUI(savedProvider);
-
-  // Restore checkbox states
-  const keepDsEl = document.getElementById("keep-design-system") as HTMLInputElement | null;
-  if (keepDsEl) keepDsEl.checked = localStorage.getItem(KEEP_DESIGN_SYSTEM_KEY) === "1";
-  const advUXEl = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
-  if (advUXEl) advUXEl.checked = localStorage.getItem(ADVANCED_UX_SKILLS_KEY) === "1";
-
-  // Restore functional context in settings textarea
-  const savedContext = localStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "";
-  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
-  if (contextInput) contextInput.value = savedContext;
-
-  // Restore interaction mode (generate | ask)
-  const savedMode = localStorage.getItem(INTERACTION_MODE_KEY);
-  if (savedMode === "ask" || savedMode === "generate") {
-    setInteractionMode(savedMode);
+function initializeUI(): void {
+  try {
+    setupEventListeners();
+  } catch {
+    showToast("Some UI controls failed to initialize.", "warning");
   }
 
-  setupEventListeners();
-  requestDocumentContext();
+  try {
+    registry.loadFromStorage(safeStorage);
+    populateCustomAgentOptions();
 
-  // Restore any extra skills loaded at runtime from the remote library
-  externalSkills = loadSkillsLibraryFromStorage();
+    // Restore provider selection and sync model/key UI
+    const savedProvider = (safeStorage.getItem("copilot_provider") as LLMProvider | null) ?? "gemini";
+    const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
+    if (providerSelect) providerSelect.value = savedProvider;
+    syncProviderUI(savedProvider);
 
-  // Render the skills library panel (bundled skills are always shown)
-  renderSkillsLibrary();
+    // Restore checkbox states
+    const keepDsEl = document.getElementById("keep-design-system") as HTMLInputElement | null;
+    if (keepDsEl) keepDsEl.checked = safeStorage.getItem(KEEP_DESIGN_SYSTEM_KEY) === "1";
+    const advUXEl = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
+    if (advUXEl) advUXEl.checked = safeStorage.getItem(ADVANCED_UX_SKILLS_KEY) === "1";
+    const debugEl = document.getElementById("debug-mode") as HTMLInputElement | null;
+    if (debugEl) debugEl.checked = safeStorage.getItem(DEBUG_MODE_KEY) === "1";
 
-  // Announce bundled skills in the chat only on first startup
-  const announcedKey = "copilot_skills_announced";
-  if (!localStorage.getItem(announcedKey)) {
-    const skillNames = BUNDLED_SKILLS.map((s) => `• ${s.name}`).join("\n");
-    appendAssistantMessage(
-      `📚 ${pluralize(BUNDLED_SKILLS.length, "skill")} from the design library are bundled and active in all agents:\n\n${skillNames}`
-    );
-    localStorage.setItem(announcedKey, "1");
+    // Restore functional context in settings textarea
+    const savedContext = safeStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "";
+    const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
+    if (contextInput) contextInput.value = savedContext;
+
+    // Restore interaction mode (generate | ask)
+    const savedMode = safeStorage.getItem(INTERACTION_MODE_KEY);
+    if (savedMode === "ask" || savedMode === "generate") {
+      setInteractionMode(savedMode);
+    }
+
+    requestPersistedSettings();
+
+    requestDocumentContext();
+
+    // Restore any extra skills loaded at runtime from the remote library
+    externalSkills = loadSkillsLibraryFromStorage(safeStorage);
+
+    // Render the skills library panel (bundled skills are always shown)
+    renderSkillsLibrary();
+
+    // Announce bundled skills in the chat only on first startup
+    const announcedKey = "copilot_skills_announced";
+    if (!safeStorage.getItem(announcedKey)) {
+      const skillNames = BUNDLED_SKILLS.map((s) => `• ${s.name}`).join("\n");
+      appendAssistantMessage(
+        `📚 ${pluralize(BUNDLED_SKILLS.length, "skill")} from the design library are bundled and active in all agents:\n\n${skillNames}`
+      );
+      safeStorage.setItem(announcedKey, "1");
+    }
+
+    requestOnboardingStatus();
+  } catch {
+    showToast("Settings initialization failed partially. Core actions remain available.", "warning");
   }
+}
 
-  // Show onboarding on first launch
-  setupOnboarding();
-});
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeUI);
+} else {
+  initializeUI();
+}
 
 // ── Plugin → UI messages ──────────────────────────────────────────────────────
 
@@ -149,10 +229,21 @@ window.onmessage = (event: MessageEvent) => {
       );
       break;
 
+    case "onboarding-status":
+      if (!msg.done) setupOnboarding();
+      break;
+
+    case "settings-loaded":
+      if (msg.settings) {
+        applyPersistedSettings(msg.settings);
+      }
+      break;
+
     case "error":
       setGenerating(false);
-      appendAssistantMessage(`❌ Error: ${msg.message}`);
-      showToast(`Error: ${msg.message}`, "error");
+      hideAssistantTypingIndicator();
+      appendAssistantMessage(`❌ Error: ${redactSecrets(msg.message)}`);
+      showToast(`Error: ${redactSecrets(msg.message)}`, "error");
       break;
 
     case "notify":
@@ -216,8 +307,9 @@ function setupEventListeners(): void {
   if (providerSelect) {
     providerSelect.addEventListener("change", () => {
       const provider = providerSelect.value as LLMProvider;
-      localStorage.setItem("copilot_provider", provider);
+      safeStorage.setItem("copilot_provider", provider);
       syncProviderUI(provider);
+      persistSettingsToPlugin();
     });
   }
 
@@ -226,8 +318,9 @@ function setupEventListeners(): void {
   if (modelSelect) {
     modelSelect.addEventListener("change", () => {
       const provider = getSelectedProvider();
-      localStorage.setItem(`copilot_model_${provider}`, modelSelect.value);
+      safeStorage.setItem(`copilot_model_${provider}`, modelSelect.value);
       updateConnectionBadge();
+      persistSettingsToPlugin();
     });
   }
 
@@ -237,8 +330,9 @@ function setupEventListeners(): void {
     apiKeyInput.addEventListener("input", () => {
       const provider = getSelectedProvider();
       const storageKey = PROVIDER_KEY_INFO[provider].storageKey;
-      localStorage.setItem(storageKey, apiKeyInput.value.trim());
+      safeStorage.setItem(storageKey, apiKeyInput.value.trim());
       updateConnectionBadge();
+      persistSettingsToPlugin();
     });
   }
 
@@ -246,14 +340,24 @@ function setupEventListeners(): void {
   const keepDsCheckbox = document.getElementById("keep-design-system") as HTMLInputElement | null;
   if (keepDsCheckbox) {
     keepDsCheckbox.addEventListener("change", () => {
-      localStorage.setItem(KEEP_DESIGN_SYSTEM_KEY, keepDsCheckbox.checked ? "1" : "0");
+      safeStorage.setItem(KEEP_DESIGN_SYSTEM_KEY, keepDsCheckbox.checked ? "1" : "0");
+      persistSettingsToPlugin();
     });
   }
 
   const advUXCheckbox = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
   if (advUXCheckbox) {
     advUXCheckbox.addEventListener("change", () => {
-      localStorage.setItem(ADVANCED_UX_SKILLS_KEY, advUXCheckbox.checked ? "1" : "0");
+      safeStorage.setItem(ADVANCED_UX_SKILLS_KEY, advUXCheckbox.checked ? "1" : "0");
+      persistSettingsToPlugin();
+    });
+  }
+
+  const debugCheckbox = document.getElementById("debug-mode") as HTMLInputElement | null;
+  if (debugCheckbox) {
+    debugCheckbox.addEventListener("change", () => {
+      safeStorage.setItem(DEBUG_MODE_KEY, debugCheckbox.checked ? "1" : "0");
+      persistSettingsToPlugin();
     });
   }
 
@@ -261,7 +365,8 @@ function setupEventListeners(): void {
   const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
   if (contextInput) {
     contextInput.addEventListener("input", () => {
-      localStorage.setItem(FUNCTIONAL_CONTEXT_KEY, contextInput.value.trim());
+      safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, contextInput.value.trim());
+      persistSettingsToPlugin();
     });
   }
 
@@ -339,6 +444,7 @@ async function handleGenerate(): Promise<void> {
   appendUserMessage(prompt);
   promptEl.value = "";
   setGenerating(true);
+  showAssistantTypingIndicator();
 
   const enrichedPrompt = aiService.formatUserPrompt(prompt, variants, context);
 
@@ -374,6 +480,7 @@ async function handleGenerate(): Promise<void> {
     }
 
     const summary = formatScreensSummary(screens);
+    hideAssistantTypingIndicator();
     appendAssistantMessage(`Generating ${pluralize(screens.length, "screen")}…\n\n${summary}`, skillsUsed);
 
     // Push both sides of the turn to history using the raw (un-enriched) prompt
@@ -388,7 +495,8 @@ async function handleGenerate(): Promise<void> {
     );
   } catch (err) {
     setGenerating(false);
-    const message = err instanceof Error ? err.message : String(err);
+    hideAssistantTypingIndicator();
+    const message = redactSecrets(err instanceof Error ? err.message : String(err));
     appendAssistantMessage(`❌ ${message}`);
     // Record the failed turn so the model retains conversation context
     chatHistory.push({ role: "user", content: prompt });
@@ -428,20 +536,24 @@ async function handleAsk(): Promise<void> {
   appendUserMessage(question);
   promptEl.value = "";
   setGenerating(true);
+  showAssistantTypingIndicator();
 
   try {
     const answer = await aiService.ask(question, context, modelConfig, chatHistory);
 
+    hideAssistantTypingIndicator();
     appendAssistantMessage(answer);
     chatHistory.push({ role: "user", content: question });
     chatHistory.push({ role: "assistant", content: answer });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    hideAssistantTypingIndicator();
+    const message = redactSecrets(err instanceof Error ? err.message : String(err));
     appendAssistantMessage(`❌ ${message}`);
     chatHistory.push({ role: "user", content: question });
     chatHistory.push({ role: "assistant", content: `Error: ${message}` });
     showToast(message, "error");
   } finally {
+    hideAssistantTypingIndicator();
     setGenerating(false);
   }
 }
@@ -454,7 +566,8 @@ async function handleAsk(): Promise<void> {
  */
 function setInteractionMode(mode: "generate" | "ask"): void {
   interactionMode = mode;
-  localStorage.setItem(INTERACTION_MODE_KEY, mode);
+  safeStorage.setItem(INTERACTION_MODE_KEY, mode);
+  persistSettingsToPlugin();
 
   const inputSection = document.getElementById("input-section");
   const tabGenerate  = document.getElementById("mode-tab-generate");
@@ -493,6 +606,14 @@ function setInteractionMode(mode: "generate" | "ask"): void {
 function requestDocumentContext(): void {
   parent.postMessage({ pluginMessage: { type: "get-context" } }, "*");
   showToast("Refreshing document context…");
+}
+
+function requestPersistedSettings(): void {
+  parent.postMessage({ pluginMessage: { type: "get-settings" } }, "*");
+}
+
+function requestOnboardingStatus(): void {
+  parent.postMessage({ pluginMessage: { type: "get-onboarding-status" } }, "*");
 }
 
 function showContextBadge(context: DocumentContext): void {
@@ -538,7 +659,15 @@ const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string 
 
 /** Key labels and placeholders per provider for the API key input field. */
 const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string; icon: string; instructionsHtml: string }> = {
-  "gemini": {
+  gemini: {
+    label: "API Key",
+    placeholder: "AIza… (Google AI Studio key)",
+    storageKey: "copilot_gemini_key",
+    hint: "🔑 Get your API key at aistudio.google.com/apikey.",
+    icon: '<i class="fa-brands fa-google" aria-hidden="true"></i>',
+    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-google" aria-hidden="true"></i> Gemini — How to get your API key</div><ol><li>Go to <strong>aistudio.google.com/apikey</strong>.</li><li>Click <strong>Create API key</strong>.</li><li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Ensure your Google account has Gemini API access. Errors 400/401/429 are shown in the chat.</p>`,
+  },
+  openai: {
     label: "API Key",
     placeholder: "sk-… (OpenAI API key)",
     storageKey: "copilot_openai_key",
@@ -574,7 +703,7 @@ function syncProviderUI(provider: LLMProvider): void {
   }
 
   // Restore previously saved model for this provider
-  const savedModel = localStorage.getItem(`copilot_model_${provider}`);
+  const savedModel = safeStorage.getItem(`copilot_model_${provider}`);
   if (savedModel) modelSelect.value = savedModel;
 
   // Update key label and placeholder
@@ -588,7 +717,7 @@ function syncProviderUI(provider: LLMProvider): void {
   if (keyHint) keyHint.textContent = info.hint;
 
   // Restore previously saved API key for this provider
-  const savedKey = localStorage.getItem(info.storageKey) ?? "";
+  const savedKey = safeStorage.getItem(info.storageKey) ?? "";
   keyInput.value = savedKey;
 
   updateConnectionBadge();
@@ -597,6 +726,96 @@ function syncProviderUI(provider: LLMProvider): void {
 function getSelectedProvider(): LLMProvider {
   const el = document.getElementById("provider-select") as HTMLSelectElement | null;
   return (el?.value as LLMProvider) ?? "gemini";
+}
+
+function collectPersistedSettings(): PersistedSettings {
+  const provider = getSelectedProvider();
+  const keepDesignSystem = getKeepDesignSystem();
+  const advancedUXSkills = getAdvancedUXSkills();
+  const functionalContext = (
+    (document.getElementById("functional-context-input") as HTMLTextAreaElement | null)?.value ?? ""
+  ).trim();
+
+  const modelByProvider: Partial<Record<LLMProvider, ModelConfig["model"]>> = {
+    gemini: (safeStorage.getItem("copilot_model_gemini") as ModelConfig["model"] | null) ?? undefined,
+    openai: (safeStorage.getItem("copilot_model_openai") as ModelConfig["model"] | null) ?? undefined,
+    anthropic: (safeStorage.getItem("copilot_model_anthropic") as ModelConfig["model"] | null) ?? undefined,
+  };
+
+  const apiKeyByProvider: Partial<Record<LLMProvider, string>> = {
+    gemini: safeStorage.getItem(PROVIDER_KEY_INFO.gemini.storageKey) ?? undefined,
+    openai: safeStorage.getItem(PROVIDER_KEY_INFO.openai.storageKey) ?? undefined,
+    anthropic: safeStorage.getItem(PROVIDER_KEY_INFO.anthropic.storageKey) ?? undefined,
+  };
+
+  return {
+    provider,
+    modelByProvider,
+    apiKeyByProvider,
+    keepDesignSystem,
+    advancedUXSkills,
+    interactionMode,
+    functionalContext,
+    debugMode: getDebugMode(),
+  };
+}
+
+function persistSettingsToPlugin(): void {
+  parent.postMessage(
+    {
+      pluginMessage: {
+        type: "save-settings",
+        settings: collectPersistedSettings(),
+      },
+    },
+    "*"
+  );
+}
+
+function applyPersistedSettings(settings: PersistedSettings): void {
+  safeStorage.setItem("copilot_provider", settings.provider);
+
+  for (const provider of ["gemini", "openai", "anthropic"] as const) {
+    const model = settings.modelByProvider[provider];
+    if (model) safeStorage.setItem(`copilot_model_${provider}`, model);
+
+    const key = settings.apiKeyByProvider[provider];
+    if (typeof key === "string") {
+      safeStorage.setItem(PROVIDER_KEY_INFO[provider].storageKey, key);
+    }
+  }
+
+  safeStorage.setItem(KEEP_DESIGN_SYSTEM_KEY, settings.keepDesignSystem ? "1" : "0");
+  safeStorage.setItem(ADVANCED_UX_SKILLS_KEY, settings.advancedUXSkills ? "1" : "0");
+  safeStorage.setItem(INTERACTION_MODE_KEY, settings.interactionMode);
+  safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, settings.functionalContext);
+
+  const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
+  if (providerSelect) providerSelect.value = settings.provider;
+  syncProviderUI(settings.provider);
+
+  const keepDsEl = document.getElementById("keep-design-system") as HTMLInputElement | null;
+  if (keepDsEl) keepDsEl.checked = settings.keepDesignSystem;
+
+  const advUxEl = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
+  if (advUxEl) advUxEl.checked = settings.advancedUXSkills;
+
+  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
+  if (contextInput) contextInput.value = settings.functionalContext;
+
+  const debugModeEl = document.getElementById("debug-mode") as HTMLInputElement | null;
+  if (debugModeEl) {
+    debugModeEl.checked = settings.debugMode ?? false;
+    safeStorage.setItem(DEBUG_MODE_KEY, settings.debugMode ? "1" : "0");
+  }
+
+  setInteractionMode(settings.interactionMode);
+  updateConnectionBadge();
+}
+
+function getDebugMode(): boolean {
+  const el = document.getElementById("debug-mode") as HTMLInputElement | null;
+  return el?.checked ?? false;
 }
 
 function getModelConfig(): ModelConfig {
@@ -608,6 +827,7 @@ function getModelConfig(): ModelConfig {
   const config: ModelConfig = {
     provider,
     model: modelEl.value as ModelConfig["model"],
+    debug: getDebugMode(),
   };
 
   if (provider === "gemini") {
@@ -665,7 +885,7 @@ function getAdvancedUXSkills(): boolean {
 
 /** Returns the functional context text entered by the user. */
 function getFunctionalContext(): string {
-  return (localStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "").trim();
+  return (safeStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "").trim();
 }
 
 /**
@@ -757,6 +977,43 @@ function appendChatMessage(role: "user" | "assistant", content: string, skillsUs
 
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
+}
+
+function showAssistantTypingIndicator(): void {
+  if (typingBubbleEl) return;
+
+  const container = getEl<HTMLDivElement>("chat-history");
+  const emptyState = document.getElementById("chat-empty-state");
+  if (emptyState) emptyState.remove();
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble chat-bubble--assistant";
+  bubble.id = "chat-typing-bubble";
+
+  const label = document.createElement("span");
+  label.className = "chat-label";
+  label.textContent = "AI";
+
+  const text = document.createElement("p");
+  text.className = "chat-text";
+  text.innerHTML = [
+    '<span class="chat-typing">',
+    '  <span class="chat-typing__spinner" aria-hidden="true"></span>',
+    '  <span class="chat-typing__label">Thinking…</span>',
+    '</span>',
+  ].join("");
+
+  bubble.appendChild(label);
+  bubble.appendChild(text);
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+  typingBubbleEl = bubble;
+}
+
+function hideAssistantTypingIndicator(): void {
+  if (!typingBubbleEl) return;
+  typingBubbleEl.remove();
+  typingBubbleEl = null;
 }
 
 function clearHistory(): void {
@@ -946,7 +1203,7 @@ async function loadConfigFile(file: File): Promise<void> {
     const json = JSON.parse(text) as unknown;
     // Registry validates internally and throws on invalid data
     registry.load(json as CopilotConfig);
-    registry.saveToStorage();
+    registry.saveToStorage(safeStorage);
     populateCustomAgentOptions();
     renderCustomConfigSummary();
     showToast(
@@ -959,7 +1216,7 @@ async function loadConfigFile(file: File): Promise<void> {
 }
 
 function clearCustomConfig(): void {
-  registry.clear();
+  registry.clear(safeStorage);
   populateCustomAgentOptions();
   renderCustomConfigSummary();
   showToast("Custom skills cleared.");
@@ -1027,7 +1284,7 @@ async function handleLoadSkillsLibrary(): Promise<void> {
   try {
     const skills = await fetchSkillsLibrary();
     externalSkills = skills;
-    saveSkillsLibraryToStorage(skills);
+    saveSkillsLibraryToStorage(skills, safeStorage);
     renderSkillsLibrary();
 
     if (skills.length === 0) {
@@ -1063,7 +1320,7 @@ async function handleLoadSkillsLibrary(): Promise<void> {
 /** Clear extra runtime-loaded skills (bundled skills remain active). */
 function handleClearSkillsLibrary(): void {
   externalSkills = [];
-  clearSkillsLibraryFromStorage();
+  clearSkillsLibraryFromStorage(safeStorage);
   renderSkillsLibrary();
   showToast("Runtime skills cleared. Bundled skills remain active.");
 }
@@ -1096,7 +1353,7 @@ async function handleTestConnection(): Promise<void> {
     if (textNode) textNode.textContent = " Testing…";
   }
   if (statusEl) {
-    statusEl.textContent = "";
+    statusEl.textContent = "⏳ Testing connection…";
     statusEl.className = "test-connection-status";
   }
 
@@ -1106,17 +1363,33 @@ async function handleTestConnection(): Promise<void> {
       screens: [],
       pages: [],
     };
-    await aiService.ask("Reply with the single word: ok", emptyContext, modelConfig);
+
+    const timeoutMs = 15000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("Connection test timed out after 15s. Check your API key, provider status, or network policy."));
+      }, timeoutMs);
+    });
+
+    await Promise.race([
+      aiService.ask("Reply with the single word: ok", emptyContext, modelConfig),
+      timeoutPromise,
+    ]);
+
     showToast("✅ Connection successful!", "info");
     if (statusEl) {
       statusEl.textContent = "✅ Connection successful";
       statusEl.className = "test-connection-status test-connection-status--ok";
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Connection failed.";
-    showToast(`❌ ${msg}`, "error");
+    const rawMessage = redactSecrets(err instanceof Error ? err.message : "Connection failed.");
+    const message = /failed to fetch|networkerror|network error/i.test(rawMessage)
+      ? "Network request blocked or failed. Verify manifest allowed domains and provider endpoint access."
+      : rawMessage;
+
+    showToast(`❌ ${message}`, "error");
     if (statusEl) {
-      statusEl.textContent = `❌ ${msg}`;
+      statusEl.textContent = `❌ ${message}`;
       statusEl.className = "test-connection-status test-connection-status--error";
     }
   } finally {
@@ -1174,8 +1447,6 @@ function renderSkillsLibrary(): void {
 
 // ── Onboarding ────────────────────────────────────────────────────────────────
 
-/** localStorage key for the onboarding completion flag. */
-const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
 const ONBOARDING_TOTAL_STEPS = 4;
 
 /**
@@ -1197,11 +1468,9 @@ let onboardingStep = 0;
  * already stored in localStorage.
  */
 function setupOnboarding(): void {
-  if (localStorage.getItem(ONBOARDING_DONE_KEY)) return;
-
   // Populate the onboarding provider/model/key UI with saved or default values
   const VALID_PROVIDERS: LLMProvider[] = ["gemini", "openai", "anthropic"];
-  const rawProvider = localStorage.getItem("copilot_provider");
+  const rawProvider = safeStorage.getItem("copilot_provider");
   const savedProvider: LLMProvider =
     rawProvider !== null && (VALID_PROVIDERS as string[]).includes(rawProvider)
       ? (rawProvider as LLMProvider)
@@ -1317,7 +1586,7 @@ function syncOnboardingProviderUI(provider: LLMProvider): void {
       opt.textContent = label;
       modelSelect.appendChild(opt);
     }
-    const savedModel = localStorage.getItem(`copilot_model_${provider}`);
+    const savedModel = safeStorage.getItem(`copilot_model_${provider}`);
     if (savedModel) modelSelect.value = savedModel;
   }
 
@@ -1325,7 +1594,7 @@ function syncOnboardingProviderUI(provider: LLMProvider): void {
   if (keyLabel?.lastChild) keyLabel.lastChild.textContent = info.label;
   if (keyInput) {
     keyInput.placeholder = info.placeholder;
-    keyInput.value = localStorage.getItem(info.storageKey) ?? "";
+    keyInput.value = safeStorage.getItem(info.storageKey) ?? "";
   }
 
   // Update provider icon
@@ -1349,24 +1618,25 @@ function applyOnboardingConfig(): void {
   if (!obProvider) return;
   const provider = obProvider.value as LLMProvider;
 
-  localStorage.setItem("copilot_provider", provider);
-  if (obModel) localStorage.setItem(`copilot_model_${provider}`, obModel.value);
+  safeStorage.setItem("copilot_provider", provider);
+  if (obModel) safeStorage.setItem(`copilot_model_${provider}`, obModel.value);
   if (obKey) {
     const info = PROVIDER_KEY_INFO[provider];
-    localStorage.setItem(info.storageKey, obKey.value.trim());
+    safeStorage.setItem(info.storageKey, obKey.value.trim());
   }
 
   // Reflect the new settings in the main settings panel
   const mainProvider = document.getElementById("provider-select") as HTMLSelectElement | null;
   if (mainProvider) mainProvider.value = provider;
   syncProviderUI(provider);
+  persistSettingsToPlugin();
 }
 
 /** Close the onboarding overlay and persist the completion flag. */
 function dismissOnboarding(): void {
   const overlay = document.getElementById("onboarding-view");
   overlay?.classList.add("hidden");
-  localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+  parent.postMessage({ pluginMessage: { type: "set-onboarding-done" } }, "*");
 }
 
 /**
@@ -1383,11 +1653,13 @@ function applyOnboardingCustomAgent(): void {
   // Skip silently if the user left the default placeholder unchanged
   if (!functionalContext || functionalContext === OB_AGENT_DEFAULT_PROMPT) return;
 
-  localStorage.setItem(FUNCTIONAL_CONTEXT_KEY, functionalContext);
+  safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, functionalContext);
 
   // Reflect the saved value in the settings functional context field
   const settingsInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
   if (settingsInput) settingsInput.value = functionalContext;
+
+  persistSettingsToPlugin();
 
   showToast("Functional context saved!");
 }
