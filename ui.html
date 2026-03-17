@@ -565,6 +565,11 @@
       flex-shrink: 0;
       overflow: hidden;
       box-shadow: 0 -2px 12px rgba(33, 150, 243, 0.07);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 170px;
+      max-height: 75vh;
     }
 
     /* ── Mode toggle (Generate / Ask tabs) ───────────────────── */
@@ -639,7 +644,7 @@
 
     textarea {
       width: 100%;
-      resize: vertical;
+      resize: none;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
@@ -650,8 +655,9 @@
       line-height: 1.5;
       outline: none;
       transition: border-color 0.18s, box-shadow 0.18s;
+      flex: 1;
       min-height: 60px;
-      max-height: 280px;
+      max-height: 100%;
     }
     textarea:focus {
       border-color: var(--primary);
