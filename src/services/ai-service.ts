@@ -5,7 +5,7 @@ import type {
   UIScreen,
 } from "../types/ui-types";
 import type { LLMProvider } from "../providers/llm-provider";
-import { GitHubCopilotProvider } from "../providers/github-copilot-provider";
+import { GeminiProvider } from "../providers/gemini-provider";
 import { OpenAIProvider } from "../providers/openai-provider";
 import { AnthropicProvider } from "../providers/anthropic-provider";
 
@@ -60,18 +60,18 @@ Return ONLY the JSON array, no markdown fences, no explanation.`;
  * Throws a descriptive error when the required API key is missing.
  */
 export function createProvider(config: ModelConfig): LLMProvider {
-  const provider = config.provider ?? "github-copilot";
+  const provider = config.provider ?? "gemini";
 
   switch (provider) {
+    case "gemini":
+      return new GeminiProvider(config.geminiKey ?? "");
+
     case "openai":
       return new OpenAIProvider(config.openaiKey ?? "");
 
     case "anthropic":
-      return new AnthropicProvider(config.anthropicKey ?? "");
-
-    case "github-copilot":
     default:
-      return new GitHubCopilotProvider(config.githubToken ?? "");
+      return new AnthropicProvider(config.anthropicKey ?? "");
   }
 }
 
@@ -105,7 +105,7 @@ export class AIService {
    * Call the configured LLM provider and return parsed UI screens.
    *
    * The provider is selected from `config.provider`:
-   *   - `"github-copilot"` → GitHub Copilot proxy (default, backwards-compatible)
+   *   - `"gemini"` → Google Gemini API (default, BYOK via `config.geminiKey`)
    *   - `"openai"` → OpenAI Chat Completions API (BYOK via `config.openaiKey`)
    *   - `"anthropic"` → Anthropic Messages API (BYOK via `config.anthropicKey`)
    *

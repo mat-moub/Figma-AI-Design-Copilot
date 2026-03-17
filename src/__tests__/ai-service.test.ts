@@ -24,21 +24,23 @@ const mockContext: DocumentContext = {
 };
 
 const mockModelConfig: ModelConfig = {
-  provider: "github-copilot",
-  model: "gpt-5.2",
-  githubToken: "ghp_test",
+  provider: "gemini",
+  model: "gemini-3.1-flash-lite-preview",
+  geminiKey: "AIza-test",
 };
 
 const SCREEN_JSON = JSON.stringify([
   { name: "Test Screen", layout: "vertical", elements: [{ type: "text", value: "Hello" }] },
 ]);
 
-/** Build a fetch mock that returns a valid Copilot response with the given content. */
+/** Build a fetch mock that returns a valid Gemini response with the given content. */
 function mockFetchWithContent(content: string): jest.Mock {
   return jest.fn().mockResolvedValue({
     ok: true,
     json: () =>
-      Promise.resolve({ choices: [{ message: { content } }] }),
+      Promise.resolve({
+        candidates: [{ content: { parts: [{ text: content }], role: "model" } }],
+      }),
   });
 }
 
@@ -49,7 +51,7 @@ describe("AIService.generateScreens", () => {
     global.fetch = mockFetchWithContent(SCREEN_JSON);
   });
 
-  it("sends system + user message when history is empty", async () => {
+  it("sends systemInstruction + user content when history is empty", async () => {
     const service = new AIService();
     await service.generateScreens(
       "Create a login screen",
@@ -60,17 +62,17 @@ describe("AIService.generateScreens", () => {
     );
 
     const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { messages: ChatMessage[] };
+    const body = JSON.parse(init.body as string) as {
+      systemInstruction: { parts: Array<{ text: string }> };
+      contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+    };
 
-    // First message must be the system prompt
-    expect(body.messages[0].role).toBe("system");
-    // Last message must be the user prompt
-    expect(body.messages[body.messages.length - 1]).toEqual({
-      role: "user",
-      content: "Create a login screen",
-    });
-    // Total: 1 system + 1 user
-    expect(body.messages).toHaveLength(2);
+    // System prompt goes into systemInstruction
+    expect(body.systemInstruction.parts[0].text).toContain("You are a UX designer");
+    // Contents has exactly 1 user message
+    expect(body.contents).toHaveLength(1);
+    expect(body.contents[0].role).toBe("user");
+    expect(body.contents[0].parts[0].text).toBe("Create a login screen");
   });
 
   it("interleaves previous turns before the current user message", async () => {
@@ -89,20 +91,18 @@ describe("AIService.generateScreens", () => {
     );
 
     const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { messages: ChatMessage[] };
+    const body = JSON.parse(init.body as string) as {
+      contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+    };
 
-    // system | prev-user | prev-assistant | current-user  → 4 messages total
-    expect(body.messages).toHaveLength(4);
-    expect(body.messages[0].role).toBe("system");
-    expect(body.messages[1]).toEqual({ role: "user", content: "Create a dashboard" });
-    expect(body.messages[2]).toEqual({ role: "assistant", content: "• Dashboard — 5 elements" });
-    expect(body.messages[3]).toEqual({ role: "user", content: "Now add a sidebar" });
+    // prev-user | prev-assistant (as "model") | current-user → 3 items in contents
+    expect(body.contents).toHaveLength(3);
+    expect(body.contents[0]).toEqual({ role: "user", parts: [{ text: "Create a dashboard" }] });
+    expect(body.contents[1]).toEqual({ role: "model", parts: [{ text: "• Dashboard — 5 elements" }] });
+    expect(body.contents[2]).toEqual({ role: "user", parts: [{ text: "Now add a sidebar" }] });
   });
 
   it("does NOT duplicate the current prompt when history is passed correctly", async () => {
-    // This test guards against the regression where handleGenerate() pushed the
-    // current enriched prompt into chatHistory *before* calling the agent, then
-    // generateScreens appended it *again* as the final user message.
     const service = new AIService();
     const currentPrompt = "Create a profile screen";
 
@@ -115,11 +115,13 @@ describe("AIService.generateScreens", () => {
     );
 
     const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { messages: ChatMessage[] };
+    const body = JSON.parse(init.body as string) as {
+      contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+    };
 
-    const userMessages = body.messages.filter((m) => m.role === "user");
+    const userMessages = body.contents.filter((m) => m.role === "user");
     expect(userMessages).toHaveLength(1);
-    expect(userMessages[0].content).toBe(currentPrompt);
+    expect(userMessages[0].parts[0].text).toBe(currentPrompt);
   });
 
   it("strips system messages from history to avoid conflicting system prompts", async () => {
@@ -138,12 +140,15 @@ describe("AIService.generateScreens", () => {
     );
 
     const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { messages: ChatMessage[] };
+    const body = JSON.parse(init.body as string) as {
+      systemInstruction: { parts: Array<{ text: string }> };
+      contents: Array<{ role: string }>;
+    };
 
-    // Only one system message must appear (the freshly built one)
-    const systemMessages = body.messages.filter((m) => m.role === "system");
-    expect(systemMessages).toHaveLength(1);
-    expect(systemMessages[0].content).toContain("You are a UX designer");
+    // System prompt is only in systemInstruction (no system role in contents)
+    expect(body.systemInstruction.parts[0].text).toContain("You are a UX designer");
+    const systemInContents = body.contents.filter((m) => m.role === "system");
+    expect(systemInContents).toHaveLength(0);
   });
 
   it("embeds the Figma document context into the system prompt", async () => {
@@ -157,9 +162,11 @@ describe("AIService.generateScreens", () => {
     );
 
     const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { messages: ChatMessage[] };
+    const body = JSON.parse(init.body as string) as {
+      systemInstruction: { parts: Array<{ text: string }> };
+    };
 
-    const systemPrompt = body.messages[0].content;
+    const systemPrompt = body.systemInstruction.parts[0].text;
     expect(systemPrompt).toContain("ButtonPrimary");
     expect(systemPrompt).toContain("Brand Blue");
     expect(systemPrompt).toContain("Dashboard");

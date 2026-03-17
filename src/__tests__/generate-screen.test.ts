@@ -8,7 +8,7 @@ const mockContext: DocumentContext = {
   pages: ["Page 1"],
 };
 
-const mockModelConfig: ModelConfig = { provider: "github-copilot", model: "gpt-5.2", githubToken: "ghp_test" };
+const mockModelConfig: ModelConfig = { provider: "gemini", model: "gemini-3.1-flash-lite-preview", geminiKey: "AIza-test" };
 
 function makeMockAIService(screens: UIScreen[]): AIService {
   return {

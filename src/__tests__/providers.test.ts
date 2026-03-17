@@ -10,7 +10,7 @@
  */
 
 import { createProvider } from "../services/ai-service";
-import { GitHubCopilotProvider } from "../providers/github-copilot-provider";
+import { GeminiProvider } from "../providers/gemini-provider";
 import { OpenAIProvider } from "../providers/openai-provider";
 import { AnthropicProvider } from "../providers/anthropic-provider";
 import type { ChatMessage, ModelConfig } from "../types/ui-types";
@@ -19,9 +19,9 @@ import type { ChatMessage, ModelConfig } from "../types/ui-types";
 
 function makeConfig(overrides: Partial<ModelConfig>): ModelConfig {
   return {
-    provider: "github-copilot",
-    model: "gpt-5.2",
-    githubToken: "ghp_test",
+    provider: "gemini",
+    model: "gemini-3.1-flash-lite-preview",
+    geminiKey: "AIza-test",
     ...overrides,
   };
 }
@@ -49,9 +49,9 @@ const userMsg: ChatMessage = { role: "user", content: "Create a login screen." }
 // ─── createProvider factory ───────────────────────────────────────────────────
 
 describe("createProvider", () => {
-  it("returns GitHubCopilotProvider for github-copilot", () => {
-    const provider = createProvider(makeConfig({ provider: "github-copilot" }));
-    expect(provider).toBeInstanceOf(GitHubCopilotProvider);
+  it("returns GeminiProvider for gemini", () => {
+    const provider = createProvider(makeConfig({ provider: "gemini" }));
+    expect(provider).toBeInstanceOf(GeminiProvider);
   });
 
   it("returns OpenAIProvider for openai", () => {
@@ -68,55 +68,99 @@ describe("createProvider", () => {
     expect(provider).toBeInstanceOf(AnthropicProvider);
   });
 
-  it("defaults to GitHubCopilotProvider when provider is undefined", () => {
-    // Simulate a config that lacks the provider field (backwards compat)
-    const config = { model: "gpt-5.2", githubToken: "ghp_test" } as unknown as ModelConfig;
+  it("defaults to GeminiProvider when provider is undefined", () => {
+    // Simulate a config that lacks the provider field
+    const config = { model: "gemini-3.1-flash-lite-preview", geminiKey: "AIza-test" } as unknown as ModelConfig;
     const provider = createProvider(config);
-    expect(provider).toBeInstanceOf(GitHubCopilotProvider);
+    expect(provider).toBeInstanceOf(GeminiProvider);
   });
 });
 
-// ─── GitHubCopilotProvider ────────────────────────────────────────────────────
+// ─── GeminiProvider ───────────────────────────────────────────────────────────
 
-describe("GitHubCopilotProvider", () => {
-  it("throws when no token is supplied", () => {
-    expect(() => new GitHubCopilotProvider("")).toThrow(/GitHub token/i);
+describe("GeminiProvider", () => {
+  it("throws when no API key is supplied", () => {
+    expect(() => new GeminiProvider("")).toThrow(/Google AI Studio API key/i);
   });
 
-  it("sends a POST request to the Copilot API with the correct headers and body", async () => {
+  it("sends a POST request to the Gemini API with the correct URL and body", async () => {
     const fetchMock = mockFetchOk({
-      choices: [{ message: { content: "response text" } }],
+      candidates: [{ content: { parts: [{ text: "gemini response" }], role: "model" } }],
     });
     global.fetch = fetchMock;
 
-    const provider = new GitHubCopilotProvider("ghp_token");
-    const result = await provider.chat([systemMsg, userMsg], "gpt-5.2");
+    const provider = new GeminiProvider("AIza-test");
+    const result = await provider.chat([systemMsg, userMsg], "gemini-3.1-flash-lite-preview");
 
-    expect(result).toBe("response text");
+    expect(result).toBe("gemini response");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("https://api.githubcopilot.com/chat/completions");
+    expect(url).toContain("gemini-3.1-flash-lite-preview:generateContent");
+    expect(url).toContain("key=AIza-test");
     expect(init.method).toBe("POST");
 
-    const headers = init.headers as Record<string, string>;
-    expect(headers["Authorization"]).toBe("Bearer ghp_token");
-    expect(headers["Content-Type"]).toBe("application/json");
-
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body["model"]).toBe("gpt-5.2");
-    expect(body["messages"]).toEqual([
-      { role: "system", content: "You are a designer." },
-      { role: "user", content: "Create a login screen." },
+    // System message should go into systemInstruction, not contents
+    expect(body["systemInstruction"]).toEqual({ parts: [{ text: "You are a designer." }] });
+    expect(body["contents"]).toEqual([
+      { role: "user", parts: [{ text: "Create a login screen." }] },
     ]);
   });
 
-  it("throws a descriptive error on non-OK response", async () => {
-    global.fetch = mockFetchError(500, "Internal Server Error");
-    const provider = new GitHubCopilotProvider("ghp_token");
-    await expect(provider.chat([userMsg], "gpt-5.2")).rejects.toThrow(
-      /GitHub Copilot API error 500/
+  it("maps assistant role to model role in contents", async () => {
+    const fetchMock = mockFetchOk({
+      candidates: [{ content: { parts: [{ text: "ok" }], role: "model" } }],
+    });
+    global.fetch = fetchMock;
+
+    const assistantMsg: ChatMessage = { role: "assistant", content: "Previous answer" };
+    const provider = new GeminiProvider("AIza-test");
+    await provider.chat([userMsg, assistantMsg, userMsg], "gemini-3.1-flash-lite-preview");
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    const contents = body["contents"] as Array<{ role: string }>;
+    expect(contents[1].role).toBe("model");
+  });
+
+  it("omits systemInstruction when no system message is present", async () => {
+    const fetchMock = mockFetchOk({
+      candidates: [{ content: { parts: [{ text: "ok" }], role: "model" } }],
+    });
+    global.fetch = fetchMock;
+
+    const provider = new GeminiProvider("AIza-test");
+    await provider.chat([userMsg], "gemini-3.1-flash-lite-preview");
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body["systemInstruction"]).toBeUndefined();
+  });
+
+  it("throws a clear message on 401/403 Unauthorized", async () => {
+    global.fetch = mockFetchError(401, "Unauthorized");
+    const provider = new GeminiProvider("AIza-bad");
+    await expect(provider.chat([userMsg], "gemini-3.1-flash-lite-preview")).rejects.toThrow(
+      /invalid or lacks permissions/i
     );
+  });
+
+  it("throws a clear message on 429 Too Many Requests", async () => {
+    global.fetch = mockFetchError(429, "Rate limited");
+    const provider = new GeminiProvider("AIza-good");
+    await expect(provider.chat([userMsg], "gemini-3.1-flash-lite-preview")).rejects.toThrow(
+      /rate limit/i
+    );
+  });
+
+  it("returns empty string when no text is present in response", async () => {
+    const fetchMock = mockFetchOk({ candidates: [] });
+    global.fetch = fetchMock;
+
+    const provider = new GeminiProvider("AIza-test");
+    const result = await provider.chat([userMsg], "gemini-3.1-flash-lite-preview");
+    expect(result).toBe("");
   });
 });
 
