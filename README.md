@@ -3,7 +3,7 @@
 A Figma plugin that turns natural-language prompts into Figma frames using AI. The plugin reads the open document's design system (components, colours, text styles, existing screens) and forwards that context to the chosen AI provider so every generated frame is coherent with the current file.
 
 Supported providers:
-- **GitHub Copilot** — multi-model proxy (GPT, Claude, Gemini) via a GitHub PAT.
+- **Gemini** — direct Google Gemini API with your own Google AI Studio key (BYOK) — **default**.
 - **OpenAI** — direct Chat Completions API with your own OpenAI key (BYOK).
 - **Anthropic** — direct Messages API with your own Anthropic key (BYOK).
 
@@ -142,10 +142,10 @@ The Settings overlay is closed with the **Close** button in its header. Any chan
 │  • Functional context + custom skills        │
 │  • Routes requests to the selected provider  │
 └──────┬─────────────────┬────────────────────┘
-       │ GitHub Copilot  │ OpenAI / Anthropic
+       │ Gemini API  │ OpenAI / Anthropic
 ┌──────▼──────┐  ┌───────▼──────────────────────┐
-│ Copilot API │  │  api.openai.com  /  api.anthro │
-│ (proxy)     │  │  pic.com  (direct, BYOK)       │
+│ Gemini API  │  │  api.openai.com  /  api.anthro │
+│ (direct)    │  │  pic.com  (direct, BYOK)       │
 └─────────────┘  └──────────────────────────────┘
 ```
 
@@ -176,7 +176,7 @@ src/
 │   └── ui-types.ts            # All shared TypeScript types
 ├── providers/
 │   ├── llm-provider.ts        # LLMProvider interface
-│   ├── github-copilot-provider.ts  # GitHub Copilot proxy
+│   ├── gemini-provider.ts     # Direct Google Gemini API (default)
 │   ├── openai-provider.ts     # Direct OpenAI Chat Completions
 │   └── anthropic-provider.ts  # Direct Anthropic Messages API
 ├── services/
@@ -254,16 +254,15 @@ interface UIElement {
 
 The plugin supports three providers, each with its own key:
 
-### GitHub Copilot (default)
+### Gemini (default)
 
-Uses a **GitHub Personal Access Token (classic)** with the `copilot` scope.
+Uses a **Google AI Studio API key** (`AIza…`).
 
-1. Go to **github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)**.
-2. Click **Generate new token (classic)**.
-3. Select the **`copilot`** scope (under *GitHub Copilot*).
-4. Copy the token (`ghp_…`) and paste it into the **GH Token** field in the plugin **Settings**.
+1. Go to **aistudio.google.com/apikey**.
+2. Click **Create API key**.
+3. Copy the key (`AIza…`) and paste it into the **API Key** field in the plugin **Settings**.
 
-> **Requirement:** A GitHub account with an active [GitHub Copilot subscription](https://github.com/features/copilot#pricing).
+> ✅ A free tier is available with generous rate limits.
 
 ### OpenAI (BYOK)
 
@@ -291,14 +290,11 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 
 ## Available providers and models
 
-### GitHub Copilot
+### Gemini (default)
 
 | UI label | API model id | Best for |
 |----------|-------------|----------|
-| GPT-5.2 *(default)* | `gpt-5.2` | Fast, balanced UI generation |
-| Claude Haiku 4.5 | `claude-haiku-4-5` | Lightweight, low-latency generation |
-| Claude Sonnet 4.6 | `claude-sonnet-4-6` | Detailed, structured layouts |
-| Gemini 3 Flash | `gemini-3-flash` | Speed-optimised multimodal generation |
+| Gemini 3.1 Flash Lite *(default)* | `gemini-3.1-flash-lite-preview` | Fast, cost-efficient multimodal generation |
 | Gemini 3 Pro | `gemini-3-pro` | High-quality, reasoning-heavy design decisions |
 
 ### OpenAI
@@ -502,17 +498,17 @@ The `providers.test.ts` suite specifically validates:
 ```ts
 // src/types/ui-types.ts
 
-type LLMProvider = "github-copilot" | "openai" | "anthropic";
+type LLMProvider = "gemini" | "openai" | "anthropic";
 
-type CopilotModel = "gpt-5.2" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash" | "gemini-3-pro";
-type OpenAIModel  = "gpt-5-mini" | "gpt-5" | "gpt-5.2" | "gpt-5.3" | "codex";
+type GeminiModel   = "gemini-3.1-flash-lite-preview" | "gemini-3-pro";
+type OpenAIModel   = "gpt-5-mini" | "gpt-5" | "gpt-5.2" | "gpt-5.3" | "codex";
 type AnthropicModel = "claude-haiku-4-5" | "claude-sonnet-4-6" | "claude-opus-4-6";
-type AIModel = CopilotModel | OpenAIModel | AnthropicModel;
+type AIModel = GeminiModel | OpenAIModel | AnthropicModel;
 
 interface ModelConfig {
   provider: LLMProvider;
   model: AIModel;
-  githubToken?: string;  // GitHub PAT with 'copilot' scope
+  geminiKey?: string;    // Google AI Studio API key (AIza…)
   openaiKey?: string;    // OpenAI API key (sk-…)
   anthropicKey?: string; // Anthropic API key (sk-ant-…)
 }

@@ -53,21 +53,17 @@ export interface ChatMessage {
 
 /**
  * Supported LLM providers.
- * - `github-copilot`: Routes all models through the GitHub Copilot proxy API
- *   using a GitHub Personal Access Token with the `copilot` scope.
+ * - `gemini`: Direct Google Gemini API (BYOK) — default provider.
  * - `openai`: Direct OpenAI Chat Completions API (BYOK).
  * - `anthropic`: Direct Anthropic Messages API (BYOK).
  */
-export type LLMProvider = "github-copilot" | "openai" | "anthropic";
+export type LLMProvider = "gemini" | "openai" | "anthropic";
 
 // ─── Models ──────────────────────────────────────────────────────────────────
 
-/** Models routed through the GitHub Copilot proxy. */
-export type CopilotModel =
-  | "gpt-5.2"
-  | "claude-haiku-4-5"
-  | "claude-sonnet-4-6"
-  | "gemini-3-flash"
+/** Models available directly on the Google Gemini API. */
+export type GeminiModel =
+  | "gemini-3.1-flash-lite-preview"
   | "gemini-3-pro";
 
 /** Models available directly on the OpenAI API. */
@@ -85,15 +81,15 @@ export type AnthropicModel =
   | "claude-opus-4-6";
 
 /** Union of all model IDs supported across providers. */
-export type AIModel = CopilotModel | OpenAIModel | AnthropicModel;
+export type AIModel = GeminiModel | OpenAIModel | AnthropicModel;
 
 export interface ModelConfig {
-  /** The LLM provider to use. Defaults to `"github-copilot"` for backwards compatibility. */
+  /** The LLM provider to use. Defaults to `"gemini"`. */
   provider: LLMProvider;
   /** Provider-specific model identifier. */
   model: AIModel;
-  /** GitHub Personal Access Token with the `copilot` scope (GitHub Copilot provider). */
-  githubToken?: string;
+  /** Google AI Studio API key (Gemini provider, BYOK). */
+  geminiKey?: string;
   /** OpenAI API key (OpenAI provider, BYOK). */
   openaiKey?: string;
   /** Anthropic API key (Anthropic provider, BYOK). */

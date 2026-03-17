@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
   populateCustomAgentOptions();
 
   // Restore provider selection and sync model/key UI before wiring listeners
-  const savedProvider = (localStorage.getItem("copilot_provider") as LLMProvider | null) ?? "github-copilot";
+  const savedProvider = (localStorage.getItem("copilot_provider") as LLMProvider | null) ?? "gemini";
   const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
   if (providerSelect) providerSelect.value = savedProvider;
   syncProviderUI(savedProvider);
@@ -293,6 +293,12 @@ function setupEventListeners(): void {
   const clearSkillsBtn = document.getElementById("clear-skills-library-btn");
   if (clearSkillsBtn) {
     clearSkillsBtn.addEventListener("click", handleClearSkillsLibrary);
+  }
+
+  // ── Test connection button ───────────────────────────────────────────────
+  const testConnectionBtn = document.getElementById("test-connection-btn");
+  if (testConnectionBtn) {
+    testConnectionBtn.addEventListener("click", () => void handleTestConnection());
   }
 }
 
@@ -512,11 +518,8 @@ function showContextBadge(context: DocumentContext): void {
 
 /** Models available per provider, used to populate the model dropdown. */
 const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string }>> = {
-  "github-copilot": [
-    { value: "gpt-5.2", label: "GPT-5.2" },
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { value: "gemini-3-flash", label: "Gemini 3 Flash" },
+  "gemini": [
+    { value: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite" },
     { value: "gemini-3-pro", label: "Gemini 3 Pro" },
   ],
   openai: [
@@ -535,15 +538,7 @@ const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string 
 
 /** Key labels and placeholders per provider for the API key input field. */
 const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string; icon: string; instructionsHtml: string }> = {
-  "github-copilot": {
-    label: "GH Token",
-    placeholder: "ghp_… (copilot scope)",
-    storageKey: "copilot_github_token",
-    hint: "🔑 Get a Personal Access Token (classic) with the copilot scope at github.com → Settings → Developer settings → Personal access tokens.",
-    icon: '<i class="fa-brands fa-github" aria-hidden="true"></i>',
-    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-github" aria-hidden="true"></i> GitHub Copilot — How to get your token</div><ol><li>Go to <strong>github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)</strong>.</li><li>Click <strong>Generate new token (classic)</strong>.</li><li>Select the <strong>copilot</strong> scope (under <em>GitHub Copilot</em>).</li><li>Copy the token (<code>ghp_…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Requires an active <strong>GitHub Copilot subscription</strong>.</p>`,
-  },
-  openai: {
+  "gemini": {
     label: "API Key",
     placeholder: "sk-… (OpenAI API key)",
     storageKey: "copilot_openai_key",
@@ -601,7 +596,7 @@ function syncProviderUI(provider: LLMProvider): void {
 
 function getSelectedProvider(): LLMProvider {
   const el = document.getElementById("provider-select") as HTMLSelectElement | null;
-  return (el?.value as LLMProvider) ?? "github-copilot";
+  return (el?.value as LLMProvider) ?? "gemini";
 }
 
 function getModelConfig(): ModelConfig {
@@ -615,8 +610,8 @@ function getModelConfig(): ModelConfig {
     model: modelEl.value as ModelConfig["model"],
   };
 
-  if (provider === "github-copilot") {
-    config.githubToken = keyValue || undefined;
+  if (provider === "gemini") {
+    config.geminiKey = keyValue || undefined;
   } else if (provider === "openai") {
     config.openaiKey = keyValue || undefined;
   } else if (provider === "anthropic") {
@@ -632,19 +627,19 @@ function getModelConfig(): ModelConfig {
  */
 function validateApiKey(config: ModelConfig): string | null {
   switch (config.provider) {
+    case "gemini":
+      return config.geminiKey
+        ? null
+        : "Please enter your Google AI Studio API key (AIza…) in the settings.";
     case "openai":
       return config.openaiKey
         ? null
         : "Please enter your OpenAI API key (sk-…) in the settings.";
     case "anthropic":
+    default:
       return config.anthropicKey
         ? null
         : "Please enter your Anthropic API key (sk-ant-…) in the settings.";
-    case "github-copilot":
-    default:
-      return config.githubToken
-        ? null
-        : "Please enter your GitHub token (copilot scope) in the settings.";
   }
 }
 
@@ -821,9 +816,9 @@ function updateConnectionBadge(): void {
   const hasKey   = !!(keyInput?.value.trim());
 
   const providerLabels: Record<string, string> = {
-    "github-copilot": "GitHub",
-    "openai":         "OpenAI",
-    "anthropic":      "Anthropic",
+    "gemini":    "Gemini",
+    "openai":    "OpenAI",
+    "anthropic": "Anthropic",
   };
 
   const providerShort = providerLabels[provider] ?? provider;
@@ -1073,6 +1068,66 @@ function handleClearSkillsLibrary(): void {
   showToast("Runtime skills cleared. Bundled skills remain active.");
 }
 
+// ── Test connection ───────────────────────────────────────────────────────────
+
+/**
+ * Send a minimal ping message to the configured LLM provider and show the
+ * result in a toast. Used by the "Test connection" button in Settings.
+ */
+async function handleTestConnection(): Promise<void> {
+  const btn = document.getElementById("test-connection-btn") as HTMLButtonElement | null;
+  const statusEl = document.getElementById("test-connection-status");
+
+  const modelConfig = getModelConfig();
+  const missingKeyMsg = validateApiKey(modelConfig);
+  if (missingKeyMsg) {
+    showToast(missingKeyMsg, "warning");
+    if (statusEl) {
+      statusEl.textContent = "⚠ No API key configured";
+      statusEl.className = "test-connection-status test-connection-status--warn";
+    }
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    // Update only the text node to preserve the icon SVG
+    const textNode = Array.from(btn.childNodes).find((n) => n.nodeType === Node.TEXT_NODE);
+    if (textNode) textNode.textContent = " Testing…";
+  }
+  if (statusEl) {
+    statusEl.textContent = "";
+    statusEl.className = "test-connection-status";
+  }
+
+  try {
+    const emptyContext = {
+      designSystem: { components: [], colors: [], textStyles: [] },
+      screens: [],
+      pages: [],
+    };
+    await aiService.ask("Reply with the single word: ok", emptyContext, modelConfig);
+    showToast("✅ Connection successful!", "info");
+    if (statusEl) {
+      statusEl.textContent = "✅ Connection successful";
+      statusEl.className = "test-connection-status test-connection-status--ok";
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Connection failed.";
+    showToast(`❌ ${msg}`, "error");
+    if (statusEl) {
+      statusEl.textContent = `❌ ${msg}`;
+      statusEl.className = "test-connection-status test-connection-status--error";
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      const textNode = Array.from(btn.childNodes).find((n) => n.nodeType === Node.TEXT_NODE);
+      if (textNode) textNode.textContent = " Test connection";
+    }
+  }
+}
+
 /**
  * Render the skills library panel.
  * Always shows the bundled skills; additionally shows any runtime-loaded skills.
@@ -1145,12 +1200,12 @@ function setupOnboarding(): void {
   if (localStorage.getItem(ONBOARDING_DONE_KEY)) return;
 
   // Populate the onboarding provider/model/key UI with saved or default values
-  const VALID_PROVIDERS: LLMProvider[] = ["github-copilot", "openai", "anthropic"];
+  const VALID_PROVIDERS: LLMProvider[] = ["gemini", "openai", "anthropic"];
   const rawProvider = localStorage.getItem("copilot_provider");
   const savedProvider: LLMProvider =
     rawProvider !== null && (VALID_PROVIDERS as string[]).includes(rawProvider)
       ? (rawProvider as LLMProvider)
-      : "github-copilot";
+      : "gemini";
   const obProviderSelect = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
   if (obProviderSelect) obProviderSelect.value = savedProvider;
   syncOnboardingProviderUI(savedProvider);
