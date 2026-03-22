@@ -17,6 +17,7 @@ import type {
   ModelConfig,
   PersistedSettings,
   PluginToUIMessage,
+  SelectedTextContext,
   TextAlternative,
 } from "./types/ui-types";
 
@@ -184,6 +185,10 @@ window.onmessage = (event: MessageEvent) => {
     case "context-ready":
       documentContext = msg.context;
       showContextBadge(msg.context);
+      break;
+
+    case "selection-changed":
+      handleSelectionChanged(msg.selectedText);
       break;
 
     case "text-applied":
@@ -550,6 +555,29 @@ function showContextBadge(context: DocumentContext): void {
     `Screens: ${context.screens.join(", ") || "none"}`,
   ].join("\n");
   badge.classList.remove("hidden", "ctx-badge--stale");
+}
+
+/**
+ * Called whenever the Figma selection changes. Patches the in-memory
+ * documentContext with the newly selected text so the next generation
+ * automatically uses the right node — without a full context round-trip.
+ */
+function handleSelectionChanged(selectedText: SelectedTextContext | null): void {
+  if (documentContext) {
+    documentContext = { ...documentContext, selectedText };
+  } else {
+    // No context loaded yet — build a minimal shell so selectedText is available
+    documentContext = {
+      designSystem: { components: [], colors: [], textStyles: [] },
+      screens: [],
+      pages: [],
+      pageTextContext: [],
+      selectedText,
+    };
+  }
+
+  // Refresh the badge to reflect the new selection
+  showContextBadge(documentContext);
 }
 
 // ── Config helpers ────────────────────────────────────────────────────────────

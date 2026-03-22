@@ -222,6 +222,7 @@ export interface GenerateAlternativesInput {
 export type PluginMessageType =
   | "get-context"
   | "context-ready"
+  | "selection-changed"
   | "get-settings"
   | "save-settings"
   | "settings-loaded"
@@ -288,8 +289,14 @@ export interface NotifyMessage {
   message: string;
 }
 
+export interface SelectionChangedMessage {
+  type: "selection-changed";
+  selectedText: SelectedTextContext | null;
+}
+
 export type PluginToUIMessage =
   | ContextReadyMessage
+  | SelectionChangedMessage
   | SettingsLoadedMessage
   | OnboardingStatusMessage
   | TextAppliedMessage

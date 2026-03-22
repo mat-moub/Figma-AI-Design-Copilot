@@ -10,6 +10,7 @@ import type {
   ApplyTextMessage,
   PersistedSettings,
   SaveSettingsMessage,
+  SelectedTextContext,
   UIToPluginMessage,
 } from "./types/ui-types";
 
@@ -34,6 +35,15 @@ figma.showUI(__html__, { width: 420, height: 640, themeColors: true });
 figma.ui.postMessage({
   type: "notify",
   message: "UX Writer Copilot ready. Select a text node and start writing!",
+});
+
+// ── Selection change listener ─────────────────────────────────────────────────
+
+figma.on("selectionchange", () => {
+  figma.ui.postMessage({
+    type: "selection-changed",
+    selectedText: extractSelectedText(),
+  });
 });
 
 // ── Message handler ──────────────────────────────────────────────────────────
@@ -134,4 +144,65 @@ async function handleApplyText(msg: ApplyTextMessage): Promise<void> {
 
   figma.ui.postMessage({ type: "text-applied" });
   figma.notify(`Text updated successfully.`);
+}
+
+// ── Selection helper ──────────────────────────────────────────────────────────
+
+/**
+ * Read the first selected TextNode and return a SelectedTextContext.
+ * Returns null when no text node is selected.
+ * Mirrors the logic in ContextEngine.extractSelectedText().
+ */
+function extractSelectedText(): SelectedTextContext | null {
+  const selection = figma.currentPage.selection;
+  const textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
+  if (!textNode) return null;
+
+  const fontName = textNode.fontName;
+  const fontSize = textNode.fontSize;
+  const fontFamily = fontName === figma.mixed ? "mixed" : fontName.family;
+  const fontSizeVal: number | "mixed" = fontSize === figma.mixed ? "mixed" : fontSize;
+
+  // Walk parent chain to find top-level FRAME name (screen name)
+  let screenName: string | null = null;
+  let current: BaseNode | null = textNode.parent;
+  while (current !== null && current.type !== "PAGE") {
+    if (current.type === "FRAME") screenName = current.name;
+    current = current.parent;
+  }
+
+  // Infer semantic role from layer name and font size
+  const name = textNode.name.toLowerCase();
+  let role: SelectedTextContext["role"] = "unknown";
+  if (/heading|title|h1|h2/.test(name)) role = "heading";
+  else if (/subhead|subtitle|h3|h4/.test(name)) role = "subheading";
+  else if (/body|paragraph|text/.test(name)) role = "body";
+  else if (/label|tag/.test(name)) role = "label";
+  else if (/caption|footnote|hint/.test(name)) role = "caption";
+  else if (/button|btn|cta/.test(name)) role = "button";
+  else if (typeof fontSizeVal === "number") {
+    if (fontSizeVal >= 24) role = "heading";
+    else if (fontSizeVal >= 18) role = "subheading";
+    else if (fontSizeVal >= 14) role = "body";
+    else role = "caption";
+  }
+
+  const insideComponent = (() => {
+    let p: BaseNode | null = textNode.parent;
+    while (p && p.type !== "PAGE") {
+      if (p.type === "COMPONENT" || p.type === "INSTANCE") return true;
+      p = p.parent;
+    }
+    return false;
+  })();
+
+  return {
+    characters: textNode.characters,
+    role,
+    fontSize: fontSizeVal,
+    fontFamily,
+    charCount: textNode.characters.length,
+    insideComponent,
+    screenName,
+  };
 }
