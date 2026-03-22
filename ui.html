@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -41,6 +41,112 @@
 
       --status-ready: #16a34a;
       --status-no-key: #d97706;
+
+      /* ── Header hardcoded helpers (theme-aware) ── */
+      --header-icon-bg: rgba(255,255,255,0.15);
+      --header-icon-border: rgba(255,255,255,0.20);
+      --header-title: #ffffff;
+      --header-subtitle: rgba(255,255,255,0.60);
+      --header-btn-bg: rgba(255,255,255,0.12);
+      --header-btn-border: rgba(255,255,255,0.20);
+      --header-btn-color: rgba(255,255,255,0.85);
+      --header-btn-hover-bg: rgba(255,255,255,0.22);
+      --header-btn-hover-border: rgba(255,255,255,0.35);
+      --header-shadow: 0 2px 12px rgba(33, 150, 243, 0.30);
+      --badge-bg: rgba(255,255,255,0.15);
+      --badge-color: #ffffff;
+      --badge-border: rgba(255,255,255,0.25);
+      --spinner-border: rgba(255,255,255,0.35);
+      --spinner-top: #fff;
+      --toast-bg: #1a1d2e;
+      --toast-color: #fff;
+      --skill-tag-bg: #e8ecf8;
+      --skill-tag-remote-bg: #e8f5e9;
+      --skill-tag-remote-color: #2e7d32;
+      --skill-tag-remote-border: rgba(46, 125, 50, 0.15);
+      --confirm-backdrop: rgba(0, 0, 0, 0.40);
+      --confirm-shadow: 0 8px 32px rgba(0,0,0,0.22);
+      --input-shadow: 0 -2px 12px rgba(33, 150, 243, 0.07);
+      --resize-handle-dot: rgba(33, 150, 243, 0.30);
+      --typing-spinner-border: rgba(33, 150, 243, 0.22);
+      --user-bubble-shadow: 0 2px 10px rgba(89, 74, 226, 0.25), 0 0 20px rgba(89, 74, 226, 0.12);
+      --user-bubble-label: rgba(255,255,255,0.65);
+      --user-bubble-text: #ffffff;
+      --chip-bg: rgba(99, 125, 255, 0.10);
+      --chip-border: rgba(99, 125, 255, 0.22);
+      --section-glow: rgba(33, 150, 243, 0.20);
+      --section-glow-center: rgba(33, 150, 243, 0.35);
+      --stale-bg: rgba(255, 165, 0, 0.18);
+      --stale-border: rgba(255, 165, 0, 0.45);
+      --stale-color: #e07800;
+    }
+
+    /* ── Dark Theme (Figma-inspired) ─────────────────────────── */
+    [data-theme="dark"] {
+      --bg: #1e1e1e;
+      --surface: #2c2c2c;
+      --border: #444444;
+
+      --primary: #0d99ff;
+      --primary-hover: #0b87e0;
+      --primary-light: #4db8ff;
+      --primary-text: #ffffff;
+      --primary-glow: rgba(13, 153, 255, 0.30);
+      --border-aura: rgba(13, 153, 255, 0.18);
+
+      --action: #7b6bef;
+      --action-hover: #6558d4;
+      --action-text: #ffffff;
+      --action-glow: rgba(123, 107, 239, 0.30);
+
+      --text: #e5e5e5;
+      --text-muted: #999999;
+      --user-bubble: #7b6bef;
+      --ai-bubble: #383838;
+      --ai-text: #e5e5e5;
+      --drop-zone-active-bg: #333333;
+
+      --shadow-aura: 0 0 0 1px var(--border-aura), 0 0 16px rgba(13, 153, 255, 0.08);
+
+      --status-ready: #30d158;
+      --status-no-key: #ff9f0a;
+
+      --header-icon-bg: rgba(255,255,255,0.10);
+      --header-icon-border: rgba(255,255,255,0.15);
+      --header-title: #ffffff;
+      --header-subtitle: rgba(255,255,255,0.50);
+      --header-btn-bg: rgba(255,255,255,0.08);
+      --header-btn-border: rgba(255,255,255,0.15);
+      --header-btn-color: rgba(255,255,255,0.75);
+      --header-btn-hover-bg: rgba(255,255,255,0.16);
+      --header-btn-hover-border: rgba(255,255,255,0.30);
+      --header-shadow: 0 2px 12px rgba(0, 0, 0, 0.40);
+      --badge-bg: rgba(255,255,255,0.10);
+      --badge-color: #e5e5e5;
+      --badge-border: rgba(255,255,255,0.18);
+      --spinner-border: rgba(255,255,255,0.25);
+      --spinner-top: #e5e5e5;
+      --toast-bg: #383838;
+      --toast-color: #e5e5e5;
+      --skill-tag-bg: rgba(13, 153, 255, 0.12);
+      --skill-tag-remote-bg: rgba(48, 209, 88, 0.12);
+      --skill-tag-remote-color: #30d158;
+      --skill-tag-remote-border: rgba(48, 209, 88, 0.20);
+      --confirm-backdrop: rgba(0, 0, 0, 0.60);
+      --confirm-shadow: 0 8px 32px rgba(0,0,0,0.50);
+      --input-shadow: 0 -2px 12px rgba(0, 0, 0, 0.20);
+      --resize-handle-dot: rgba(13, 153, 255, 0.25);
+      --typing-spinner-border: rgba(13, 153, 255, 0.25);
+      --user-bubble-shadow: 0 2px 10px rgba(123, 107, 239, 0.25), 0 0 20px rgba(123, 107, 239, 0.10);
+      --user-bubble-label: rgba(255,255,255,0.55);
+      --user-bubble-text: #ffffff;
+      --chip-bg: rgba(13, 153, 255, 0.12);
+      --chip-border: rgba(13, 153, 255, 0.25);
+      --section-glow: rgba(13, 153, 255, 0.15);
+      --section-glow-center: rgba(13, 153, 255, 0.25);
+      --stale-bg: rgba(255, 159, 10, 0.15);
+      --stale-border: rgba(255, 159, 10, 0.40);
+      --stale-color: #ff9f0a;
     }
 
     body {
@@ -82,7 +188,7 @@
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
-      box-shadow: 0 2px 12px rgba(33, 150, 243, 0.30);
+      box-shadow: var(--header-shadow);
     }
 
     .header__brand {
@@ -94,27 +200,27 @@
     .header__icon {
       width: 28px;
       height: 28px;
-      background: rgba(255,255,255,0.15);
+      background: var(--header-icon-bg);
       border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 14px;
-      color: #ffffff;
-      box-shadow: 0 0 10px rgba(255,255,255,0.20);
-      border: 1px solid rgba(255,255,255,0.20);
+      color: var(--header-title);
+      box-shadow: 0 0 10px var(--header-icon-border);
+      border: 1px solid var(--header-icon-border);
     }
 
     .header__title {
       font-size: 13px;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--header-title);
       letter-spacing: 0.2px;
     }
 
     .header__subtitle {
       font-size: 10px;
-      color: rgba(255,255,255,0.60);
+      color: var(--header-subtitle);
       font-weight: 400;
       margin-top: 1px;
     }
@@ -126,9 +232,9 @@
     }
 
     .ctx-badge {
-      background: rgba(255,255,255,0.15);
-      color: #ffffff;
-      border: 1px solid rgba(255,255,255,0.25);
+      background: var(--badge-bg);
+      color: var(--badge-color);
+      border: 1px solid var(--badge-border);
       border-radius: 999px;
       font-size: 11px;
       font-weight: 600;
@@ -138,9 +244,9 @@
     }
 
     .btn--header {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.20);
-      color: rgba(255,255,255,0.85);
+      background: var(--header-btn-bg);
+      border: 1px solid var(--header-btn-border);
+      color: var(--header-btn-color);
       border-radius: 6px;
       padding: 4px 8px;
       font-size: 11px;
@@ -152,9 +258,9 @@
       transition: background 0.15s, border-color 0.15s;
     }
     .btn--header:hover {
-      background: rgba(255,255,255,0.22);
-      border-color: rgba(255,255,255,0.35);
-      color: #ffffff;
+      background: var(--header-btn-hover-bg);
+      border-color: var(--header-btn-hover-border);
+      color: var(--header-title);
     }
 
     /* ── Info Bar (connection + model, always visible on main) ── */
@@ -198,7 +304,7 @@
       width: 32px;
       height: 2px;
       border-radius: 2px;
-      background: rgba(33, 150, 243, 0.30);
+      background: var(--resize-handle-dot);
     }
 
     /* ── Options Bar (checkboxes + skills info on main page) ──── */
@@ -286,7 +392,7 @@
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
-      box-shadow: 0 2px 12px rgba(33, 150, 243, 0.30);
+      box-shadow: var(--header-shadow);
     }
 
     .settings-overlay__title {
@@ -295,7 +401,7 @@
       gap: 8px;
       font-size: 13px;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--header-title);
       letter-spacing: 0.2px;
     }
 
@@ -323,9 +429,9 @@
       height: 1px;
       background: linear-gradient(90deg,
         transparent 0%,
-        rgba(33, 150, 243, 0.20) 30%,
-        rgba(33, 150, 243, 0.35) 50%,
-        rgba(33, 150, 243, 0.20) 70%,
+        var(--section-glow) 30%,
+        var(--section-glow-center) 50%,
+        var(--section-glow) 70%,
         transparent 100%);
       pointer-events: none;
     }
@@ -449,7 +555,7 @@
     .confirm-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.40);
+      background: var(--confirm-backdrop);
       z-index: 200;
       display: flex;
       align-items: center;
@@ -461,7 +567,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+      box-shadow: var(--confirm-shadow);
       padding: 20px 20px 16px;
       width: 280px;
       display: flex;
@@ -526,10 +632,10 @@
       align-self: flex-end;
       background: var(--user-bubble);
       border-bottom-right-radius: 3px;
-      box-shadow: 0 2px 10px rgba(89, 74, 226, 0.25), 0 0 20px rgba(89, 74, 226, 0.12);
+      box-shadow: var(--user-bubble-shadow);
     }
-    .chat-bubble--user .chat-label { color: rgba(255,255,255,0.65); }
-    .chat-bubble--user .chat-text  { color: #ffffff; }
+    .chat-bubble--user .chat-label { color: var(--user-bubble-label); }
+    .chat-bubble--user .chat-text  { color: var(--user-bubble-text); }
 
     .chat-bubble--assistant {
       align-self: flex-start;
@@ -567,7 +673,7 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      border: 2px solid rgba(33, 150, 243, 0.22);
+      border: 2px solid var(--typing-spinner-border);
       border-top-color: var(--primary);
       animation: spin 0.7s linear infinite;
       flex-shrink: 0;
@@ -592,18 +698,18 @@
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 999px;
-      background: rgba(99, 125, 255, 0.10);
+      background: var(--chip-bg);
       color: var(--primary);
-      border: 1px solid rgba(99, 125, 255, 0.22);
+      border: 1px solid var(--chip-border);
       letter-spacing: 0.4px;
       text-transform: uppercase;
     }
 
     /* ── Context badge: stale state ──────────────────────────── */
     .ctx-badge--stale {
-      background: rgba(255, 165, 0, 0.18);
-      border-color: rgba(255, 165, 0, 0.45);
-      color: #e07800;
+      background: var(--stale-bg);
+      border-color: var(--stale-border);
+      color: var(--stale-color);
     }
 
     .chat-empty {
@@ -640,7 +746,7 @@
       padding: 10px 14px 12px;
       flex-shrink: 0;
       overflow: hidden;
-      box-shadow: 0 -2px 12px rgba(33, 150, 243, 0.07);
+      box-shadow: var(--input-shadow);
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -839,8 +945,8 @@
     .spinner {
       width: 13px;
       height: 13px;
-      border: 2px solid rgba(255,255,255,0.35);
-      border-top-color: #fff;
+      border: 2px solid var(--spinner-border);
+      border-top-color: var(--spinner-top);
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
       flex-shrink: 0;
@@ -852,8 +958,8 @@
       bottom: 80px;
       left: 50%;
       transform: translateX(-50%) translateY(10px);
-      background: #1a1d2e;
-      color: #fff;
+      background: var(--toast-bg);
+      color: var(--toast-color);
       padding: 7px 16px;
       border-radius: 999px;
       font-size: 11px;
@@ -931,7 +1037,7 @@
       gap: 4px;
     }
     .skill-tag {
-      background: #e8ecf8;
+      background: var(--skill-tag-bg);
       color: var(--primary);
       border-radius: 999px;
       font-size: 10px;
@@ -940,9 +1046,9 @@
       border: 1px solid rgba(33, 150, 243, 0.12);
     }
     .skill-tag--remote {
-      background: #e8f5e9;
-      color: #2e7d32;
-      border-color: rgba(46, 125, 50, 0.15);
+      background: var(--skill-tag-remote-bg);
+      color: var(--skill-tag-remote-color);
+      border-color: var(--skill-tag-remote-border);
     }
 
     /* ── Section Title (shared) ───────────────────────────────── */
@@ -957,6 +1063,63 @@
       color: var(--text-muted);
     }
 
+    /* ── Theme toggle switch ─────────────────────────────────── */
+    .theme-switch-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+    .theme-switch-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.2s;
+      user-select: none;
+    }
+    .theme-switch-label--active {
+      color: var(--primary);
+    }
+    .theme-switch {
+      position: relative;
+      display: inline-flex;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .theme-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .theme-switch__track {
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      background: var(--border);
+      transition: background 0.2s;
+      position: relative;
+    }
+    .theme-switch input:checked + .theme-switch__track {
+      background: var(--primary);
+    }
+    .theme-switch__thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--surface);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      transition: transform 0.2s;
+    }
+    .theme-switch input:checked + .theme-switch__track .theme-switch__thumb {
+      transform: translateX(16px);
+    }
+    .theme-switch input:focus-visible + .theme-switch__track {
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
     /* ── Utilities ────────────────────────────────────────────── */
     .hidden { display: none !important; }
 
@@ -966,9 +1129,9 @@
       font-weight: 700;
       padding: 2px 7px;
       border-radius: 999px;
-      background: rgba(99, 125, 255, 0.10);
+      background: var(--chip-bg);
       color: var(--primary);
-      border: 1px solid rgba(99, 125, 255, 0.22);
+      border: 1px solid var(--chip-border);
       letter-spacing: 0.4px;
       text-transform: uppercase;
       vertical-align: middle;
@@ -1017,7 +1180,7 @@
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
-      box-shadow: 0 2px 12px rgba(33, 150, 243, 0.30);
+      box-shadow: var(--header-shadow);
     }
 
     .onboarding-header__brand {
@@ -1026,7 +1189,7 @@
       gap: 8px;
       font-size: 13px;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--header-title);
       letter-spacing: 0.2px;
     }
 
@@ -1040,11 +1203,11 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.35);
+      background: var(--header-btn-bg);
       transition: background 0.2s, transform 0.2s;
     }
     .onboarding-dot--active {
-      background: #ffffff;
+      background: var(--header-title);
       transform: scale(1.2);
     }
 
@@ -1616,6 +1779,36 @@
         </p>
       </div>
 
+      <!-- ── Section: Appearance ── -->
+      <div class="settings-section">
+        <div class="settings-section__header">
+          <div class="settings-section__title">
+            <i class="fa-solid fa-palette" aria-hidden="true" style="font-size:11px"></i>
+            Appearance
+          </div>
+        </div>
+        <div class="settings__row">
+          <span class="settings__label">
+            <i class="fa-solid fa-circle-half-stroke" aria-hidden="true" style="font-size:11px"></i>
+            Theme
+          </span>
+          <div class="theme-switch-row">
+            <span class="theme-switch-label" id="theme-label-light">
+              <i class="fa-solid fa-sun" aria-hidden="true"></i> Light
+            </span>
+            <label class="theme-switch" title="Toggle dark / light theme">
+              <input type="checkbox" id="theme-toggle" checked />
+              <span class="theme-switch__track">
+                <span class="theme-switch__thumb"></span>
+              </span>
+            </label>
+            <span class="theme-switch-label theme-switch-label--active" id="theme-label-dark">
+              <i class="fa-solid fa-moon" aria-hidden="true"></i> Dark
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Section: Developer ── -->
       <div class="settings-section">
         <div class="settings-section__header">
@@ -1774,7 +1967,6 @@
           <li>💬 <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything</li>
           <li>🔢 <strong>Alternatives</strong> — Set a number to generate multiple copy options at once</li>
           <li>✅ <strong>Apply</strong> — Click "Apply" on any alternative to write it directly into the selected text node</li>
-          <li>🔄 <strong>Context</strong> — Figma document context is refreshed automatically on every generation</li>
           <li>⚙️ <strong>Settings</strong> — Change provider, model, or functional context</li>
         </ul>
       </div>

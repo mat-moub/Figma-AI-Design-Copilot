@@ -79,7 +79,7 @@ H = 640
 def make_html(body_html: str, extra_css: str = "") -> str:
     """Build a standalone HTML file for screenshot rendering."""
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -646,6 +646,35 @@ html = make_html("""
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
         No custom config loaded.
       </p>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section__header">
+        <div class="settings-section__title">
+          <i class="fa-solid fa-palette" aria-hidden="true" style="font-size:11px"></i>
+          Appearance
+        </div>
+      </div>
+      <div class="settings__row">
+        <span class="settings__label">
+          <i class="fa-solid fa-circle-half-stroke" aria-hidden="true" style="font-size:11px"></i>
+          Theme
+        </span>
+        <div class="theme-switch-row">
+          <span class="theme-switch-label" id="theme-label-light">
+            <i class="fa-solid fa-sun" aria-hidden="true"></i> Light
+          </span>
+          <label class="theme-switch" title="Toggle dark / light theme">
+            <input type="checkbox" id="theme-toggle" checked />
+            <span class="theme-switch__track">
+              <span class="theme-switch__thumb"></span>
+            </span>
+          </label>
+          <span class="theme-switch-label theme-switch-label--active" id="theme-label-dark">
+            <i class="fa-solid fa-moon" aria-hidden="true"></i> Dark
+          </span>
+        </div>
+      </div>
     </div>
 
   </div>

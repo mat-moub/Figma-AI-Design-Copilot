@@ -70,6 +70,9 @@ export interface ModelConfig {
   debug?: boolean;
 }
 
+/** Supported UI theme modes. */
+export type ThemeMode = "light" | "dark";
+
 export interface PersistedSettings {
   provider: LLMProvider;
   modelByProvider: Partial<Record<LLMProvider, AIModel>>;
@@ -77,6 +80,7 @@ export interface PersistedSettings {
   interactionMode: "generate" | "ask";
   functionalContext: string;
   debugMode: boolean;
+  theme: ThemeMode;
 }
 
 // ─── Document Context ────────────────────────────────────────────────────────

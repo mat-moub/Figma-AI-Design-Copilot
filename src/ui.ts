@@ -19,6 +19,7 @@ import type {
   PluginToUIMessage,
   SelectedTextContext,
   TextAlternative,
+  ThemeMode,
 } from "./types/ui-types";
 
 declare global {
@@ -45,6 +46,12 @@ const DEBUG_MODE_KEY = "copilot_debug_mode";
 
 /** localStorage key for the number of text alternatives to generate. */
 const ALTERNATIVES_COUNT_KEY = "copilot_alternatives_count";
+
+/** localStorage key for the UI theme preference. */
+const THEME_KEY = "copilot_theme";
+
+/** Default theme when no preference is stored. */
+const DEFAULT_THEME: ThemeMode = "dark";
 
 function createInMemoryStorage(): Storage {
   const store = new Map<string, string>();
@@ -97,6 +104,27 @@ function redactSecrets(raw: unknown): string {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
+/** Apply the given theme to the document and persist the preference. */
+function applyTheme(theme: ThemeMode): void {
+  document.documentElement.setAttribute("data-theme", theme);
+  safeStorage.setItem(THEME_KEY, theme);
+  const toggle = document.getElementById("theme-toggle") as HTMLInputElement | null;
+  if (toggle) toggle.checked = theme === "dark";
+  const lightLabel = document.getElementById("theme-label-light");
+  const darkLabel = document.getElementById("theme-label-dark");
+  if (lightLabel) lightLabel.classList.toggle("theme-switch-label--active", theme === "light");
+  if (darkLabel) darkLabel.classList.toggle("theme-switch-label--active", theme === "dark");
+}
+
+/** Return the currently persisted theme, falling back to the default. */
+function getStoredTheme(): ThemeMode {
+  const stored = safeStorage.getItem(THEME_KEY);
+  return stored === "light" || stored === "dark" ? stored : DEFAULT_THEME;
+}
+
+// Apply theme as early as possible to avoid flash
+applyTheme(getStoredTheme());
+
 let documentContext: DocumentContext | null = null;
 let chatHistory: ChatMessage[] = [];
 let contextFetchedAt: number | null = null;
@@ -144,6 +172,10 @@ function initializeUI(): void {
     // Restore debug mode
     const debugEl = document.getElementById("debug-mode") as HTMLInputElement | null;
     if (debugEl) debugEl.checked = safeStorage.getItem(DEBUG_MODE_KEY) === "1";
+
+    // Restore theme selection in settings
+    const themeToggleInit = document.getElementById("theme-toggle") as HTMLInputElement | null;
+    if (themeToggleInit) themeToggleInit.checked = getStoredTheme() === "dark";
 
     // Restore functional context in settings textarea
     const savedContext = safeStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "";
@@ -302,6 +334,16 @@ function setupEventListeners(): void {
   if (debugCheckbox) {
     debugCheckbox.addEventListener("change", () => {
       safeStorage.setItem(DEBUG_MODE_KEY, debugCheckbox.checked ? "1" : "0");
+      persistSettingsToPlugin();
+    });
+  }
+
+  // ── Theme toggle ─────────────────────────────────────────────────────────
+  const themeToggle = document.getElementById("theme-toggle") as HTMLInputElement | null;
+  if (themeToggle) {
+    themeToggle.addEventListener("change", () => {
+      const theme: ThemeMode = themeToggle.checked ? "dark" : "light";
+      applyTheme(theme);
       persistSettingsToPlugin();
     });
   }
@@ -689,6 +731,7 @@ function collectPersistedSettings(): PersistedSettings {
     interactionMode,
     functionalContext,
     debugMode: getDebugMode(),
+    theme: getStoredTheme(),
   };
 }
 
@@ -735,6 +778,10 @@ function applyPersistedSettings(settings: PersistedSettings): void {
 
   setInteractionMode(settings.interactionMode);
   updateConnectionBadge();
+
+  // Apply theme from persisted settings
+  const theme = settings.theme ?? DEFAULT_THEME;
+  applyTheme(theme);
 }
 
 function getDebugMode(): boolean {
