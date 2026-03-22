@@ -1379,6 +1379,10 @@
     <title>Anthropic</title>
     <path d="M13.8 3H10.2L2 21H5.8L7.8 16.4H16.2L18.2 21H22L13.8 3ZM9.2 13.5L12 7L14.8 13.5H9.2Z"/>
   </symbol>
+  <!-- exclamation-triangle (warning) -->
+  <symbol id="icon-warning" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+  </symbol>
 </svg>
 
   <!-- ── Header ──────────────────────────────────────────────── -->
@@ -1411,7 +1415,6 @@
       <button class="btn--new-convo" id="clear-btn" type="button"
               title="Start a new conversation" aria-label="Start a new conversation">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
-        New conversation
       </button>
       <span class="connection-badge" role="status" aria-live="polite" aria-label="AI provider status">
         <span class="connection-dot" id="connection-dot" title="Connection status"></span>
@@ -1555,7 +1558,7 @@
         <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
           <button class="btn btn--secondary" id="test-connection-btn" type="button">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
-             Test connection 3
+            <span id="test-connection-label">Test connection</span>
           </button>
           <span id="test-connection-status" class="test-connection-status"></span>
         </div>
@@ -1796,7 +1799,7 @@
        aria-modal="true" aria-labelledby="confirm-title">
     <div class="confirm-dialog">
       <div class="confirm-dialog__title" id="confirm-title">
-        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-refresh"/></svg>
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-warning"/></svg>
         Start a new conversation?
       </div>
       <p class="confirm-dialog__body">

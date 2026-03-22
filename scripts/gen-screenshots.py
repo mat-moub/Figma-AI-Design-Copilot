@@ -165,7 +165,6 @@ CHAT_LABEL_EMPTY = """
     </span>
     <button class="btn--new-convo" type="button">
       <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
-      New conversation
     </button>
     <span class="connection-badge">
       <span class="connection-dot connection-dot--ready"></span>
@@ -605,7 +604,7 @@ html = make_html("""
       <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
         <button class="btn btn--secondary" type="button">
           <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
-          Test connection
+          <span>Test connection</span>
         </button>
       </div>
     </div>

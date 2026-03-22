@@ -1165,8 +1165,8 @@ async function handleTestConnection(): Promise<void> {
 
   if (btn) {
     btn.disabled = true;
-    const textNode = Array.from(btn.childNodes).find((n) => n.nodeType === Node.TEXT_NODE);
-    if (textNode) textNode.textContent = " Testing…";
+    const label = btn.querySelector<HTMLSpanElement>("#test-connection-label");
+    if (label) label.textContent = "Testing…";
   }
   if (statusEl) {
     statusEl.textContent = "Testing connection…";
@@ -1213,8 +1213,8 @@ async function handleTestConnection(): Promise<void> {
   } finally {
     if (btn) {
       btn.disabled = false;
-      const textNode = Array.from(btn.childNodes).find((n) => n.nodeType === Node.TEXT_NODE);
-      if (textNode) textNode.textContent = " Test connection";
+      const label = btn.querySelector<HTMLSpanElement>("#test-connection-label");
+      if (label) label.textContent = "Test connection";
     }
   }
 }
