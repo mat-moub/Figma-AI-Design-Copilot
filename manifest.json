@@ -1,6 +1,6 @@
 {
   "name": "Figma UX Writer Copilot",
-  "id": "figma-ux-writer-copilot",
+  "id": "1617672560984501292",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/ui.html",
