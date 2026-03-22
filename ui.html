@@ -211,6 +211,7 @@
       border: 1px solid var(--header-icon-border);
     }
 
+
     .header__title {
       font-size: 13px;
       font-weight: 700;
@@ -750,7 +751,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      min-height: 200px;
+      min-height: 220px;
       max-height: 75vh;
     }
 
@@ -819,7 +820,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      margin-top: 8px;
+      margin-top: auto;
+      padding-top: 8px;
     }
 
     .versions-checkbox { font-size: 11px; }
@@ -839,7 +841,7 @@
       transition: border-color 0.18s, box-shadow 0.18s;
       flex: 1 1 60px;
       min-height: 60px;
-      max-height: 160px;
+      max-height: none;
       overflow-y: auto;
     }
     textarea:focus {
@@ -1192,6 +1194,7 @@
       color: var(--header-title);
       letter-spacing: 0.2px;
     }
+
 
     .onboarding-progress {
       display: flex;
@@ -1632,7 +1635,7 @@
     <div class="input-bottom">
       <p class="hint">
         <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
-        Ctrl+Enter / ⌘+Enter
+        Enter &nbsp;·&nbsp; Shift+Enter for newline
       </p>
       <button class="btn btn--primary" id="generate-btn" type="button">
         <span id="spinner" class="spinner hidden"></span>
@@ -2068,8 +2071,8 @@
         if (!handle || !inputSection) return;
 
         /* Min height: textarea min-height (60) + options bar + generate row +
-           vertical padding ≈ 150px. Max height leaves at least 60px for chat. */
-        var MIN_INPUT_H = 150;
+           vertical padding ≈ 175px. Max height leaves at least 60px for chat. */
+        var MIN_INPUT_H = 175;
         var MAX_INPUT_H = 400;
         var startY      = 0;
         var startH      = 0;

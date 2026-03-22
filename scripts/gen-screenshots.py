@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate 420×640 plugin screenshots using Chromium headless.
-- Plugin opens at 420×640 (see figma.showUI in src/main.ts)
+- Plugin opens at 420×720 (see figma.showUI in src/main.ts)
 - Renders at 420×900 to avoid cutting off bottom content
 - Crops to 420×640 using Pillow
 - Font Awesome loaded from local npm package
@@ -72,7 +72,7 @@ FA_LINK = f'<link rel="stylesheet" href="file://{FA_CSS}">'
 
 RENDER_H = 900  # render taller than H so nothing gets clipped by viewport
 
-# Target dimensions matching figma.showUI({ width: 420, height: 640 })
+# Screenshot crop size for README assets (fixed)
 W = 420
 H = 640
 
@@ -476,7 +476,7 @@ html = make_html(
   <div class="input-bottom">
     <p class="hint">
       <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
-      Ctrl+Enter / &#8984;+Enter
+      Enter &nbsp;&middot;&nbsp; Shift+Enter for newline
     </p>
     <button class="btn btn--primary" type="button">
       <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
@@ -529,7 +529,7 @@ html = make_html(
   <div class="input-bottom">
     <p class="hint">
       <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
-      Ctrl+Enter / &#8984;+Enter
+      Enter &nbsp;&middot;&nbsp; Shift+Enter for newline
     </p>
     <button class="btn btn--primary" type="button">
       <i class="fa-solid fa-comments" aria-hidden="true"></i>

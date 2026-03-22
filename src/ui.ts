@@ -269,7 +269,8 @@ function setupEventListeners(): void {
   });
 
   promptInput.addEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       if (interactionMode === "ask") {
         void handleAsk();
       } else {
