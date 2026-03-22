@@ -1,21 +1,19 @@
 /**
- * main.ts — Figma Plugin Controller
+ * main.ts — Figma UX Writer Copilot Controller
  *
  * Runs inside the Figma plugin sandbox. Has exclusive access to the Figma
  * API. Communicates with the UI (ui.html) via postMessage.
  */
 
 import { ContextEngine } from "./services/context-engine";
-import { FigmaBuilder } from "./services/figma-builder";
 import type {
-  BuildScreensMessage,
+  ApplyTextMessage,
   PersistedSettings,
   SaveSettingsMessage,
   UIToPluginMessage,
 } from "./types/ui-types";
 
 const contextEngine = new ContextEngine();
-const figmaBuilder = new FigmaBuilder();
 const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
 const SETTINGS_KEY = "copilot_settings";
 
@@ -35,7 +33,7 @@ figma.showUI(__html__, { width: 420, height: 640, themeColors: true });
 
 figma.ui.postMessage({
   type: "notify",
-  message: "Plugin ready. Configure your API key and start designing!",
+  message: "UX Writer Copilot ready. Select a text node and start writing!",
 });
 
 // ── Message handler ──────────────────────────────────────────────────────────
@@ -63,8 +61,8 @@ figma.ui.onmessage = async (msg: UIToPluginMessage) => {
         await handleSetOnboardingDone();
         break;
 
-      case "build-screens":
-        await handleBuildScreens(msg);
+      case "apply-text":
+        await handleApplyText(msg);
         break;
 
       default:
@@ -79,7 +77,6 @@ figma.ui.onmessage = async (msg: UIToPluginMessage) => {
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
 async function handleGetContext(): Promise<void> {
-  await figma.loadAllPagesAsync();
   const context = await contextEngine.extract();
   figma.ui.postMessage({ type: "context-ready", context });
 }
@@ -102,11 +99,39 @@ async function handleSetOnboardingDone(): Promise<void> {
   await figma.clientStorage.setAsync(ONBOARDING_DONE_KEY, true);
 }
 
-async function handleBuildScreens(msg: BuildScreensMessage): Promise<void> {
-  figma.ui.postMessage({ type: "notify", message: "Building screens in Figma…" });
+/**
+ * Apply a text alternative to the first selected TextNode in Figma.
+ * Loads fonts before writing to avoid a "font not loaded" error.
+ */
+async function handleApplyText(msg: ApplyTextMessage): Promise<void> {
+  const selection = figma.currentPage.selection;
+  const textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
 
-  const count = await figmaBuilder.buildScreens(msg.screens);
+  if (!textNode) {
+    figma.ui.postMessage({
+      type: "error",
+      message: "No text node selected. Please select a text layer in Figma first.",
+    });
+    return;
+  }
 
-  figma.ui.postMessage({ type: "screens-built", count });
-  figma.notify(`✅ ${count} screen${count !== 1 ? "s" : ""} created successfully!`);
+  // Load all fonts used by this text node before editing
+  const fontName = textNode.fontName;
+  if (fontName !== figma.mixed) {
+    await figma.loadFontAsync(fontName);
+  } else {
+    // Mixed fonts — load each unique font in the node
+    const segments = textNode.getStyledTextSegments(["fontName"]);
+    const uniqueFonts = new Map<string, FontName>();
+    for (const seg of segments) {
+      const key = `${seg.fontName.family}::${seg.fontName.style}`;
+      if (!uniqueFonts.has(key)) uniqueFonts.set(key, seg.fontName);
+    }
+    await Promise.all([...uniqueFonts.values()].map((f) => figma.loadFontAsync(f)));
+  }
+
+  textNode.characters = msg.text;
+
+  figma.ui.postMessage({ type: "text-applied" });
+  figma.notify(`Text updated successfully.`);
 }

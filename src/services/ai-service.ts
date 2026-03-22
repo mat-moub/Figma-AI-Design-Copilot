@@ -2,54 +2,109 @@ import type {
   ChatMessage,
   DocumentContext,
   ModelConfig,
-  UIScreen,
+  ScreenTextContext,
+  SelectedTextContext,
+  TextAlternative,
 } from "../types/ui-types";
 import type { LLMProvider } from "../providers/llm-provider";
 import { GeminiProvider } from "../providers/gemini-provider";
 import { OpenAIProvider } from "../providers/openai-provider";
 import { AnthropicProvider } from "../providers/anthropic-provider";
 
-// ─── Prompt builder ───────────────────────────────────────────────────────────
+// ─── Text context formatter ───────────────────────────────────────────────────
 
-function buildSystemPrompt(context: DocumentContext, agentPrompt: string): string {
+/**
+ * Render the page text context as a readable block for the system prompt.
+ * Each screen section lists its text entries sorted by importance so the LLM
+ * understands the content hierarchy at a glance.
+ */
+function formatTextContext(pageTextContext: ScreenTextContext[]): string {
+  const populated = pageTextContext.filter((s) => s.texts.length > 0);
+  if (populated.length === 0) return "None found";
+
+  return populated
+    .map((screen) => {
+      const lines = screen.texts.map((t) => {
+        const size =
+          t.fontSize === "mixed" ? "mixed" : `${String(t.fontSize)}px`;
+        const font =
+          t.fontStyle === "mixed"
+            ? t.fontFamily
+            : `${t.fontFamily} ${t.fontStyle}`;
+        const component = t.insideComponent ? ", in-component" : "";
+        const preview =
+          t.characters.length > 80
+            ? `${t.characters.slice(0, 80)}…`
+            : t.characters;
+        return (
+          `    [${t.role}, importance:${String(t.importance)}, ${size}, ${font}` +
+          `${component}] "${preview}" (${String(t.charCount)} chars)`
+        );
+      });
+      return `  Screen: "${screen.screenName}"\n${lines.join("\n")}`;
+    })
+    .join("\n\n");
+}
+
+/**
+ * Render the currently selected text node as a structured block for the
+ * system prompt so the LLM has precise context about what it is rewriting.
+ */
+function formatSelectedText(selected: SelectedTextContext | null): string {
+  if (!selected || selected.characters.trim() === "") {
+    return "No text node currently selected in Figma.";
+  }
+  const size = selected.fontSize === "mixed" ? "mixed" : `${String(selected.fontSize)}px`;
+  const component = selected.insideComponent ? ", inside a component" : "";
+  const screen = selected.screenName ? `, on screen "${selected.screenName}"` : "";
+  return (
+    `Original text: "${selected.characters}" (${String(selected.charCount)} chars)\n` +
+    `Role: ${selected.role}, font: ${selected.fontFamily} ${size}${component}${screen}`
+  );
+}
+
+// ─── System prompt builder ────────────────────────────────────────────────────
+
+function buildAlternativesSystemPrompt(
+  context: DocumentContext,
+  agentPrompt: string,
+  count: number
+): string {
+  const screens =
+    context.screens.length > 0 ? context.screens.join(", ") : "None found";
   const components =
     context.designSystem.components.length > 0
       ? context.designSystem.components.join(", ")
-      : "None found";
-
+      : "None";
   const colors =
     context.designSystem.colors.length > 0
       ? context.designSystem.colors.join(", ")
-      : "None found";
-
-  const screens =
-    context.screens.length > 0
-      ? context.screens.join(", ")
-      : "None found";
+      : "None";
+  const textStyles =
+    context.designSystem.textStyles.length > 0
+      ? context.designSystem.textStyles.join(", ")
+      : "None";
+  const textContext = formatTextContext(context.pageTextContext);
+  const selectedText = formatSelectedText(context.selectedText);
 
   return `${agentPrompt}
 
 ---
 FIGMA DOCUMENT CONTEXT
 ---
+Current Page Screens: ${screens}
 Design System Components: ${components}
 Design System Colors: ${colors}
-Existing Screens: ${screens}
+Design System Text Styles: ${textStyles}
 
-When generating UI, always return ONLY a valid JSON array of screen objects.
-Each screen object must follow this exact schema:
-{
-  "name": string,
-  "layout": "vertical" | "horizontal" | "none",
-  "elements": Array<{
-    "type": "text" | "button" | "input" | "card" | "image" | "icon" | "divider" | "header" | "footer" | "nav" | "list" | "modal" | "tab" | "badge" | "avatar" | "container",
-    "value": string (optional),
-    "component": string (optional, name of design system component),
-    "children": Array<element> (optional),
-    "style": object (optional)
-  }>
-}
+Current Page Text Content (grouped by screen, sorted by importance):
+${textContext}
 
+SELECTED TEXT NODE
+---
+${selectedText}
+
+Generate exactly ${String(count)} distinct wording alternative${count !== 1 ? "s" : ""}.
 Return ONLY the JSON array, no markdown fences, no explanation.`;
 }
 
@@ -77,7 +132,7 @@ export function createProvider(config: ModelConfig): LLMProvider {
 
 // ─── Response parser ──────────────────────────────────────────────────────────
 
-function parseScreensFromResponse(raw: string): UIScreen[] {
+function parseAlternativesFromResponse(raw: string): TextAlternative[] {
   // Strip potential markdown code fences
   const cleaned = raw
     .replace(/```json\s*/gi, "")
@@ -92,41 +147,41 @@ function parseScreensFromResponse(raw: string): UIScreen[] {
   }
 
   if (!Array.isArray(parsed)) {
-    throw new Error("AI response is not a JSON array of screens.");
+    throw new Error("AI response is not a JSON array of text alternatives.");
   }
 
-  return parsed as UIScreen[];
+  return (parsed as Array<Record<string, unknown>>).map((item) => ({
+    text: typeof item["text"] === "string" ? item["text"] : String(item["text"] ?? ""),
+    rationale: typeof item["rationale"] === "string" ? item["rationale"] : undefined,
+  }));
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export class AIService {
   /**
-   * Call the configured LLM provider and return parsed UI screens.
+   * Call the configured LLM provider and return parsed text alternatives.
    *
-   * The provider is selected from `config.provider`:
-   *   - `"gemini"` → Google Gemini API (default, BYOK via `config.geminiKey`)
-   *   - `"openai"` → OpenAI Chat Completions API (BYOK via `config.openaiKey`)
-   *   - `"anthropic"` → Anthropic Messages API (BYOK via `config.anthropicKey`)
-   *
-   * @param userPrompt   The designer's natural language request.
+   * @param userPrompt   The designer's wording request or instruction.
+   * @param count        Number of alternatives to generate.
    * @param agentPrompt  The agent's system prompt.
-   * @param context      The Figma document context.
+   * @param context      The Figma document context (including selected text).
    * @param config       Provider, model, and API key configuration.
    * @param history      Previous chat messages for multi-turn conversations.
    */
-  async generateScreens(
+  async generateAlternatives(
     userPrompt: string,
+    count: number,
     agentPrompt: string,
     context: DocumentContext,
     config: ModelConfig,
     history: ChatMessage[] = []
-  ): Promise<UIScreen[]> {
+  ): Promise<TextAlternative[]> {
     const provider = createProvider(config);
 
     const systemMessage: ChatMessage = {
       role: "system",
-      content: buildSystemPrompt(context, agentPrompt),
+      content: buildAlternativesSystemPrompt(context, agentPrompt, count),
     };
 
     const conversationHistory: ChatMessage[] = history.filter(
@@ -148,7 +203,7 @@ export class AIService {
 
     if (config.debug) {
       /* eslint-disable no-console */
-      console.group("[AI Debug] generateScreens");
+      console.group("[AI Debug] generateAlternatives");
       console.log("System prompt:\n", messages[0].content);
       console.log("User prompt:\n", userPrompt);
       console.log("Figma context:", context);
@@ -157,13 +212,12 @@ export class AIService {
       /* eslint-enable no-console */
     }
 
-    return parseScreensFromResponse(rawResponse);
+    return parseAlternativesFromResponse(rawResponse);
   }
 
   /**
-   * Send a free-form design question to the AI and return its plain-text answer.
-   * Unlike `generateScreens`, this method does NOT produce Figma frames — it is
-   * used by the "Ask" mode for conversational design advice.
+   * Send a free-form UX writing question to the AI and return its plain-text answer.
+   * Used by the "Ask" mode for conversational advice — no alternatives are generated.
    *
    * @param question  The designer's question or request.
    * @param context   The Figma document context (used for awareness only).
@@ -178,26 +232,19 @@ export class AIService {
   ): Promise<string> {
     const provider = createProvider(config);
 
-    const components =
-      context.designSystem.components.length > 0
-        ? context.designSystem.components.join(", ")
-        : "None found";
-    const colors =
-      context.designSystem.colors.length > 0
-        ? context.designSystem.colors.join(", ")
-        : "None found";
     const screens =
-      context.screens.length > 0
-        ? context.screens.join(", ")
-        : "None found";
+      context.screens.length > 0 ? context.screens.join(", ") : "None found";
+    const textContext = formatTextContext(context.pageTextContext);
+    const selectedText = formatSelectedText(context.selectedText);
 
     const systemContent =
-      `You are an expert UI/UX design consultant integrated into Figma. ` +
-      `Answer the designer's questions with clear, actionable advice. ` +
+      `You are an expert UX writer and content designer integrated into Figma. ` +
+      `Answer the designer's questions with clear, actionable advice about wording, ` +
+      `microcopy, tone of voice, and content strategy. ` +
       `You have awareness of the designer's Figma document:\n` +
-      `  - Design System Components: ${components}\n` +
-      `  - Design System Colors: ${colors}\n` +
-      `  - Existing Screens: ${screens}\n\n` +
+      `  - Current Page Screens: ${screens}\n` +
+      `  - Current Page Text Content:\n${textContext}\n` +
+      `  - Selected Text Node:\n${selectedText}\n\n` +
       `Respond in plain text. Be concise and helpful. Do NOT output JSON.`;
 
     const systemMessage: ChatMessage = { role: "system", content: systemContent };
@@ -229,18 +276,10 @@ export class AIService {
   /**
    * Build a human-readable prompt for display in the chat history.
    */
-  formatUserPrompt(
-    prompt: string,
-    variants: number,
-    context: DocumentContext
-  ): string {
-    let full = prompt;
-    if (variants > 1) {
-      full += `\n\nGenerate ${variants} variants.`;
+  formatUserPrompt(prompt: string, count: number): string {
+    if (count > 1) {
+      return `${prompt}\n\nGenerate ${String(count)} alternatives.`;
     }
-    if (context.designSystem.components.length > 0) {
-      full += `\n\nUse these design system components where appropriate: ${context.designSystem.components.join(", ")}.`;
-    }
-    return full;
+    return prompt;
   }
 }

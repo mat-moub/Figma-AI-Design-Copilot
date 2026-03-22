@@ -1,7 +1,7 @@
 {
-  "name": "figma-ai-design-copilot",
+  "name": "figma-ux-writer-copilot",
   "version": "1.0.0",
-  "description": "AI-powered Figma design assistant with chat interface, multi-model support, agents, and screen generation",
+  "description": "AI-powered UX writing assistant for Figma designers — generate text alternatives, microcopy, and wording suggestions directly in your Figma file.",
   "scripts": {
     "build": "node build.js",
     "watch": "node build.js --watch",

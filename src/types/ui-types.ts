@@ -1,42 +1,14 @@
-// ─── UI Element Types ────────────────────────────────────────────────────────
+// ─── Text Alternative ─────────────────────────────────────────────────────────
 
-export type UIElementType =
-  | "text"
-  | "button"
-  | "input"
-  | "card"
-  | "image"
-  | "icon"
-  | "divider"
-  | "header"
-  | "footer"
-  | "nav"
-  | "list"
-  | "modal"
-  | "tab"
-  | "badge"
-  | "avatar"
-  | "container";
-
-export interface UIElement {
-  type: UIElementType;
-  value?: string;
-  /** Name of design system component to use (e.g. "ButtonPrimary") */
-  component?: string;
-  children?: UIElement[];
-  style?: Record<string, string>;
-}
-
-// ─── Screen / Variant ────────────────────────────────────────────────────────
-
-export type LayoutMode = "vertical" | "horizontal" | "none";
-
-export interface UIScreen {
-  name: string;
-  layout: LayoutMode;
-  elements: UIElement[];
-  width?: number;
-  height?: number;
+/**
+ * A single AI-generated text alternative for a Figma text node.
+ * The plugin generates N alternatives and lets the designer apply one.
+ */
+export interface TextAlternative {
+  /** The AI-proposed text copy. */
+  text: string;
+  /** Optional short rationale explaining the writing choice. */
+  rationale?: string;
 }
 
 // ─── Chat ────────────────────────────────────────────────────────────────────
@@ -102,8 +74,6 @@ export interface PersistedSettings {
   provider: LLMProvider;
   modelByProvider: Partial<Record<LLMProvider, AIModel>>;
   apiKeyByProvider: Partial<Record<LLMProvider, string>>;
-  keepDesignSystem: boolean;
-  advancedUXSkills: boolean;
   interactionMode: "generate" | "ask";
   functionalContext: string;
   debugMode: boolean;
@@ -117,35 +87,108 @@ export interface DesignSystem {
   textStyles: string[];
 }
 
+/** Inferred semantic role of a text node based on its name and font properties. */
+export type TextRole =
+  | "heading"
+  | "subheading"
+  | "body"
+  | "label"
+  | "caption"
+  | "button"
+  | "unknown";
+
+/**
+ * A single text node extracted from the current Figma page, enriched with
+ * metadata useful for LLM-based wording generation.
+ */
+export interface TextEntry {
+  /** Figma layer name — often reflects the semantic role (e.g. "heading", "btn-label"). */
+  layerName: string;
+  /** Raw text content of the node. */
+  characters: string;
+  /** Approximate character count — useful as a length constraint hint for the LLM. */
+  charCount: number;
+  /** Inferred semantic role derived from layer name and font properties. */
+  role: TextRole;
+  /**
+   * Importance level within its screen:
+   * - `1` = primary (heading, CTA)
+   * - `2` = secondary (subheading, body)
+   * - `3` = tertiary (caption, footnote)
+   */
+  importance: 1 | 2 | 3;
+  /** Font family name, or `"mixed"` when the node uses multiple families. */
+  fontFamily: string;
+  /** Font style (e.g. `"Bold"`, `"Regular"`), or `"mixed"`. */
+  fontStyle: string;
+  /** Font size in pixels, or `"mixed"` when multiple sizes are used. */
+  fontSize: number | "mixed";
+  /**
+   * True when the text node lives inside a component instance or component
+   * master — gives the LLM context about its role (e.g. button label).
+   */
+  insideComponent: boolean;
+}
+
+/** All text entries found within a single top-level screen frame. */
+export interface ScreenTextContext {
+  /** Name of the top-level FRAME node (screen). */
+  screenName: string;
+  /** Text entries within this screen, ordered by importance then document order. */
+  texts: TextEntry[];
+}
+
+/**
+ * The text node currently selected by the designer in Figma.
+ * Sent to the AI as the primary input for wording generation.
+ */
+export interface SelectedTextContext {
+  /** The raw text currently in the selected node. */
+  characters: string;
+  /** Inferred semantic role. */
+  role: TextRole;
+  /** Font size in px, or `"mixed"`. */
+  fontSize: number | "mixed";
+  /** Font family, or `"mixed"`. */
+  fontFamily: string;
+  /** Approximate character count. */
+  charCount: number;
+  /** True if the node is inside a component or instance. */
+  insideComponent: boolean;
+  /** Name of the screen (top-level frame) that contains this text node, if any. */
+  screenName: string | null;
+}
+
 export interface DocumentContext {
   designSystem: DesignSystem;
+  /** Top-level frame names on the current page. */
   screens: string[];
+  /** All page names in the document. */
   pages: string[];
+  /** Text content of the current page, grouped by screen, for wording context. */
+  pageTextContext: ScreenTextContext[];
+  /** Currently selected text node, if any. */
+  selectedText: SelectedTextContext | null;
 }
 
 // ─── Agent ───────────────────────────────────────────────────────────────────
 
-export type AgentType = "ux-designer" | "design-system";
+export type AgentType = "ux-writer";
 
 export interface AgentConfig {
   type: AgentType;
   systemPrompt: string;
-  skills: SkillType[];
 }
 
-// ─── Skill ───────────────────────────────────────────────────────────────────
-
-export type SkillType = "generate-screen" | "generate-variants" | "apply-design-system";
-
-// ─── Custom Skills & Agents ──────────────────────────────────────────────────
+// ─── Custom Skills (prompt modifiers via copilot.json) ───────────────────────
 
 /**
  * Definition of a user-provided custom skill loaded from a copilot config file.
  * A custom skill appends a `promptModifier` to the agent system prompt, letting
- * users extend generation behaviour without writing TypeScript.
+ * users extend wording generation behaviour without writing TypeScript.
  */
 export interface CustomSkillConfig {
-  /** Unique identifier used in CustomAgentConfig.skills */
+  /** Unique identifier */
   id: string;
   /** Human-readable name shown in the UI */
   name: string;
@@ -154,65 +197,24 @@ export interface CustomSkillConfig {
 }
 
 /**
- * Definition of a user-provided custom agent loaded from a copilot config file.
- * Custom agents run the same built-in skills as built-in agents but with a
- * fully user-controlled system prompt and skill selection.
- */
-export interface CustomAgentConfig {
-  /** Unique identifier — used as the <option> value in the agent select */
-  id: string;
-  /** Human-readable name shown in the UI agent dropdown */
-  name: string;
-  /** System prompt sent to the AI model */
-  systemPrompt: string;
-  /**
-   * Ordered list of built-in skill IDs to execute.
-   * Supported values: "generate-screen", "generate-variants", "apply-design-system".
-   */
-  skills: SkillType[];
-}
-
-/**
- * A single skill entry from the external skills library
- * (https://github.com/flpbalada/my-opencode-config).
- * Code-related skills are excluded at fetch time.
- */
-export interface ExternalSkillEntry {
-  /** Folder name / unique identifier in the remote repository */
-  id: string;
-  /** Human-readable display name derived from the folder name */
-  name: string;
-}
-
-/**
- * Schema for the copilot config file (e.g. `copilot.json` or
- * `.copilot/config.json`) that users can drop into the plugin panel to
- * register their own agents and skills — inspired by Claude Code's `.claude`
- * folder convention.
+ * Schema for the copilot config file (e.g. `copilot.json`) that users can drop
+ * into the plugin panel to register their own skills — inspired by Claude Code's
+ * `.claude` folder convention.
  */
 export interface CopilotConfig {
   /** Optional schema version for future compatibility */
   version?: string;
-  /** Custom agents to register */
-  agents?: CustomAgentConfig[];
-  /** Custom skills available to agents */
+  /** Custom skills available to the UX writer agent */
   skills?: CustomSkillConfig[];
 }
 
-export interface GenerateScreenInput {
+export interface GenerateAlternativesInput {
   prompt: string;
+  count: number;
   context: DocumentContext;
   modelConfig: ModelConfig;
   history: ChatMessage[];
-}
-
-export interface GenerateVariantsInput extends GenerateScreenInput {
-  variants: number;
-}
-
-export interface ApplyDesignSystemInput {
-  screens: UIScreen[];
-  designSystem: DesignSystem;
+  functionalContext?: string;
 }
 
 // ─── Plugin Message Types ────────────────────────────────────────────────────
@@ -226,8 +228,8 @@ export type PluginMessageType =
   | "get-onboarding-status"
   | "onboarding-status"
   | "set-onboarding-done"
-  | "build-screens"
-  | "screens-built"
+  | "apply-text"
+  | "text-applied"
   | "error"
   | "notify";
 
@@ -240,9 +242,13 @@ export interface ContextReadyMessage {
   context: DocumentContext;
 }
 
-export interface BuildScreensMessage {
-  type: "build-screens";
-  screens: UIScreen[];
+export interface ApplyTextMessage {
+  type: "apply-text";
+  text: string;
+}
+
+export interface TextAppliedMessage {
+  type: "text-applied";
 }
 
 export interface GetSettingsMessage {
@@ -272,11 +278,6 @@ export interface SetOnboardingDoneMessage {
   type: "set-onboarding-done";
 }
 
-export interface ScreensBuiltMessage {
-  type: "screens-built";
-  count: number;
-}
-
 export interface ErrorMessage {
   type: "error";
   message: string;
@@ -291,7 +292,7 @@ export type PluginToUIMessage =
   | ContextReadyMessage
   | SettingsLoadedMessage
   | OnboardingStatusMessage
-  | ScreensBuiltMessage
+  | TextAppliedMessage
   | ErrorMessage
   | NotifyMessage;
 
@@ -301,4 +302,4 @@ export type UIToPluginMessage =
   | SaveSettingsMessage
   | GetOnboardingStatusMessage
   | SetOnboardingDoneMessage
-  | BuildScreensMessage;
+  | ApplyTextMessage;

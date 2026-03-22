@@ -10,14 +10,54 @@ import re
 import subprocess
 import tempfile
 import os
+import sys
+import io
 from PIL import Image
+
+# Force UTF-8 output on Windows to avoid emoji encode errors
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS_DIR = os.path.join(REPO, "screenshots")
 FA_CSS = os.path.join(REPO, "node_modules/@fortawesome/fontawesome-free/css/all.min.css")
 UI_HTML = os.path.join(REPO, "ui.html")
 
-with open(UI_HTML, "r") as f:
+# ── Locate Chrome / Chromium executable ──────────────────────────────────────
+def _find_chrome() -> str:
+    candidates = [
+        # Windows — Chrome stable
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        # Windows — Chromium
+        r"C:\Program Files\Chromium\Application\chrome.exe",
+        # macOS
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        # Linux
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    # Last resort: PATH
+    import shutil
+    for name in ("chromium", "chromium-browser", "google-chrome", "chrome"):
+        found = shutil.which(name)
+        if found:
+            return found
+    print("ERROR: Could not find Chrome/Chromium. Install Chrome and try again.", file=sys.stderr)
+    sys.exit(1)
+
+CHROME = _find_chrome()
+print(f"Using browser: {CHROME}")
+
+# Temp dir: use system temp (works on Windows, macOS, Linux)
+TMP_DIR = tempfile.gettempdir()
+
+with open(UI_HTML, "r", encoding="utf-8") as f:
     ui_src = f.read()
 
 css_match = re.search(r"<style>(.*?)</style>", ui_src, re.DOTALL)
@@ -65,14 +105,15 @@ def make_html(body_html: str, extra_css: str = "") -> str:
 
 
 def screenshot(html: str, out_path: str, crop_h: int = H):
-    """Render HTML to PNG using Chromium, then crop to crop_h pixels tall."""
-    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", delete=False, dir="/tmp") as f:
+    """Render HTML to PNG using Chrome headless, then crop to crop_h pixels tall."""
+    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8",
+                                     delete=False, dir=TMP_DIR) as f:
         f.write(html)
         tmp_html = f.name
     tmp_png = tmp_html.replace(".html", ".png")
     try:
-        subprocess.run([
-            "chromium",
+        result = subprocess.run([
+            CHROME,
             "--headless=new",
             "--no-sandbox",
             "--disable-gpu",
@@ -80,8 +121,10 @@ def screenshot(html: str, out_path: str, crop_h: int = H):
             "--run-all-compositor-stages-before-draw",
             f"--window-size={W},{RENDER_H}",
             f"--screenshot={tmp_png}",
-            f"file://{tmp_html}",
+            f"file:///{tmp_html.replace(os.sep, '/')}",
         ], capture_output=True, text=True, timeout=90)
+        if result.returncode != 0:
+            print(f"  [chrome stderr] {result.stderr[:400]}", file=sys.stderr)
 
         # Crop to target height
         img = Image.open(tmp_png)
@@ -102,7 +145,7 @@ MAIN_HEADER = """
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
     </div>
     <div>
-      <div class="header__title">AI Design Copilot</div>
+      <div class="header__title">UX Writer Copilot</div>
       <div class="header__subtitle">Powered by LLM</div>
     </div>
   </div>
@@ -139,7 +182,7 @@ html = make_html("""
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-      AI Design Copilot
+      UX Writer Copilot
     </div>
     <div class="onboarding-progress">
       <span class="onboarding-dot onboarding-dot--active"></span>
@@ -151,17 +194,17 @@ html = make_html("""
   <div class="onboarding-body">
     <div class="onboarding-step">
       <div class="onboarding-icon" aria-hidden="true">✨</div>
-      <h2 class="onboarding-title">Welcome to AI Design Copilot</h2>
+      <h2 class="onboarding-title">Welcome to UX Writer Copilot</h2>
       <p class="onboarding-desc">
-        Generate Figma screens from natural language prompts using AI.
-        Let's get you set up in 3 quick steps.
+        Generate wording alternatives for any text node in Figma using AI.
+        Let&#39;s get you set up in 3 quick steps.
       </p>
       <ul class="onboarding-features">
-        <li>🎨 Describe a screen and watch it appear in Figma</li>
-        <li>💬 Ask design questions in <strong>Ask mode</strong> — no frame needed</li>
-        <li>🤖 Supports GitHub Copilot, OpenAI, and Anthropic</li>
-        <li>📐 Respects your design system's components and styles</li>
-        <li>🔀 Generate multiple versions of a screen at once</li>
+        <li>✍️ Select any text node and get AI-powered wording suggestions</li>
+        <li>💬 Ask UX writing questions in <strong>Ask mode</strong> — no edits needed</li>
+        <li>🎯 Context-aware: AI reads your Figma layout for better copy</li>
+        <li>🔁 Generate multiple alternatives at once and apply with one click</li>
+        <li>🤖 Supports Gemini, OpenAI, and Anthropic</li>
       </ul>
     </div>
   </div>
@@ -184,7 +227,7 @@ html = make_html("""
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-      AI Design Copilot
+      UX Writer Copilot
     </div>
     <div class="onboarding-progress">
       <span class="onboarding-dot"></span>
@@ -207,7 +250,7 @@ html = make_html("""
           </label>
           <div class="ob-provider-select-wrap" style="flex:1">
             <select id="ob-prov" style="flex:1;width:100%">
-              <option selected>GitHub Copilot</option>
+              <option selected>Gemini (Google)</option>
               <option>OpenAI</option>
               <option>Anthropic</option>
             </select>
@@ -219,16 +262,16 @@ html = make_html("""
             Model
           </label>
           <select id="ob-mod" style="flex:1">
-            <option>GPT-5.2</option>
+            <option>Gemini 3.1 Flash Lite</option>
           </select>
         </div>
         <div class="settings__row">
           <span class="settings__label">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
-            GH Token
+            API Key
           </span>
           <div class="api-key-row">
-            <input type="password" placeholder="ghp_… (copilot scope)" style="flex:1"/>
+            <input type="password" placeholder="AIza… (Google AI Studio key)" style="flex:1"/>
             <button class="btn btn--icon" type="button">
               <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-eye"/></svg>
             </button>
@@ -238,16 +281,15 @@ html = make_html("""
       <div class="ob-token-instructions" style="margin-top:10px">
         <div class="ob-inst-header">
           <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
-          GitHub Copilot — How to get your token
+          Gemini (Google) — How to get your API key
         </div>
         <ol>
-          <li>Go to <strong>github.com</strong> → Settings → Developer settings →<br>Personal access tokens → Tokens (classic).</li>
-          <li>Click <strong>Generate new token (classic)</strong>.</li>
-          <li>Select the <strong>copilot</strong> scope (under GitHub Copilot).</li>
-          <li>Copy the token (<code>ghp_…</code>) and paste it in the field above.</li>
+          <li>Go to <strong>aistudio.google.com</strong> → Get API key.</li>
+          <li>Click <strong>Create API key</strong> and select or create a project.</li>
+          <li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li>
         </ol>
         <p style="margin-top:6px;font-size:10px;color:var(--text-muted)">
-          ⚠️ Requires an active <strong>GitHub Copilot</strong> subscription.
+          Free tier available. No credit card required to start.
         </p>
       </div>
       <p class="onboarding-hint">🔒 Your key is stored locally and never shared.</p>
@@ -273,7 +315,7 @@ html = make_html("""
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-      AI Design Copilot
+      UX Writer Copilot
     </div>
     <div class="onboarding-progress">
       <span class="onboarding-dot"></span>
@@ -290,7 +332,7 @@ html = make_html("""
       </h2>
       <p class="onboarding-desc">
         Describe your product, industry, or target users. The AI will use this business context
-        in every generation to produce screens that fit your application.
+        in every generation to produce copy that fits your application&#39;s voice and audience.
       </p>
       <div class="onboarding-configure">
         <div>
@@ -298,7 +340,7 @@ html = make_html("""
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
             Functional context
           </label>
-          <textarea id="ob-ctx" class="onboarding-textarea" spellcheck="false">We are building an application for... (describe your product, industry, or target users here). Generate screens that match our brand and workflows.</textarea>
+          <textarea id="ob-ctx" class="onboarding-textarea" spellcheck="false">We are building an application for... (describe your product, industry, or target users here). Generate copy that matches our brand voice and workflows.</textarea>
         </div>
       </div>
       <p class="onboarding-hint">
@@ -328,7 +370,7 @@ html = make_html("""
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-      AI Design Copilot
+      UX Writer Copilot
     </div>
     <div class="onboarding-progress">
       <span class="onboarding-dot"></span>
@@ -342,33 +384,29 @@ html = make_html("""
       <div class="onboarding-icon" aria-hidden="true">🚀</div>
       <h2 class="onboarding-title">You&#39;re all set!</h2>
       <p class="onboarding-desc">
-        Start generating screens by typing a prompt below.
+        Start improving your copy by selecting a text node in Figma and typing a prompt.
         Here are some tips to get the most out of the plugin.
       </p>
       <ul class="onboarding-tips">
         <li>
-          <i class="fa-solid fa-wand-magic-sparkles" style="width:14px;color:var(--action)"></i>
-          <strong>Generate mode</strong> — Describe a screen and watch it appear in Figma
+          <i class="fa-solid fa-pen-nib" style="width:14px;color:var(--action)"></i>
+          <strong>Generate mode</strong> — Select a text node, describe the wording you want, and get alternatives
         </li>
         <li>
           <i class="fa-solid fa-comments" style="width:14px;color:var(--primary)"></i>
-          <strong>Ask mode</strong> — Ask design questions and get AI advice without creating frames
+          <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything
         </li>
         <li>
-          <i class="fa-regular fa-clone" style="width:14px;color:var(--primary)"></i>
-          <strong>Versions</strong> — Set a number to generate multiple versions at once
+          <i class="fa-solid fa-list-ol" style="width:14px;color:var(--primary)"></i>
+          <strong>Alternatives</strong> — Set a number to generate multiple copy options at once
         </li>
         <li>
-          <i class="fa-solid fa-palette" style="width:14px;color:var(--primary)"></i>
-          <strong>Keep existing design system</strong> — Enforce your Figma components
-        </li>
-        <li>
-          <i class="fa-solid fa-brain" style="width:14px;color:var(--primary)"></i>
-          <strong>Advanced UX skills</strong> — Apply UX frameworks to generation
+          <i class="fa-solid fa-check" style="width:14px;color:var(--primary)"></i>
+          <strong>Apply</strong> — Click &ldquo;Apply&rdquo; on any alternative to write it directly into the text node
         </li>
         <li>
           <i class="fa-solid fa-rotate" style="width:14px;color:var(--primary)"></i>
-          <strong>Context</strong> — Click &ldquo;Context&rdquo; so AI reads your Figma document
+          <strong>Context</strong> — Click &ldquo;Context&rdquo; so AI reads your Figma document for better suggestions
         </li>
         <li>
           <i class="fa-solid fa-gear" style="width:14px;color:var(--primary)"></i>
@@ -400,7 +438,7 @@ html = make_html(
     </span>
     <span class="connection-badge">
       <span class="connection-dot connection-dot--ready"></span>
-      GitHub Copilot &middot; GPT-5.2
+      Gemini &middot; Flash Lite
     </span>
   </div>
   <div id="chat-history">
@@ -408,8 +446,8 @@ html = make_html(
       <div class="chat-empty__icon">
         <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
       </div>
-      <p class="chat-empty__title">Start creating a screen</p>
-      <p class="chat-empty__subtitle">Describe any UI screen and I&#39;ll design it<br>directly in your Figma file.</p>
+      <p class="chat-empty__title">Select a text node to start</p>
+      <p class="chat-empty__subtitle">Select any text in Figma, then describe<br>what you want &mdash; I&#39;ll suggest alternatives.</p>
     </div>
   </div>
 </div>
@@ -427,23 +465,14 @@ html = make_html(
       Ask
     </button>
   </div>
-  <textarea id="prompt-input" placeholder="Describe the screen you want to generate&#8230;"></textarea>
+  <textarea id="prompt-input" placeholder="Describe the wording you want &mdash; tone, audience, context&#8230;"></textarea>
   <div class="options-bar" id="options-bar">
-    <label class="checkbox-option">
-      <input type="checkbox"/>
-      <i class="fa-solid fa-palette" aria-hidden="true"></i>
-      Design system
+    <label class="settings__label" for="alternatives-count-input">
+      <i class="fa-solid fa-list" aria-hidden="true"></i>
+      Alternatives
     </label>
-    <label class="checkbox-option">
-      <input type="checkbox"/>
-      <i class="fa-solid fa-brain" aria-hidden="true"></i>
-      Advanced UX skills
-    </label>
-    <label class="checkbox-option">
-      <input type="checkbox"/>
-      <i class="fa-regular fa-clone" aria-hidden="true"></i>
-      Multiple versions
-    </label>
+    <input type="number" id="alternatives-count-input" value="3" min="1" max="10" style="width:52px"/>
+    <span style="color:var(--text-muted);font-size:11px">(1&ndash;10)</span>
   </div>
   <div class="input-bottom">
     <p class="hint">
@@ -475,20 +504,20 @@ html = make_html(
     </span>
     <span class="connection-badge">
       <span class="connection-dot connection-dot--ready"></span>
-      GitHub Copilot &middot; GPT-5.2
+      Gemini &middot; Flash Lite
     </span>
   </div>
   <div id="chat-history">
     <div class="chat-bubble chat-bubble--user">
       <p class="chat-label">You</p>
-      <p class="chat-text">What&#39;s the best navigation pattern for a mobile dashboard?</p>
+      <p class="chat-text">What&#39;s the difference between microcopy and UX writing?</p>
     </div>
     <div class="chat-bubble chat-bubble--assistant">
       <p class="chat-label">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-        AI Copilot
+        UX Writer
       </p>
-      <p class="chat-text">For a mobile dashboard, I&#39;d recommend a <strong>bottom tab bar</strong> with 4&#8211;5 primary sections. This pattern has the highest reach score on phones and aligns with platform conventions (iOS HIG, Material 3).</p>
+      <p class="chat-text"><strong>Microcopy</strong> refers to small, functional snippets of text — button labels, error messages, tooltips, and empty states. <strong>UX writing</strong> is the broader discipline that encompasses microcopy plus the overall voice, tone, and content strategy throughout a product.</p>
     </div>
   </div>
 </div>
@@ -506,7 +535,7 @@ html = make_html(
       Ask
     </button>
   </div>
-  <textarea id="prompt-input" placeholder="Ask a design question&#8230;"></textarea>
+  <textarea id="prompt-input" placeholder="Ask a UX writing question&#8230;"></textarea>
   <div class="input-bottom">
     <p class="hint">
       <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
@@ -525,7 +554,7 @@ screenshot(html, os.path.join(SHOTS_DIR, "main-view-ask.png"))
 print("✅ main-view-ask.png")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 7. settings-view.png — Settings overlay
+# 7. settings-view.png — Settings overlay (no Skills Library section)
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
 <div class="settings-overlay" style="display:flex; position:relative; inset:auto; width:420px; min-height:640px;">
@@ -554,7 +583,7 @@ html = make_html("""
           Provider
         </label>
         <select id="s-prov" style="flex:1">
-          <option selected>GitHub Copilot</option>
+          <option selected>Gemini (Google)</option>
           <option>OpenAI</option>
           <option>Anthropic</option>
         </select>
@@ -565,22 +594,29 @@ html = make_html("""
           Model
         </label>
         <select id="s-mod" style="flex:1">
-          <option selected>GPT-5.2</option>
+          <option selected>Gemini 3.1 Flash Lite</option>
+          <option>Gemini 3 Pro</option>
         </select>
       </div>
       <div class="settings__row">
         <span class="settings__label">
           <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
-          GH Token
+          API Key
         </span>
         <div class="api-key-row">
-          <input type="password" value="ghp_xxxxxxxxxxxx" style="flex:1"/>
+          <input type="password" value="AIza_xxxxxxxxxxxx" style="flex:1"/>
           <button class="btn btn--icon" type="button">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-eye"/></svg>
           </button>
         </div>
       </div>
-      <p class="settings-key-hint">&#10003; GitHub Copilot &mdash; Token looks valid</p>
+      <p class="settings-key-hint">&#10003; Gemini &mdash; Key looks valid</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <button class="btn btn--secondary" type="button">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
+          Test connection
+        </button>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -591,8 +627,8 @@ html = make_html("""
         </div>
       </div>
       <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:0 0 6px">
-        Describe your product, industry, or target users. This context is automatically
-        injected into every generation to produce more relevant screens.
+        Describe your product, industry, target users, or tone of voice. This context is automatically
+        injected into every generation to produce more relevant copy.
       </p>
       <textarea class="functional-context-textarea" spellcheck="false">We are building a B2B SaaS for HR managers in mid-sized companies&#8230;</textarea>
     </div>
@@ -622,239 +658,11 @@ html = make_html("""
       </p>
     </div>
 
-    <div class="settings-section">
-      <div class="settings-section__header">
-        <div class="settings-section__title">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-layers"/></svg>
-          Skills Library
-        </div>
-        <div class="settings-section__actions">
-          <button class="btn btn--ghost" type="button">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
-            Update
-          </button>
-        </div>
-      </div>
-      <p>
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-check"/></svg>
-        28 bundled skills active in all agents.
-      </p>
-      <div id="skills-library-list" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
-        <span class="skill-tag">UX Research</span>
-        <span class="skill-tag">Accessibility</span>
-        <span class="skill-tag">Mobile First</span>
-        <span class="skill-tag">Design Patterns</span>
-        <span class="skill-tag">Atomic Design</span>
-        <span class="skill-tag">User Flows</span>
-        <span class="skill-tag">Information Architecture</span>
-        <span class="skill-tag">Gestalt Principles</span>
-      </div>
-    </div>
   </div>
 </div>
 """)
 screenshot(html, os.path.join(SHOTS_DIR, "settings-view.png"))
 print("✅ settings-view.png")
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 8. chat-skill-chips.png — Chat with generation result and skill chips
-# ══════════════════════════════════════════════════════════════════════════════
-html = make_html(
-    MAIN_HEADER + """
-<div class="chat-section">
-  <div class="chat-section__label">
-    <span class="section-title">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
-      Chat
-    </span>
-    <span class="connection-badge">
-      <span class="connection-dot connection-dot--ready"></span>
-      GitHub Copilot &middot; GPT-5.2
-    </span>
-  </div>
-  <div id="chat-history">
-    <div class="chat-bubble chat-bubble--user">
-      <p class="chat-label">You</p>
-      <p class="chat-text">Create a mobile login screen with email &amp; password fields</p>
-    </div>
-    <div class="chat-bubble chat-bubble--assistant">
-      <p class="chat-label">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-        AI Copilot
-      </p>
-      <p class="chat-text">Generated <strong>1 screen</strong>: Login with email &amp; password &mdash; 8 elements, vertical layout.</p>
-      <div class="chat-skills">
-        <span class="chat-skill-tag">
-          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-          Generate Screen
-        </span>
-        <span class="chat-skill-tag">
-          <i class="fa-solid fa-palette" aria-hidden="true"></i>
-          Design System
-        </span>
-        <span class="chat-skill-tag">
-          <i class="fa-solid fa-brain" aria-hidden="true"></i>
-          Advanced UX
-        </span>
-      </div>
-    </div>
-    <div class="chat-bubble chat-bubble--user">
-      <p class="chat-label">You</p>
-      <p class="chat-text">Add a &ldquo;Forgot password?&rdquo; link and social login section</p>
-    </div>
-    <div class="chat-bubble chat-bubble--assistant">
-      <p class="chat-label">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
-        AI Copilot
-      </p>
-      <p class="chat-text">Updated the login screen with a forgot-password link and Google/Apple social buttons. The frame is now updated in your Figma file.</p>
-      <div class="chat-skills">
-        <span class="chat-skill-tag">
-          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-          Generate Screen
-        </span>
-        <span class="chat-skill-tag">
-          <i class="fa-solid fa-palette" aria-hidden="true"></i>
-          Design System
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="resize-handle"></div>
-
-<section class="input-section">
-  <div class="mode-toggle" role="tablist">
-    <button class="mode-tab mode-tab--active" role="tab" type="button">
-      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-      Generate
-    </button>
-    <button class="mode-tab" role="tab" type="button">
-      <i class="fa-solid fa-comments" aria-hidden="true"></i>
-      Ask
-    </button>
-  </div>
-  <textarea id="prompt-input" placeholder="Describe the screen you want to generate&#8230;"></textarea>
-  <div class="options-bar">
-    <label class="checkbox-option">
-      <input type="checkbox" checked/>
-      <i class="fa-solid fa-palette" aria-hidden="true"></i>
-      Design system
-    </label>
-    <label class="checkbox-option">
-      <input type="checkbox"/>
-      <i class="fa-solid fa-brain" aria-hidden="true"></i>
-      Advanced UX skills
-    </label>
-    <label class="checkbox-option">
-      <input type="checkbox"/>
-      <i class="fa-regular fa-clone" aria-hidden="true"></i>
-      Multiple versions
-    </label>
-  </div>
-  <div class="input-bottom">
-    <p class="hint">
-      <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
-      Ctrl+Enter / &#8984;+Enter
-    </p>
-    <button class="btn btn--primary" type="button">
-      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-      <span>Generate</span>
-    </button>
-  </div>
-</section>
-""",
-    extra_css=MAIN_LAYOUT_CSS
-)
-screenshot(html, os.path.join(SHOTS_DIR, "chat-skill-chips.png"))
-print("✅ chat-skill-chips.png")
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 9. main-view-versions.png — Multiple versions enabled
-# ══════════════════════════════════════════════════════════════════════════════
-html = make_html(
-    MAIN_HEADER + """
-<div class="chat-section">
-  <div class="chat-section__label">
-    <span class="section-title">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
-      Chat
-    </span>
-    <span class="connection-badge">
-      <span class="connection-dot connection-dot--ready"></span>
-      GitHub Copilot &middot; GPT-5.2
-    </span>
-  </div>
-  <div id="chat-history">
-    <div class="chat-empty">
-      <div class="chat-empty__icon">
-        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-      </div>
-      <p class="chat-empty__title">Start creating a screen</p>
-      <p class="chat-empty__subtitle">Multiple versions enabled &mdash; the AI will generate<br>3 variations of your screen side by side.</p>
-    </div>
-  </div>
-</div>
-
-<div class="resize-handle"></div>
-
-<section class="input-section">
-  <div class="mode-toggle" role="tablist">
-    <button class="mode-tab mode-tab--active" role="tab" type="button">
-      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-      Generate
-    </button>
-    <button class="mode-tab" role="tab" type="button">
-      <i class="fa-solid fa-comments" aria-hidden="true"></i>
-      Ask
-    </button>
-  </div>
-  <textarea id="prompt-input" placeholder="Describe the screen you want to generate&#8230;"></textarea>
-  <div class="options-bar">
-    <label class="checkbox-option">
-      <input type="checkbox"/>
-      <i class="fa-solid fa-palette" aria-hidden="true"></i>
-      Design system
-    </label>
-    <label class="checkbox-option">
-      <input type="checkbox"/>
-      <i class="fa-solid fa-brain" aria-hidden="true"></i>
-      Advanced UX skills
-    </label>
-    <label class="checkbox-option">
-      <input type="checkbox" checked/>
-      <i class="fa-regular fa-clone" aria-hidden="true"></i>
-      Multiple versions
-    </label>
-  </div>
-  <div class="variants-row" id="variants-row">
-    <label class="settings__label" for="variants-input">
-      <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
-      Versions
-    </label>
-    <input type="number" id="variants-input" value="3" min="1" max="5" style="width:52px"/>
-    <span style="color:var(--text-muted);font-size:11px">(max 5)</span>
-  </div>
-  <div class="input-bottom">
-    <p class="hint">
-      <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
-      Ctrl+Enter / &#8984;+Enter
-    </p>
-    <button class="btn btn--primary" type="button">
-      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-      <span>Generate 3 versions</span>
-    </button>
-  </div>
-</section>
-""",
-    extra_css=MAIN_LAYOUT_CSS + """
-/* Show variants row */
-#variants-row { display: flex !important; }
-"""
-)
-screenshot(html, os.path.join(SHOTS_DIR, "main-view-versions.png"))
-print("✅ main-view-versions.png")
 
 # ── Verify ───────────────────────────────────────────────────────────────────
 print("\nDimension check:")

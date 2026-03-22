@@ -2,31 +2,22 @@
  * ui.ts — Plugin UI Logic
  *
  * Runs inside the plugin's sandboxed iframe. Handles the chat interface,
- * model/agent selection, calling the AI service, and sending build commands
- * to the plugin controller (main.ts).
+ * model selection, calling the AI service for text alternatives, and sending
+ * apply-text commands to the plugin controller (main.ts).
  */
 
 import { AIService } from "./services/ai-service";
-import { UXDesignerAgent } from "./agents/ux-designer-agent";
-import { DesignSystemAgent } from "./agents/design-system-agent";
+import { UXWriterAgent } from "./agents/ux-writer-agent";
 import { CustomAgentRegistry } from "./services/custom-agent-registry";
-import { BUNDLED_SKILLS } from "./data/skills-library";
-import {
-  fetchSkillsLibrary,
-  loadSkillsLibraryFromStorage,
-  saveSkillsLibraryToStorage,
-  clearSkillsLibraryFromStorage,
-} from "./services/skills-library-service";
 import type {
   ChatMessage,
   CopilotConfig,
   DocumentContext,
-  ExternalSkillEntry,
   LLMProvider,
   ModelConfig,
   PersistedSettings,
   PluginToUIMessage,
-  UIScreen,
+  TextAlternative,
 } from "./types/ui-types";
 
 declare global {
@@ -45,17 +36,14 @@ const CONTEXT_STALE_MS = 10 * 60 * 1000; // 10 minutes
 /** localStorage key for the user's functional/business context. */
 const FUNCTIONAL_CONTEXT_KEY = "copilot_functional_context";
 
-/** localStorage key for the "Keep existing design system" checkbox. */
-const KEEP_DESIGN_SYSTEM_KEY = "copilot_keep_design_system";
-
-/** localStorage key for the "Advanced UX skills" checkbox. */
-const ADVANCED_UX_SKILLS_KEY = "copilot_advanced_ux_skills";
-
 /** localStorage key for the active interaction mode. */
 const INTERACTION_MODE_KEY = "copilot_interaction_mode";
 
 /** localStorage key for the debug mode toggle. */
 const DEBUG_MODE_KEY = "copilot_debug_mode";
+
+/** localStorage key for the number of text alternatives to generate. */
+const ALTERNATIVES_COUNT_KEY = "copilot_alternatives_count";
 
 function createInMemoryStorage(): Storage {
   const store = new Map<string, string>();
@@ -114,22 +102,15 @@ let contextFetchedAt: number | null = null;
 
 /**
  * Active interaction mode.
- *   "generate" → produce Figma frames (default)
- *   "ask"      → conversational design Q&A, no frames created
+ *   "generate" → produce text alternatives (default)
+ *   "ask"      → conversational UX writing Q&A, no text applied
  */
 let interactionMode: "generate" | "ask" = "generate";
 
-/**
- * Extra skills loaded at runtime from the GitHub library.
- * Starts empty; users can click "⬇ Update" to refresh from the remote repo.
- * The bundled skills (BUNDLED_SKILLS) are always active in the default agents.
- */
-let externalSkills: ExternalSkillEntry[] = [];
 let typingBubbleEl: HTMLDivElement | null = null;
 
 const aiService = new AIService();
-const uxAgent = new UXDesignerAgent();
-const dsAgent = new DesignSystemAgent();
+const uxWriterAgent = new UXWriterAgent();
 const registry = new CustomAgentRegistry();
 
 // ── DOM References ────────────────────────────────────────────────────────────
@@ -151,7 +132,7 @@ function initializeUI(): void {
 
   try {
     registry.loadFromStorage(safeStorage);
-    populateCustomAgentOptions();
+    renderCustomConfigSummary();
 
     // Restore provider selection and sync model/key UI
     const savedProvider = (safeStorage.getItem("copilot_provider") as LLMProvider | null) ?? "gemini";
@@ -159,11 +140,7 @@ function initializeUI(): void {
     if (providerSelect) providerSelect.value = savedProvider;
     syncProviderUI(savedProvider);
 
-    // Restore checkbox states
-    const keepDsEl = document.getElementById("keep-design-system") as HTMLInputElement | null;
-    if (keepDsEl) keepDsEl.checked = safeStorage.getItem(KEEP_DESIGN_SYSTEM_KEY) === "1";
-    const advUXEl = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
-    if (advUXEl) advUXEl.checked = safeStorage.getItem(ADVANCED_UX_SKILLS_KEY) === "1";
+    // Restore debug mode
     const debugEl = document.getElementById("debug-mode") as HTMLInputElement | null;
     if (debugEl) debugEl.checked = safeStorage.getItem(DEBUG_MODE_KEY) === "1";
 
@@ -172,6 +149,11 @@ function initializeUI(): void {
     const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
     if (contextInput) contextInput.value = savedContext;
 
+    // Restore alternatives count
+    const savedCount = safeStorage.getItem(ALTERNATIVES_COUNT_KEY);
+    const countInput = document.getElementById("alternatives-count-input") as HTMLInputElement | null;
+    if (countInput && savedCount) countInput.value = savedCount;
+
     // Restore interaction mode (generate | ask)
     const savedMode = safeStorage.getItem(INTERACTION_MODE_KEY);
     if (savedMode === "ask" || savedMode === "generate") {
@@ -179,25 +161,7 @@ function initializeUI(): void {
     }
 
     requestPersistedSettings();
-
     requestDocumentContext();
-
-    // Restore any extra skills loaded at runtime from the remote library
-    externalSkills = loadSkillsLibraryFromStorage(safeStorage);
-
-    // Render the skills library panel (bundled skills are always shown)
-    renderSkillsLibrary();
-
-    // Announce bundled skills in the chat only on first startup
-    const announcedKey = "copilot_skills_announced";
-    if (!safeStorage.getItem(announcedKey)) {
-      const skillNames = BUNDLED_SKILLS.map((s) => `• ${s.name}`).join("\n");
-      appendAssistantMessage(
-        `📚 ${pluralize(BUNDLED_SKILLS.length, "skill")} from the design library are bundled and active in all agents:\n\n${skillNames}`
-      );
-      safeStorage.setItem(announcedKey, "1");
-    }
-
     requestOnboardingStatus();
   } catch {
     showToast("Settings initialization failed partially. Core actions remain available.", "warning");
@@ -222,11 +186,9 @@ window.onmessage = (event: MessageEvent) => {
       showContextBadge(msg.context);
       break;
 
-    case "screens-built":
+    case "text-applied":
       setGenerating(false);
-      appendAssistantMessage(
-        `✅ ${pluralize(msg.count, "screen")} have been added to your Figma document.`
-      );
+      showToast("Text applied successfully.");
       break;
 
     case "onboarding-status":
@@ -242,7 +204,7 @@ window.onmessage = (event: MessageEvent) => {
     case "error":
       setGenerating(false);
       hideAssistantTypingIndicator();
-      appendAssistantMessage(`❌ Error: ${redactSecrets(msg.message)}`);
+      appendAssistantMessage(`Error: ${redactSecrets(msg.message)}`);
       showToast(`Error: ${redactSecrets(msg.message)}`, "error");
       break;
 
@@ -290,17 +252,13 @@ function setupEventListeners(): void {
   if (tabGenerate) tabGenerate.addEventListener("click", () => setInteractionMode("generate"));
   if (tabAsk)      tabAsk.addEventListener("click",      () => setInteractionMode("ask"));
 
-  // ── Multiple versions toggle ────────────────────────────────────────────
-  const multipleVersionsCheckbox = getEl<HTMLInputElement>("multiple-versions-toggle");
-  const variantsRow = getEl<HTMLDivElement>("variants-row");
-  multipleVersionsCheckbox.addEventListener("change", () => {
-    const enabled = multipleVersionsCheckbox.checked;
-    variantsRow.classList.toggle("hidden", !enabled);
-    if (!enabled) {
-      const variantsInput = getEl<HTMLInputElement>("variants-input");
-      variantsInput.value = "1";
-    }
-  });
+  // ── Alternatives count input ────────────────────────────────────────────
+  const countInput = document.getElementById("alternatives-count-input") as HTMLInputElement | null;
+  if (countInput) {
+    countInput.addEventListener("change", () => {
+      safeStorage.setItem(ALTERNATIVES_COUNT_KEY, countInput.value);
+    });
+  }
 
   // ── Provider selection ─────────────────────────────────────────────────
   const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
@@ -336,23 +294,7 @@ function setupEventListeners(): void {
     });
   }
 
-  // ── Options checkboxes: persist state ──────────────────────────────────
-  const keepDsCheckbox = document.getElementById("keep-design-system") as HTMLInputElement | null;
-  if (keepDsCheckbox) {
-    keepDsCheckbox.addEventListener("change", () => {
-      safeStorage.setItem(KEEP_DESIGN_SYSTEM_KEY, keepDsCheckbox.checked ? "1" : "0");
-      persistSettingsToPlugin();
-    });
-  }
-
-  const advUXCheckbox = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
-  if (advUXCheckbox) {
-    advUXCheckbox.addEventListener("change", () => {
-      safeStorage.setItem(ADVANCED_UX_SKILLS_KEY, advUXCheckbox.checked ? "1" : "0");
-      persistSettingsToPlugin();
-    });
-  }
-
+  // ── Debug mode checkbox ─────────────────────────────────────────────────
   const debugCheckbox = document.getElementById("debug-mode") as HTMLInputElement | null;
   if (debugCheckbox) {
     debugCheckbox.addEventListener("change", () => {
@@ -370,10 +312,10 @@ function setupEventListeners(): void {
     });
   }
 
-  // ── Custom agents / skills: file-drop zone ──────────────────────────────
+  // ── Custom skills: file-drop zone ───────────────────────────────────────
   setupDropZone();
 
-  // ── Custom agents: file picker fallback ────────────────────────────────
+  // ── Custom skills: file picker fallback ────────────────────────────────
   const fileInput = document.getElementById("config-file-input") as HTMLInputElement | null;
   if (fileInput) {
     fileInput.addEventListener("change", () => {
@@ -383,21 +325,10 @@ function setupEventListeners(): void {
     });
   }
 
-  // ── Custom agents: clear button ─────────────────────────────────────────
+  // ── Custom skills: clear button ─────────────────────────────────────────
   const clearCustomBtn = document.getElementById("clear-custom-btn");
   if (clearCustomBtn) {
     clearCustomBtn.addEventListener("click", clearCustomConfig);
-  }
-
-  // ── Skills library ──────────────────────────────────────────────────────
-  const loadSkillsBtn = document.getElementById("load-skills-library-btn");
-  if (loadSkillsBtn) {
-    loadSkillsBtn.addEventListener("click", () => void handleLoadSkillsLibrary());
-  }
-
-  const clearSkillsBtn = document.getElementById("clear-skills-library-btn");
-  if (clearSkillsBtn) {
-    clearSkillsBtn.addEventListener("click", handleClearSkillsLibrary);
   }
 
   // ── Test connection button ───────────────────────────────────────────────
@@ -407,13 +338,13 @@ function setupEventListeners(): void {
   }
 }
 
-// ── Core: Generate ────────────────────────────────────────────────────────────
+// ── Core: Generate alternatives ───────────────────────────────────────────────
 
 async function handleGenerate(): Promise<void> {
   const promptEl = getEl<HTMLTextAreaElement>("prompt-input");
   const prompt = promptEl.value.trim();
   if (!prompt) {
-    showToast("Please enter a prompt.", "warning");
+    showToast("Please enter a wording instruction.", "warning");
     return;
   }
 
@@ -428,17 +359,16 @@ async function handleGenerate(): Promise<void> {
     designSystem: { components: [], colors: [], textStyles: [] },
     screens: [],
     pages: [],
+    pageTextContext: [],
+    selectedText: null,
   };
 
   // Warn the designer if the Figma context snapshot is older than CONTEXT_STALE_MS.
-  // The context is still used as-is — the user can click "Context" to refresh.
   if (documentContext && contextFetchedAt !== null && Date.now() - contextFetchedAt > CONTEXT_STALE_MS) {
-    showToast("⚠️ Figma context may be stale — click 'Context' to refresh.", "warning");
+    showToast("Figma context may be stale — click 'Context' to refresh.", "warning");
   }
 
-  const variants = getVariantCount();
-  const keepDesignSystem = getKeepDesignSystem();
-  const advancedUXSkills = getAdvancedUXSkills();
+  const count = getAlternativesCount();
   const fullContext = buildFullFunctionalContext();
 
   appendUserMessage(prompt);
@@ -446,62 +376,39 @@ async function handleGenerate(): Promise<void> {
   setGenerating(true);
   showAssistantTypingIndicator();
 
-  const enrichedPrompt = aiService.formatUserPrompt(prompt, variants, context);
-
-  // NOTE: the current user message is intentionally NOT pushed to chatHistory
-  // here. chatHistory holds only the *previous* turns so that generateScreens
-  // can append the current userMessage without duplication. Both the raw user
-  // message and the assistant reply are pushed to chatHistory after the agent
-  // returns successfully (or on error, so the model retains context).
-
   try {
-    let screens: UIScreen[];
+    const alternatives = await uxWriterAgent.generate(
+      prompt,
+      count,
+      context,
+      modelConfig,
+      chatHistory,
+      fullContext || undefined
+    );
 
-    const skillsUsed = buildActiveSkillsList(keepDesignSystem, advancedUXSkills, variants);
+    hideAssistantTypingIndicator();
 
-    if (advancedUXSkills) {
-      // UX Designer agent: includes UX frameworks in system prompt
-      screens = await uxAgent.generate(
-        enrichedPrompt, variants, context, modelConfig, chatHistory,
-        fullContext || undefined, keepDesignSystem
-      );
-    } else if (keepDesignSystem) {
-      // Design System agent: strictly enforces design system components
-      screens = await dsAgent.generate(
-        enrichedPrompt, context, modelConfig, chatHistory,
-        fullContext || undefined
-      );
+    if (alternatives.length === 0) {
+      appendAssistantMessage("No alternatives generated. Please refine your instruction.");
     } else {
-      // Default: UX Designer without enforced design system
-      screens = await uxAgent.generate(
-        enrichedPrompt, variants, context, modelConfig, chatHistory,
-        fullContext || undefined, false
-      );
+      appendAlternativesMessage(alternatives);
     }
 
-    const summary = formatScreensSummary(screens);
-    hideAssistantTypingIndicator();
-    appendAssistantMessage(`Generating ${pluralize(screens.length, "screen")}…\n\n${summary}`, skillsUsed);
-
-    // Push both sides of the turn to history using the raw (un-enriched) prompt
-    // so successive turns remain concise and the system prompt handles context.
     chatHistory.push({ role: "user", content: prompt });
-    chatHistory.push({ role: "assistant", content: summary });
-
-    // Send screens to the plugin controller for Figma rendering
-    parent.postMessage(
-      { pluginMessage: { type: "build-screens", screens } },
-      "*"
-    );
+    chatHistory.push({
+      role: "assistant",
+      content: alternatives.map((a) => `• ${a.text}`).join("\n"),
+    });
   } catch (err) {
     setGenerating(false);
     hideAssistantTypingIndicator();
     const message = redactSecrets(err instanceof Error ? err.message : String(err));
-    appendAssistantMessage(`❌ ${message}`);
-    // Record the failed turn so the model retains conversation context
+    appendAssistantMessage(`Error: ${message}`);
     chatHistory.push({ role: "user", content: prompt });
     chatHistory.push({ role: "assistant", content: `Error: ${message}` });
     showToast(message, "error");
+  } finally {
+    setGenerating(false);
   }
 }
 
@@ -509,8 +416,8 @@ async function handleGenerate(): Promise<void> {
 
 /**
  * Handle a user question in "Ask" mode.
- * Sends the question to the LLM as a conversational design Q&A request.
- * No Figma frame is generated — the AI response is shown directly in the chat.
+ * Sends the question to the LLM as a conversational UX writing Q&A request.
+ * No text is applied to Figma — the AI response is shown directly in the chat.
  */
 async function handleAsk(): Promise<void> {
   const promptEl = getEl<HTMLTextAreaElement>("prompt-input");
@@ -531,6 +438,8 @@ async function handleAsk(): Promise<void> {
     designSystem: { components: [], colors: [], textStyles: [] },
     screens: [],
     pages: [],
+    pageTextContext: [],
+    selectedText: null,
   };
 
   appendUserMessage(question);
@@ -548,7 +457,7 @@ async function handleAsk(): Promise<void> {
   } catch (err) {
     hideAssistantTypingIndicator();
     const message = redactSecrets(err instanceof Error ? err.message : String(err));
-    appendAssistantMessage(`❌ ${message}`);
+    appendAssistantMessage(`Error: ${message}`);
     chatHistory.push({ role: "user", content: question });
     chatHistory.push({ role: "assistant", content: `Error: ${message}` });
     showToast(message, "error");
@@ -558,12 +467,21 @@ async function handleAsk(): Promise<void> {
   }
 }
 
-// ── Mode switching ────────────────────────────────────────────────────────────
+// ── Apply text to Figma ───────────────────────────────────────────────────────
 
 /**
- * Switch the interaction mode between "generate" and "ask".
- * Updates the tab UI, input placeholder, button label, and persists the choice.
+ * Send a text alternative to the plugin controller to apply it to the
+ * currently selected TextNode in Figma.
  */
+function applyTextToFigma(text: string): void {
+  parent.postMessage(
+    { pluginMessage: { type: "apply-text", text } },
+    "*"
+  );
+}
+
+// ── Mode switching ────────────────────────────────────────────────────────────
+
 function setInteractionMode(mode: "generate" | "ask"): void {
   interactionMode = mode;
   safeStorage.setItem(INTERACTION_MODE_KEY, mode);
@@ -575,6 +493,7 @@ function setInteractionMode(mode: "generate" | "ask"): void {
   const promptEl     = document.getElementById("prompt-input") as HTMLTextAreaElement | null;
   const generateLabel = document.getElementById("generate-label");
   const generateIcon  = document.getElementById("generate-icon");
+  const optionsBar    = document.getElementById("options-bar");
 
   if (mode === "ask") {
     inputSection?.classList.add("mode--ask");
@@ -582,22 +501,20 @@ function setInteractionMode(mode: "generate" | "ask"): void {
     tabGenerate?.classList.remove("mode-tab--active");
     tabAsk?.setAttribute("aria-selected", "true");
     tabGenerate?.setAttribute("aria-selected", "false");
-    if (promptEl) promptEl.placeholder = "Ask a design question…";
+    if (promptEl) promptEl.placeholder = "Ask a UX writing question…";
     if (generateLabel) generateLabel.textContent = "Ask";
-    if (generateIcon) {
-      generateIcon.className = "fa-solid fa-comments";
-    }
+    if (generateIcon) generateIcon.className = "fa-solid fa-comments";
+    if (optionsBar) optionsBar.classList.add("hidden");
   } else {
     inputSection?.classList.remove("mode--ask");
     tabGenerate?.classList.add("mode-tab--active");
     tabAsk?.classList.remove("mode-tab--active");
     tabGenerate?.setAttribute("aria-selected", "true");
     tabAsk?.setAttribute("aria-selected", "false");
-    if (promptEl) promptEl.placeholder = "Describe the screen you want to generate…";
+    if (promptEl) promptEl.placeholder = "Describe the wording you need…";
     if (generateLabel) generateLabel.textContent = "Generate";
-    if (generateIcon) {
-      generateIcon.className = "fa-solid fa-wand-magic-sparkles";
-    }
+    if (generateIcon) generateIcon.className = "fa-solid fa-wand-magic-sparkles";
+    if (optionsBar) optionsBar.classList.remove("hidden");
   }
 }
 
@@ -620,16 +537,18 @@ function showContextBadge(context: DocumentContext): void {
   contextFetchedAt = Date.now();
   const badge = document.getElementById("ctx-badge");
   if (!badge) return;
-  const total =
-    context.designSystem.components.length +
-    context.designSystem.colors.length +
-    context.screens.length;
-  badge.textContent = `${total} items`;
+
+  const hasSelectedText = context.selectedText !== null;
+  const screenCount = context.screens.length;
+  const selectedLabel = hasSelectedText
+    ? `"${context.selectedText!.characters.slice(0, 30)}${context.selectedText!.characters.length > 30 ? "…" : ""}"`
+    : "none";
+
+  badge.textContent = hasSelectedText ? "Text selected" : `${String(screenCount)} screens`;
   const refreshedAt = new Date(contextFetchedAt).toLocaleTimeString();
   badge.title = [
     `Refreshed: ${refreshedAt}`,
-    `Components: ${context.designSystem.components.join(", ") || "none"}`,
-    `Colors: ${context.designSystem.colors.join(", ") || "none"}`,
+    `Selected text: ${selectedLabel}`,
     `Screens: ${context.screens.join(", ") || "none"}`,
   ].join("\n");
   badge.classList.remove("hidden", "ctx-badge--stale");
@@ -663,37 +582,32 @@ const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: strin
     label: "API Key",
     placeholder: "AIza… (Google AI Studio key)",
     storageKey: "copilot_gemini_key",
-    hint: "🔑 Get your API key at aistudio.google.com/apikey.",
+    hint: "Get your API key at aistudio.google.com/apikey.",
     icon: '<i class="fa-brands fa-google" aria-hidden="true"></i>',
-    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-google" aria-hidden="true"></i> Gemini — How to get your API key</div><ol><li>Go to <strong>aistudio.google.com/apikey</strong>.</li><li>Click <strong>Create API key</strong>.</li><li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Ensure your Google account has Gemini API access. Errors 400/401/429 are shown in the chat.</p>`,
+    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-google" aria-hidden="true"></i> Gemini — How to get your API key</div><ol><li>Go to <strong>aistudio.google.com/apikey</strong>.</li><li>Click <strong>Create API key</strong>.</li><li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your Google account has Gemini API access. Errors 400/401/429 are shown in the chat.</p>`,
   },
   openai: {
     label: "API Key",
     placeholder: "sk-… (OpenAI API key)",
     storageKey: "copilot_openai_key",
-    hint: "🔑 Get your API key at platform.openai.com/api-keys.",
+    hint: "Get your API key at platform.openai.com/api-keys.",
     icon: '<i class="fa-brands fa-openai" aria-hidden="true"></i>',
-    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-openai" aria-hidden="true"></i> OpenAI — How to get your API key</div><ol><li>Go to <strong>platform.openai.com/api-keys</strong>.</li><li>Click <strong>Create new secret key</strong>.</li><li>Copy the key (<code>sk-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Ensure your account has sufficient credits. Errors 401/429 are shown in the chat.</p>`,
+    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-openai" aria-hidden="true"></i> OpenAI — How to get your API key</div><ol><li>Go to <strong>platform.openai.com/api-keys</strong>.</li><li>Click <strong>Create new secret key</strong>.</li><li>Copy the key (<code>sk-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your account has sufficient credits. Errors 401/429 are shown in the chat.</p>`,
   },
   anthropic: {
     label: "API Key",
     placeholder: "sk-ant-… (Anthropic API key)",
     storageKey: "copilot_anthropic_key",
-    hint: "🔑 Get your API key at console.anthropic.com → API Keys.",
+    hint: "Get your API key at console.anthropic.com → API Keys.",
     icon: '<svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg>',
-    instructionsHtml: `<div class="ob-inst-header"><svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg> Anthropic — How to get your API key</div><ol><li>Go to <strong>console.anthropic.com → API Keys</strong>.</li><li>Click <strong>Create key</strong>.</li><li>Copy the key (<code>sk-ant-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">⚠️ Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
+    instructionsHtml: `<div class="ob-inst-header"><svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg> Anthropic — How to get your API key</div><ol><li>Go to <strong>console.anthropic.com → API Keys</strong>.</li><li>Click <strong>Create key</strong>.</li><li>Copy the key (<code>sk-ant-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
   },
 };
 
-/**
- * Update the model dropdown options and API key label/placeholder to match
- * the currently selected provider.
- */
 function syncProviderUI(provider: LLMProvider): void {
   const modelSelect = getEl<HTMLSelectElement>("model-select");
   const keyInput = getEl<HTMLInputElement>("api-key-input");
 
-  // Rebuild model options
   modelSelect.innerHTML = "";
   for (const { value, label } of PROVIDER_MODELS[provider]) {
     const opt = document.createElement("option");
@@ -702,21 +616,17 @@ function syncProviderUI(provider: LLMProvider): void {
     modelSelect.appendChild(opt);
   }
 
-  // Restore previously saved model for this provider
   const savedModel = safeStorage.getItem(`copilot_model_${provider}`);
   if (savedModel) modelSelect.value = savedModel;
 
-  // Update key label and placeholder
   const info = PROVIDER_KEY_INFO[provider];
   const keyLabelText = document.getElementById("api-key-label-text");
   if (keyLabelText) keyLabelText.textContent = info.label;
   keyInput.placeholder = info.placeholder;
 
-  // Update API key retrieval hint
   const keyHint = document.getElementById("api-key-hint");
   if (keyHint) keyHint.textContent = info.hint;
 
-  // Restore previously saved API key for this provider
   const savedKey = safeStorage.getItem(info.storageKey) ?? "";
   keyInput.value = savedKey;
 
@@ -730,8 +640,6 @@ function getSelectedProvider(): LLMProvider {
 
 function collectPersistedSettings(): PersistedSettings {
   const provider = getSelectedProvider();
-  const keepDesignSystem = getKeepDesignSystem();
-  const advancedUXSkills = getAdvancedUXSkills();
   const functionalContext = (
     (document.getElementById("functional-context-input") as HTMLTextAreaElement | null)?.value ?? ""
   ).trim();
@@ -752,8 +660,6 @@ function collectPersistedSettings(): PersistedSettings {
     provider,
     modelByProvider,
     apiKeyByProvider,
-    keepDesignSystem,
-    advancedUXSkills,
     interactionMode,
     functionalContext,
     debugMode: getDebugMode(),
@@ -785,20 +691,12 @@ function applyPersistedSettings(settings: PersistedSettings): void {
     }
   }
 
-  safeStorage.setItem(KEEP_DESIGN_SYSTEM_KEY, settings.keepDesignSystem ? "1" : "0");
-  safeStorage.setItem(ADVANCED_UX_SKILLS_KEY, settings.advancedUXSkills ? "1" : "0");
   safeStorage.setItem(INTERACTION_MODE_KEY, settings.interactionMode);
   safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, settings.functionalContext);
 
   const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
   if (providerSelect) providerSelect.value = settings.provider;
   syncProviderUI(settings.provider);
-
-  const keepDsEl = document.getElementById("keep-design-system") as HTMLInputElement | null;
-  if (keepDsEl) keepDsEl.checked = settings.keepDesignSystem;
-
-  const advUxEl = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
-  if (advUxEl) advUxEl.checked = settings.advancedUXSkills;
 
   const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
   if (contextInput) contextInput.value = settings.functionalContext;
@@ -841,10 +739,6 @@ function getModelConfig(): ModelConfig {
   return config;
 }
 
-/**
- * Return an error message if the required API key for the current provider is
- * missing, or `null` if configuration is valid.
- */
 function validateApiKey(config: ModelConfig): string | null {
   switch (config.provider) {
     case "gemini":
@@ -863,24 +757,11 @@ function validateApiKey(config: ModelConfig): string | null {
   }
 }
 
-function getVariantCount(): number {
-  const toggle = document.getElementById("multiple-versions-toggle") as HTMLInputElement | null;
-  if (!toggle?.checked) return 1;
-  const el = getEl<HTMLInputElement>("variants-input");
+function getAlternativesCount(): number {
+  const el = document.getElementById("alternatives-count-input") as HTMLInputElement | null;
+  if (!el) return 3;
   const val = parseInt(el.value, 10);
-  return isNaN(val) || val < 1 ? 1 : Math.min(val, 5);
-}
-
-/** Returns true when "Keep existing design system" checkbox is checked. */
-function getKeepDesignSystem(): boolean {
-  const el = document.getElementById("keep-design-system") as HTMLInputElement | null;
-  return el?.checked ?? false;
-}
-
-/** Returns true when "Advanced UX skills" checkbox is checked. */
-function getAdvancedUXSkills(): boolean {
-  const el = document.getElementById("advanced-ux-skills") as HTMLInputElement | null;
-  return el?.checked ?? false;
+  return isNaN(val) || val < 1 ? 3 : Math.min(val, 10);
 }
 
 /** Returns the functional context text entered by the user. */
@@ -890,8 +771,6 @@ function getFunctionalContext(): string {
 
 /**
  * Build an additional system-prompt block from user-provided custom skills.
- * Each custom skill contributes a `promptModifier` that extends the agent's
- * behaviour without requiring TypeScript changes.
  */
 function buildCustomSkillsAddition(): string {
   const skills = registry.getSkills();
@@ -899,10 +778,6 @@ function buildCustomSkillsAddition(): string {
   return skills.map((s) => s.promptModifier).join("\n\n");
 }
 
-/**
- * Combine the functional context and custom-skill prompt modifiers into a
- * single string to append to the agent system prompt.
- */
 function buildFullFunctionalContext(): string {
   const parts: string[] = [];
   const ctx = getFunctionalContext();
@@ -914,23 +789,22 @@ function buildFullFunctionalContext(): string {
 
 // ── Chat UI helpers ───────────────────────────────────────────────────────────
 
-/** Returns the HTML markup for the empty-state chat placeholder. */
 function chatEmptyStateHTML(): string {
   if (interactionMode === "ask") {
     return `<div class="chat-empty" id="chat-empty-state">
     <div class="chat-empty__icon">
       <i class="fa-solid fa-comments" aria-hidden="true"></i>
     </div>
-    <p class="chat-empty__title">Ask a design question</p>
-    <p class="chat-empty__subtitle">Get AI design advice, feedback, or ideas.<br>No Figma frame will be created.</p>
+    <p class="chat-empty__title">Ask a UX writing question</p>
+    <p class="chat-empty__subtitle">Get advice on wording, microcopy, tone of voice,<br>or content strategy.</p>
   </div>`;
   }
   return `<div class="chat-empty" id="chat-empty-state">
     <div class="chat-empty__icon">
-      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+      <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
     </div>
-    <p class="chat-empty__title">Start creating a screen</p>
-    <p class="chat-empty__subtitle">Describe any UI screen and I'll design it<br>directly in your Figma file.</p>
+    <p class="chat-empty__title">Generate text alternatives</p>
+    <p class="chat-empty__subtitle">Select a text node in Figma, describe what you need,<br>and click Generate.</p>
   </div>`;
 }
 
@@ -938,16 +812,16 @@ function appendUserMessage(content: string): void {
   appendChatMessage("user", content);
 }
 
-function appendAssistantMessage(content: string, skillsUsed?: string[]): void {
-  appendChatMessage("assistant", content, skillsUsed);
+function appendAssistantMessage(content: string): void {
+  appendChatMessage("assistant", content);
 }
 
-function appendChatMessage(role: "user" | "assistant", content: string, skillsUsed?: string[]): void {
+function appendChatMessage(role: "user" | "assistant", content: string): void {
   const container = getEl<HTMLDivElement>("chat-history");
 
-  // Remove the empty-state bubble on first real message
   const emptyState = document.getElementById("chat-empty-state");
   if (emptyState) emptyState.remove();
+
   const bubble = document.createElement("div");
   bubble.className = `chat-bubble chat-bubble--${role}`;
 
@@ -961,20 +835,66 @@ function appendChatMessage(role: "user" | "assistant", content: string, skillsUs
 
   bubble.appendChild(label);
   bubble.appendChild(text);
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
 
-  if (skillsUsed && skillsUsed.length > 0) {
-    const skillsRow = document.createElement("div");
-    skillsRow.className = "chat-skills";
-    skillsRow.setAttribute("aria-label", "Skills used");
-    for (const skill of skillsUsed) {
-      const tag = document.createElement("span");
-      tag.className = "chat-skill-tag";
-      tag.textContent = skill;
-      skillsRow.appendChild(tag);
-    }
-    bubble.appendChild(skillsRow);
+/**
+ * Render a list of text alternatives in the chat.
+ * Each alternative has a "Apply" button that sends it to Figma.
+ */
+function appendAlternativesMessage(alternatives: TextAlternative[]): void {
+  const container = getEl<HTMLDivElement>("chat-history");
+
+  const emptyState = document.getElementById("chat-empty-state");
+  if (emptyState) emptyState.remove();
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble chat-bubble--assistant";
+
+  const label = document.createElement("span");
+  label.className = "chat-label";
+  label.textContent = "AI";
+
+  const intro = document.createElement("p");
+  intro.className = "chat-text";
+  intro.textContent = `${String(alternatives.length)} alternative${alternatives.length !== 1 ? "s" : ""} generated:`;
+
+  bubble.appendChild(label);
+  bubble.appendChild(intro);
+
+  const list = document.createElement("ul");
+  list.className = "alternatives-list";
+
+  for (const alt of alternatives) {
+    const item = document.createElement("li");
+    item.className = "alternative-item";
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "alternative-text";
+    textSpan.textContent = alt.text;
+
+    const rationaleSpan = document.createElement("span");
+    rationaleSpan.className = "alternative-rationale";
+    rationaleSpan.textContent = alt.rationale ?? "";
+
+    const applyBtn = document.createElement("button");
+    applyBtn.className = "btn btn--ghost btn--sm alternative-apply-btn";
+    applyBtn.type = "button";
+    applyBtn.textContent = "Apply";
+    applyBtn.title = "Apply this text to the selected Figma text node";
+    applyBtn.addEventListener("click", () => {
+      applyTextToFigma(alt.text);
+      showToast(`Applying: "${alt.text.slice(0, 40)}${alt.text.length > 40 ? "…" : ""}"`);
+    });
+
+    item.appendChild(textSpan);
+    if (alt.rationale) item.appendChild(rationaleSpan);
+    item.appendChild(applyBtn);
+    list.appendChild(item);
   }
 
+  bubble.appendChild(list);
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
 }
@@ -1046,7 +966,6 @@ function toggleApiKeyVisibility(): void {
   const input = getEl<HTMLInputElement>("api-key-input");
   const isPassword = input.type === "password";
   input.type = isPassword ? "text" : "password";
-  // Swap eye ↔ eye-slash icons (defined in ui.html)
   const iconEye      = document.getElementById("api-key-icon-eye");
   const iconEyeSlash = document.getElementById("api-key-icon-eye-slash");
   if (iconEye)      iconEye.classList.toggle("hidden", !isPassword);
@@ -1055,13 +974,6 @@ function toggleApiKeyVisibility(): void {
 
 // ── Connection badge ──────────────────────────────────────────────────────────
 
-/**
- * Refreshes the compact connection-status badge shown in the settings toggle
- * bar when the configuration panel is collapsed.
- *
- * Badge format:  ● GitHub · GPT-5.2   (green dot = key set)
- *                ○ OpenAI · GPT-4o    (orange dot = no key)
- */
 function updateConnectionBadge(): void {
   const dot  = document.getElementById("connection-dot");
   const text = document.getElementById("connection-text");
@@ -1101,68 +1013,10 @@ function showToast(message: string, level: "info" | "warning" | "error" = "info"
 // ── Pluralize helper ──────────────────────────────────────────────────────────
 
 function pluralize(count: number, singular: string): string {
-  return `${count} ${singular}${count !== 1 ? "s" : ""}`;
+  return `${String(count)} ${singular}${count !== 1 ? "s" : ""}`;
 }
 
-// ── Format screens summary ────────────────────────────────────────────────────
-
-function formatScreensSummary(screens: UIScreen[]): string {
-  return screens
-    .map(
-      (s) =>
-        `• **${s.name}** — ${pluralize(s.elements.length, "element")} (${s.layout} layout)`
-    )
-    .join("\n");
-}
-
-// ── Active skills resolver ────────────────────────────────────────────────────
-
-/**
- * Returns the human-readable names of the skills that will be invoked for the
- * current checkbox configuration and variant count. Used to annotate assistant
- * chat bubbles with the skills that were active during a generation request.
- */
-function buildActiveSkillsList(keepDesignSystem: boolean, advancedUXSkills: boolean, variants: number): string[] {
-  const SKILL_LABELS: Record<string, string> = {
-    "generate-screen":     "Generate Screen",
-    "generate-variants":   "Generate Variants",
-    "apply-design-system": "Apply Design System",
-  };
-
-  const base = variants > 1 ? "generate-variants" : "generate-screen";
-  const skills: string[] = [base];
-
-  // Design system is applied when the checkbox is checked (either mode)
-  if (keepDesignSystem) {
-    skills.push("apply-design-system");
-  }
-
-  const labels = skills.map((s) => SKILL_LABELS[s]);
-
-  if (advancedUXSkills) labels.push("Advanced UX skills");
-
-  // Always include custom skills from the registry
-  const customSkills = registry.getSkills();
-  for (const s of customSkills) {
-    labels.push(s.name);
-  }
-
-  return labels;
-}
-
-// ── Custom agents: config loading ─────────────────────────────────────────────
-
-/**
- * Refresh the info badge shown in the options bar.
- * Called whenever the custom-config registry or external skills list changes
- * so that the main page always reflects the current state.
- */
-function populateCustomAgentOptions(): void {
-  // Keep the main-page info badge in sync
-  updateAgentsSkillsInfo();
-}
-
-// ── Custom agents: drop zone ──────────────────────────────────────────────────
+// ── Custom skills: config loading ─────────────────────────────────────────────
 
 function setupDropZone(): void {
   const zone = document.getElementById("drop-zone");
@@ -1184,7 +1038,6 @@ function setupDropZone(): void {
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
 
-    // Accept the first JSON file found
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.name.endsWith(".json")) {
@@ -1201,10 +1054,8 @@ async function loadConfigFile(file: File): Promise<void> {
   try {
     const text = await file.text();
     const json = JSON.parse(text) as unknown;
-    // Registry validates internally and throws on invalid data
     registry.load(json as CopilotConfig);
     registry.saveToStorage(safeStorage);
-    populateCustomAgentOptions();
     renderCustomConfigSummary();
     showToast(
       `Loaded ${pluralize(registry.skillCount, "skill")} from ${file.name}.`
@@ -1217,12 +1068,10 @@ async function loadConfigFile(file: File): Promise<void> {
 
 function clearCustomConfig(): void {
   registry.clear(safeStorage);
-  populateCustomAgentOptions();
   renderCustomConfigSummary();
   showToast("Custom skills cleared.");
 }
 
-/** Update the summary list of loaded custom skills (settings panel). */
 function renderCustomConfigSummary(): void {
   const summary = document.getElementById("custom-config-summary");
   if (!summary) return;
@@ -1234,103 +1083,10 @@ function renderCustomConfigSummary(): void {
   } else {
     summary.textContent = `Skills: ${skills.map((s) => s.name).join(", ")}`;
   }
-
-  // Also refresh the compact info shown in the main-page options bar
-  updateAgentsSkillsInfo();
-}
-
-/**
- * Update the compact skills info shown in the main-page options bar.
- *
- * Called whenever the custom-config registry or the external skills list changes
- * so that the main page always reflects the current state of the Settings
- * configuration without requiring the user to open Settings to verify.
- *
- * Output format examples:
- *   - ""                                  (nothing loaded)
- *   - "3 custom skills"
- *   - "3 custom skills · +5 remote"
- */
-function updateAgentsSkillsInfo(): void {
-  const infoEl = document.getElementById("agents-skills-info");
-  if (!infoEl) return;
-
-  const skills = registry.getSkills();
-  const parts: string[] = [];
-
-  if (skills.length > 0) {
-    parts.push(pluralize(skills.length, "custom skill"));
-  }
-  if (externalSkills.length > 0) {
-    parts.push(`+${externalSkills.length} remote`);
-  }
-
-  infoEl.textContent = parts.length > 0 ? parts.join(" · ") : "";
-}
-
-// ── Skills Library ────────────────────────────────────────────────────────────
-
-/**
- * Fetch the latest non-code skills from the remote library, merge them with
- * the bundled skills, update state/storage, and post a chat summary.
- */
-async function handleLoadSkillsLibrary(): Promise<void> {
-  const loadBtn = document.getElementById("load-skills-library-btn") as HTMLButtonElement | null;
-  if (loadBtn) {
-    loadBtn.disabled = true;
-    loadBtn.textContent = "Updating…";
-  }
-
-  try {
-    const skills = await fetchSkillsLibrary();
-    externalSkills = skills;
-    saveSkillsLibraryToStorage(skills, safeStorage);
-    renderSkillsLibrary();
-
-    if (skills.length === 0) {
-      appendAssistantMessage("⚠️ Remote skills library is empty — bundled skills remain active.");
-    } else {
-      const skillNames = skills.map((s) => `• ${s.name}`).join("\n");
-      appendAssistantMessage(
-        `🔄 Remote skills library updated (${pluralize(skills.length, "skill")}):\n\n${skillNames}`
-      );
-    }
-
-    showToast(`Updated: ${pluralize(skills.length, "skill")} from remote library.`);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update skills library.";
-    showToast(message, "error");
-    appendAssistantMessage(`❌ ${message}`);
-  } finally {
-    if (loadBtn) {
-      loadBtn.disabled = false;
-      // Restore button label (keep inner SVG intact by updating only the text node)
-      const textNode = Array.from(loadBtn.childNodes).find(
-        (n) => n.nodeType === Node.TEXT_NODE
-      );
-      if (textNode) {
-        textNode.textContent = " Update";
-      } else {
-        loadBtn.append(" Update");
-      }
-    }
-  }
-}
-
-/** Clear extra runtime-loaded skills (bundled skills remain active). */
-function handleClearSkillsLibrary(): void {
-  externalSkills = [];
-  clearSkillsLibraryFromStorage(safeStorage);
-  renderSkillsLibrary();
-  showToast("Runtime skills cleared. Bundled skills remain active.");
 }
 
 // ── Test connection ───────────────────────────────────────────────────────────
 
-/**
- * Send a minimal ping message to the configured LLM provider and show the
- * result in a toast. Used by the "Test connection" button in Settings.
- */
 async function handleTestConnection(): Promise<void> {
   const btn = document.getElementById("test-connection-btn") as HTMLButtonElement | null;
   const statusEl = document.getElementById("test-connection-status");
@@ -1340,7 +1096,7 @@ async function handleTestConnection(): Promise<void> {
   if (missingKeyMsg) {
     showToast(missingKeyMsg, "warning");
     if (statusEl) {
-      statusEl.textContent = "⚠ No API key configured";
+      statusEl.textContent = "No API key configured";
       statusEl.className = "test-connection-status test-connection-status--warn";
     }
     return;
@@ -1348,20 +1104,21 @@ async function handleTestConnection(): Promise<void> {
 
   if (btn) {
     btn.disabled = true;
-    // Update only the text node to preserve the icon SVG
     const textNode = Array.from(btn.childNodes).find((n) => n.nodeType === Node.TEXT_NODE);
     if (textNode) textNode.textContent = " Testing…";
   }
   if (statusEl) {
-    statusEl.textContent = "⏳ Testing connection…";
+    statusEl.textContent = "Testing connection…";
     statusEl.className = "test-connection-status";
   }
 
   try {
-    const emptyContext = {
+    const emptyContext: DocumentContext = {
       designSystem: { components: [], colors: [], textStyles: [] },
       screens: [],
       pages: [],
+      pageTextContext: [],
+      selectedText: null,
     };
 
     const timeoutMs = 15000;
@@ -1376,9 +1133,9 @@ async function handleTestConnection(): Promise<void> {
       timeoutPromise,
     ]);
 
-    showToast("✅ Connection successful!", "info");
+    showToast("Connection successful!", "info");
     if (statusEl) {
-      statusEl.textContent = "✅ Connection successful";
+      statusEl.textContent = "Connection successful";
       statusEl.className = "test-connection-status test-connection-status--ok";
     }
   } catch (err) {
@@ -1387,9 +1144,9 @@ async function handleTestConnection(): Promise<void> {
       ? "Network request blocked or failed. Verify manifest allowed domains and provider endpoint access."
       : rawMessage;
 
-    showToast(`❌ ${message}`, "error");
+    showToast(`${message}`, "error");
     if (statusEl) {
-      statusEl.textContent = `❌ ${message}`;
+      statusEl.textContent = `${message}`;
       statusEl.className = "test-connection-status test-connection-status--error";
     }
   } finally {
@@ -1401,74 +1158,18 @@ async function handleTestConnection(): Promise<void> {
   }
 }
 
-/**
- * Render the skills library panel.
- * Always shows the bundled skills; additionally shows any runtime-loaded skills.
- */
-function renderSkillsLibrary(): void {
-  const summary = document.getElementById("skills-library-summary");
-  const listEl = document.getElementById("skills-library-list");
-
-  if (!summary || !listEl) return;
-
-  summary.textContent =
-    `${pluralize(BUNDLED_SKILLS.length, "bundled skill")} active in all agents` +
-    (externalSkills.length > 0
-      ? ` · ${pluralize(externalSkills.length, "extra skill")} loaded from remote`
-      : "");
-
-  // Show bundled skills (always active)
-  listEl.innerHTML = "";
-  const bundledIds = new Set(BUNDLED_SKILLS.map((b) => b.id));
-  for (const skill of BUNDLED_SKILLS) {
-    const tag = document.createElement("span");
-    tag.className = "skill-tag";
-    tag.textContent = skill.name;
-    tag.title = `Bundled: ${skill.description}`;
-    listEl.appendChild(tag);
-  }
-
-  // Append extra runtime-loaded skills with a distinct style
-  for (const skill of externalSkills) {
-    // Skip if already covered by bundled set
-    if (bundledIds.has(skill.id)) continue;
-    const tag = document.createElement("span");
-    tag.className = "skill-tag skill-tag--remote";
-    tag.textContent = skill.name;
-    tag.title = `Remote: ${skill.id}`;
-    listEl.appendChild(tag);
-  }
-
-  listEl.classList.remove("hidden");
-
-  // Refresh the compact info in the main-page agent bar
-  updateAgentsSkillsInfo();
-}
-
 // ── Onboarding ────────────────────────────────────────────────────────────────
 
 const ONBOARDING_TOTAL_STEPS = 4;
 
-/**
- * Default placeholder shown in the onboarding functional context textarea.
- * If the user hasn't changed this text we skip saving it.
- */
 const OB_AGENT_DEFAULT_PROMPT =
   "We are building an application for... " +
   "(describe your product, industry, or target users here). " +
-  "Generate screens that match our brand and workflows.";
+  "Generate wording that matches our brand and tone of voice.";
 
 let onboardingStep = 0;
 
-/**
- * Initialise and (if first launch) display the onboarding overlay.
- * The flow has 3 real steps plus a final "You're all set" screen (shown in
- * the breadcrumb but not announced as a numbered step in text).
- * On subsequent launches the overlay stays hidden because the done-flag is
- * already stored in localStorage.
- */
 function setupOnboarding(): void {
-  // Populate the onboarding provider/model/key UI with saved or default values
   const VALID_PROVIDERS: LLMProvider[] = ["gemini", "openai", "anthropic"];
   const rawProvider = safeStorage.getItem("copilot_provider");
   const savedProvider: LLMProvider =
@@ -1479,14 +1180,12 @@ function setupOnboarding(): void {
   if (obProviderSelect) obProviderSelect.value = savedProvider;
   syncOnboardingProviderUI(savedProvider);
 
-  // Provider change → re-sync model list and key field
   if (obProviderSelect) {
     obProviderSelect.addEventListener("change", () => {
       syncOnboardingProviderUI(obProviderSelect.value as LLMProvider);
     });
   }
 
-  // API key visibility toggle
   const keyToggle = document.getElementById("ob-api-key-toggle");
   if (keyToggle) {
     keyToggle.addEventListener("click", () => {
@@ -1501,7 +1200,6 @@ function setupOnboarding(): void {
     });
   }
 
-  // Skip: dismiss onboarding without saving changes
   const skipBtn = document.getElementById("ob-skip-btn");
   if (skipBtn) {
     skipBtn.addEventListener("click", () => {
@@ -1509,7 +1207,6 @@ function setupOnboarding(): void {
     });
   }
 
-  // Back: go to previous step
   const backBtn = document.getElementById("ob-back-btn");
   if (backBtn) {
     backBtn.addEventListener("click", () => {
@@ -1517,18 +1214,14 @@ function setupOnboarding(): void {
     });
   }
 
-  // Next / Get started
   const nextBtn = document.getElementById("ob-next-btn");
   if (nextBtn) {
     nextBtn.addEventListener("click", () => {
       if (onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
-        // Save provider config when leaving step 2 (Config)
         if (onboardingStep === 1) applyOnboardingConfig();
-        // Save custom agent when leaving step 3 (Custom Agent)
         if (onboardingStep === 2) applyOnboardingCustomAgent();
         goToOnboardingStep(onboardingStep + 1);
       } else {
-        // Final step (You're all set): close the overlay
         dismissOnboarding();
       }
     });
@@ -1539,7 +1232,6 @@ function setupOnboarding(): void {
   overlay?.classList.remove("hidden");
 }
 
-/** Navigate to a specific onboarding step and update the UI accordingly. */
 function goToOnboardingStep(step: number): void {
   const stepEls = document.querySelectorAll<HTMLElement>(".onboarding-step");
   const dotEls  = document.querySelectorAll<HTMLElement>(".onboarding-dot");
@@ -1553,26 +1245,20 @@ function goToOnboardingStep(step: number): void {
 
   const isLastStep = step === ONBOARDING_TOTAL_STEPS - 1;
 
-  // Back: hidden on step 0 and on the final "You're all set" screen
   backBtn?.classList.toggle("hidden", step === 0 || isLastStep);
 
-  // Skip: hidden on the final "You're all set" screen; labelled differently on step 2
   if (skipBtn) {
     skipBtn.classList.toggle("hidden", isLastStep);
     skipBtn.textContent = step === 2 ? "Skip for now" : "Skip setup";
   }
 
   if (nextBtn) {
-    nextBtn.textContent = isLastStep ? "Get started 🚀" : "Next →";
+    nextBtn.textContent = isLastStep ? "Get started" : "Next →";
   }
 
   onboardingStep = step;
 }
 
-/**
- * Populate the onboarding model dropdown and restore saved API key for the
- * chosen provider — mirrors `syncProviderUI` but targets the `#ob-*` elements.
- */
 function syncOnboardingProviderUI(provider: LLMProvider): void {
   const modelSelect = document.getElementById("ob-model-select") as HTMLSelectElement | null;
   const keyInput    = document.getElementById("ob-api-key-input") as HTMLInputElement | null;
@@ -1597,19 +1283,13 @@ function syncOnboardingProviderUI(provider: LLMProvider): void {
     keyInput.value = safeStorage.getItem(info.storageKey) ?? "";
   }
 
-  // Update provider icon
   const providerIcon = document.getElementById("ob-provider-icon");
   if (providerIcon) providerIcon.innerHTML = info.icon;
 
-  // Update API token retrieval instructions
   const instructions = document.getElementById("ob-token-instructions");
   if (instructions) instructions.innerHTML = info.instructionsHtml;
 }
 
-/**
- * Save the provider/model/key values from the onboarding form to localStorage
- * and sync the main settings UI so the plugin is immediately ready to use.
- */
 function applyOnboardingConfig(): void {
   const obProvider = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
   const obModel    = document.getElementById("ob-model-select")    as HTMLSelectElement | null;
@@ -1625,41 +1305,30 @@ function applyOnboardingConfig(): void {
     safeStorage.setItem(info.storageKey, obKey.value.trim());
   }
 
-  // Reflect the new settings in the main settings panel
   const mainProvider = document.getElementById("provider-select") as HTMLSelectElement | null;
   if (mainProvider) mainProvider.value = provider;
   syncProviderUI(provider);
   persistSettingsToPlugin();
 }
 
-/** Close the onboarding overlay and persist the completion flag. */
 function dismissOnboarding(): void {
   const overlay = document.getElementById("onboarding-view");
   overlay?.classList.add("hidden");
   parent.postMessage({ pluginMessage: { type: "set-onboarding-done" } }, "*");
 }
 
-/**
- * Read the optional functional context from onboarding step 3 and persist it
- * to localStorage so all agents can use it automatically.
- *
- * Silently skipped if the user left the default placeholder unchanged.
- */
 function applyOnboardingCustomAgent(): void {
   const promptInput = document.getElementById("ob-agent-prompt") as HTMLTextAreaElement | null;
 
   const functionalContext = promptInput?.value.trim() ?? "";
 
-  // Skip silently if the user left the default placeholder unchanged
   if (!functionalContext || functionalContext === OB_AGENT_DEFAULT_PROMPT) return;
 
   safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, functionalContext);
 
-  // Reflect the saved value in the settings functional context field
   const settingsInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
   if (settingsInput) settingsInput.value = functionalContext;
 
   persistSettingsToPlugin();
-
   showToast("Functional context saved!");
 }

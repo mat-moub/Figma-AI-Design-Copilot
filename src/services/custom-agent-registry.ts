@@ -1,14 +1,14 @@
 /**
  * custom-agent-registry.ts
  *
- * Manages the registry of user-defined custom agents and skills that are
- * loaded from a dropped copilot config file (e.g. `copilot.json`).
+ * Manages the registry of user-defined custom skills that are loaded from a
+ * dropped copilot config file (e.g. `copilot.json`).
  *
- * Custom configurations are persisted to `localStorage` so they survive
- * plugin panel reloads.
+ * Custom skills are persisted to `localStorage` so they survive plugin panel
+ * reloads.
  */
 
-import type { CopilotConfig, CustomAgentConfig, CustomSkillConfig } from "../types/ui-types";
+import type { CopilotConfig, CustomSkillConfig } from "../types/ui-types";
 
 const STORAGE_KEY = "copilot_custom_config";
 
@@ -21,21 +21,17 @@ function getDefaultStorage(): Storage | null {
 }
 
 export class CustomAgentRegistry {
-  private agents: Map<string, CustomAgentConfig> = new Map();
   private skills: Map<string, CustomSkillConfig> = new Map();
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
   /**
-   * Parse and register agents and skills from a `CopilotConfig` object.
+   * Parse and register skills from a `CopilotConfig` object.
    * Existing entries with the same `id` are overwritten.
    */
   load(config: CopilotConfig): void {
     this.validateConfig(config);
 
-    for (const agent of config.agents ?? []) {
-      this.agents.set(agent.id, agent);
-    }
     for (const skill of config.skills ?? []) {
       this.skills.set(skill.id, skill);
     }
@@ -68,7 +64,6 @@ export class CustomAgentRegistry {
 
     const config: CopilotConfig = {
       version: "1",
-      agents: Array.from(this.agents.values()),
       skills: Array.from(this.skills.values()),
     };
     targetStorage.setItem(STORAGE_KEY, JSON.stringify(config));
@@ -77,35 +72,22 @@ export class CustomAgentRegistry {
   // ── Clear ─────────────────────────────────────────────────────────────────
 
   /**
-   * Remove all custom agents and skills from the registry and from storage.
+   * Remove all custom skills from the registry and from storage.
    */
   clear(storage?: Storage): void {
     const targetStorage = storage ?? getDefaultStorage();
-    this.agents.clear();
     this.skills.clear();
     targetStorage?.removeItem(STORAGE_KEY);
   }
 
   // ── Read ──────────────────────────────────────────────────────────────────
 
-  getAgents(): CustomAgentConfig[] {
-    return Array.from(this.agents.values());
-  }
-
   getSkills(): CustomSkillConfig[] {
     return Array.from(this.skills.values());
   }
 
-  getAgent(id: string): CustomAgentConfig | undefined {
-    return this.agents.get(id);
-  }
-
   getSkill(id: string): CustomSkillConfig | undefined {
     return this.skills.get(id);
-  }
-
-  get agentCount(): number {
-    return this.agents.size;
   }
 
   get skillCount(): number {
@@ -121,15 +103,6 @@ export class CustomAgentRegistry {
 
     const c = config as Record<string, unknown>;
 
-    if (c["agents"] !== undefined) {
-      if (!Array.isArray(c["agents"])) {
-        throw new Error('Invalid copilot config: "agents" must be an array.');
-      }
-      for (const agent of c["agents"] as unknown[]) {
-        this.validateAgent(agent);
-      }
-    }
-
     if (c["skills"] !== undefined) {
       if (!Array.isArray(c["skills"])) {
         throw new Error('Invalid copilot config: "skills" must be an array.');
@@ -137,27 +110,6 @@ export class CustomAgentRegistry {
       for (const skill of c["skills"] as unknown[]) {
         this.validateSkill(skill);
       }
-    }
-  }
-
-  private validateAgent(agent: unknown): asserts agent is CustomAgentConfig {
-    if (typeof agent !== "object" || agent === null) {
-      throw new Error("Invalid agent definition: must be an object.");
-    }
-    const a = agent as Record<string, unknown>;
-    if (typeof a["id"] !== "string" || a["id"].trim() === "") {
-      throw new Error('Invalid agent definition: "id" must be a non-empty string.');
-    }
-    if (typeof a["name"] !== "string" || a["name"].trim() === "") {
-      throw new Error(`Invalid agent "${String(a["id"])}": "name" must be a non-empty string.`);
-    }
-    if (typeof a["systemPrompt"] !== "string" || a["systemPrompt"].trim() === "") {
-      throw new Error(
-        `Invalid agent "${String(a["id"])}": "systemPrompt" must be a non-empty string.`
-      );
-    }
-    if (!Array.isArray(a["skills"])) {
-      throw new Error(`Invalid agent "${String(a["id"])}": "skills" must be an array.`);
     }
   }
 
