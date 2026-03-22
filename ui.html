@@ -130,10 +130,11 @@
       color: #ffffff;
       border: 1px solid rgba(255,255,255,0.25);
       border-radius: 999px;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 4px 12px;
       cursor: help;
+      white-space: nowrap;
     }
 
     .btn--header {
@@ -400,15 +401,7 @@
     }
     .api-key-row input { flex: 1; min-width: 0; }
 
-    /* ── Chat History ─────────────────────────────────────────── */
-    .chat-section {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
+    /* ── Chat section label bar ───────────────────────────────── */
     .chat-section__label {
       padding: 7px 14px 5px;
       font-size: 10px;
@@ -419,9 +412,92 @@
       flex-shrink: 0;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 8px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
+    }
+
+    .btn--new-convo {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      letter-spacing: 0.3px;
+      text-transform: none;
+    }
+    .btn--new-convo:hover {
+      background: var(--bg);
+      color: var(--primary);
+      border-color: var(--border-aura);
+    }
+
+    /* Push the connection badge to the far right */
+    .chat-section__label .connection-badge {
+      margin-left: auto;
+    }
+
+    /* ── Confirmation modal ───────────────────────────────────── */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.40);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .confirm-overlay.hidden { display: none !important; }
+
+    .confirm-dialog {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+      padding: 20px 20px 16px;
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .confirm-dialog__title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .confirm-dialog__body {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .confirm-dialog__actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    /* ── Chat History ─────────────────────────────────────────── */
+    .chat-section {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
     #chat-history {
@@ -568,7 +644,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      min-height: 170px;
+      min-height: 200px;
       max-height: 75vh;
     }
 
@@ -655,9 +731,10 @@
       line-height: 1.5;
       outline: none;
       transition: border-color 0.18s, box-shadow 0.18s;
-      flex: 1;
+      flex: 1 1 60px;
       min-height: 60px;
-      max-height: 100%;
+      max-height: 160px;
+      overflow-y: auto;
     }
     textarea:focus {
       border-color: var(--primary);
@@ -1143,9 +1220,61 @@
       line-height: 1.55;
     }
 
+    .ob-token-instructions a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .ob-token-instructions a:hover {
+      text-decoration: underline;
+    }
+
     .ob-token-instructions .ob-inst-note {
       font-size: 10px;
       color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Alternatives list (inside AI chat bubble) ────────────── */
+    .alternatives-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .alternative-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .alternative-text {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .alternative-rationale {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      font-style: italic;
+    }
+
+    .btn--sm {
+      padding: 3px 10px;
+      font-size: 11px;
+      border-radius: 6px;
+    }
+
+    .alternative-apply-btn {
+      align-self: flex-start;
       margin-top: 4px;
     }
   </style>
@@ -1265,13 +1394,6 @@
     </div>
     <div class="header__actions">
       <span id="ctx-badge" class="ctx-badge hidden" title="Design system context"></span>
-      <button class="btn--header" id="refresh-ctx-btn" type="button" title="Refresh document context">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
-        Context
-      </button>
-      <button class="btn--header" id="clear-btn" type="button" title="Clear chat history" aria-label="Clear chat history">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg>
-      </button>
       <button class="btn--header" id="settings-btn" type="button" title="Open settings" aria-label="Open settings">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-cog"/></svg>
         Settings
@@ -1286,6 +1408,11 @@
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
         Chat
       </span>
+      <button class="btn--new-convo" id="clear-btn" type="button"
+              title="Start a new conversation" aria-label="Start a new conversation">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+        New conversation
+      </button>
       <span class="connection-badge" role="status" aria-live="polite" aria-label="AI provider status">
         <span class="connection-dot" id="connection-dot" title="Connection status"></span>
         <span id="connection-text">Not configured — open Settings</span>
@@ -1644,7 +1771,7 @@
           <li>💬 <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything</li>
           <li>🔢 <strong>Alternatives</strong> — Set a number to generate multiple copy options at once</li>
           <li>✅ <strong>Apply</strong> — Click "Apply" on any alternative to write it directly into the selected text node</li>
-          <li>🔄 <strong>Context</strong> — Click "Context" so AI reads your Figma document for better suggestions</li>
+          <li>🔄 <strong>Context</strong> — Figma document context is refreshed automatically on every generation</li>
           <li>⚙️ <strong>Settings</strong> — Change provider, model, or functional context</li>
         </ul>
       </div>
@@ -1663,6 +1790,27 @@
     </div>
 
   </div><!-- end onboarding-view -->
+
+  <!-- Confirmation modal: new conversation -->
+  <div id="confirm-new-convo" class="confirm-overlay hidden" role="dialog"
+       aria-modal="true" aria-labelledby="confirm-title">
+    <div class="confirm-dialog">
+      <div class="confirm-dialog__title" id="confirm-title">
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-refresh"/></svg>
+        Start a new conversation?
+      </div>
+      <p class="confirm-dialog__body">
+        The current conversation will be cleared. This cannot be undone.
+      </p>
+      <div class="confirm-dialog__actions">
+        <button class="btn btn--ghost" id="confirm-cancel-btn" type="button">Cancel</button>
+        <button class="btn btn--primary" id="confirm-ok-btn" type="button">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+          New conversation
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

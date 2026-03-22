@@ -220,7 +220,6 @@ function setupEventListeners(): void {
   const generateBtn = getEl<HTMLButtonElement>("generate-btn");
   const promptInput = getEl<HTMLTextAreaElement>("prompt-input");
   const clearBtn = getEl<HTMLButtonElement>("clear-btn");
-  const refreshCtxBtn = getEl<HTMLButtonElement>("refresh-ctx-btn");
   const apiKeyToggle = getEl<HTMLButtonElement>("api-key-toggle");
 
   // Single action button dispatches to the active mode handler
@@ -242,8 +241,7 @@ function setupEventListeners(): void {
     }
   });
 
-  clearBtn.addEventListener("click", clearHistory);
-  refreshCtxBtn.addEventListener("click", requestDocumentContext);
+  clearBtn.addEventListener("click", openNewConvoConfirm);
   apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
 
   // ── Mode tabs ───────────────────────────────────────────────────────────
@@ -365,7 +363,7 @@ async function handleGenerate(): Promise<void> {
 
   // Warn the designer if the Figma context snapshot is older than CONTEXT_STALE_MS.
   if (documentContext && contextFetchedAt !== null && Date.now() - contextFetchedAt > CONTEXT_STALE_MS) {
-    showToast("Figma context may be stale — click 'Context' to refresh.", "warning");
+    requestDocumentContext();
   }
 
   const count = getAlternativesCount();
@@ -584,7 +582,7 @@ const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: strin
     storageKey: "copilot_gemini_key",
     hint: "Get your API key at aistudio.google.com/apikey.",
     icon: '<i class="fa-brands fa-google" aria-hidden="true"></i>',
-    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-google" aria-hidden="true"></i> Gemini — How to get your API key</div><ol><li>Go to <strong>aistudio.google.com/apikey</strong>.</li><li>Click <strong>Create API key</strong>.</li><li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your Google account has Gemini API access. Errors 400/401/429 are shown in the chat.</p>`,
+    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-google" aria-hidden="true"></i> Gemini — How to get your API key</div><ol><li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>.</li><li>Click <strong>Create API key</strong>.</li><li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your Google account has Gemini API access. Errors 400/401/429 are shown in the chat.</p>`,
   },
   openai: {
     label: "API Key",
@@ -592,7 +590,7 @@ const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: strin
     storageKey: "copilot_openai_key",
     hint: "Get your API key at platform.openai.com/api-keys.",
     icon: '<i class="fa-brands fa-openai" aria-hidden="true"></i>',
-    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-openai" aria-hidden="true"></i> OpenAI — How to get your API key</div><ol><li>Go to <strong>platform.openai.com/api-keys</strong>.</li><li>Click <strong>Create new secret key</strong>.</li><li>Copy the key (<code>sk-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your account has sufficient credits. Errors 401/429 are shown in the chat.</p>`,
+    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-openai" aria-hidden="true"></i> OpenAI — How to get your API key</div><ol><li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a>.</li><li>Click <strong>Create new secret key</strong>.</li><li>Copy the key (<code>sk-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your account has sufficient credits. Errors 401/429 are shown in the chat.</p>`,
   },
   anthropic: {
     label: "API Key",
@@ -600,7 +598,7 @@ const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: strin
     storageKey: "copilot_anthropic_key",
     hint: "Get your API key at console.anthropic.com → API Keys.",
     icon: '<svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg>',
-    instructionsHtml: `<div class="ob-inst-header"><svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg> Anthropic — How to get your API key</div><ol><li>Go to <strong>console.anthropic.com → API Keys</strong>.</li><li>Click <strong>Create key</strong>.</li><li>Copy the key (<code>sk-ant-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
+    instructionsHtml: `<div class="ob-inst-header"><svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg> Anthropic — How to get your API key</div><ol><li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com → API Keys</a>.</li><li>Click <strong>Create key</strong>.</li><li>Copy the key (<code>sk-ant-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
   },
 };
 
@@ -936,11 +934,46 @@ function hideAssistantTypingIndicator(): void {
   typingBubbleEl = null;
 }
 
+// ── New conversation confirmation ─────────────────────────────────────────────
+
+function openNewConvoConfirm(): void {
+  const overlay = document.getElementById("confirm-new-convo");
+  if (!overlay) {
+    // Fallback: no modal in DOM, clear directly
+    clearHistory();
+    return;
+  }
+  overlay.classList.remove("hidden");
+
+  const okBtn     = document.getElementById("confirm-ok-btn");
+  const cancelBtn = document.getElementById("confirm-cancel-btn");
+
+  function close(): void {
+    overlay!.classList.add("hidden");
+    okBtn?.removeEventListener("click", onOk);
+    cancelBtn?.removeEventListener("click", close);
+    overlay!.removeEventListener("click", onBackdrop);
+  }
+
+  function onOk(): void {
+    close();
+    clearHistory();
+  }
+
+  function onBackdrop(e: MouseEvent): void {
+    if (e.target === overlay) close();
+  }
+
+  okBtn?.addEventListener("click", onOk);
+  cancelBtn?.addEventListener("click", close);
+  overlay.addEventListener("click", onBackdrop);
+}
+
 function clearHistory(): void {
   const container = getEl<HTMLDivElement>("chat-history");
   container.innerHTML = chatEmptyStateHTML();
   chatHistory = [];
-  showToast("Chat history cleared.");
+  showToast("New conversation started.");
 }
 
 // ── Generating state ──────────────────────────────────────────────────────────

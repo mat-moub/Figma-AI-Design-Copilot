@@ -151,18 +151,27 @@ MAIN_HEADER = """
   </div>
   <div class="header__actions">
     <button class="btn--header" type="button">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
-      Context
-    </button>
-    <button class="btn--header" type="button">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg>
-    </button>
-    <button class="btn--header" type="button">
       <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-cog"/></svg>
       Settings
     </button>
   </div>
 </header>"""
+
+CHAT_LABEL_EMPTY = """
+  <div class="chat-section__label">
+    <span class="section-title">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
+      Chat
+    </span>
+    <button class="btn--new-convo" type="button">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+      New conversation
+    </button>
+    <span class="connection-badge">
+      <span class="connection-dot connection-dot--ready"></span>
+      Gemini &middot; Flash Lite
+    </span>
+  </div>"""
 
 # For main-view pages: pin the chat-section to a fixed height so the input-section
 # below it gets its natural height (~200 px) and both fit within the 640 px crop.
@@ -431,16 +440,7 @@ print("✅ onboarding-final.png")
 html = make_html(
     MAIN_HEADER + """
 <div class="chat-section">
-  <div class="chat-section__label">
-    <span class="section-title">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
-      Chat
-    </span>
-    <span class="connection-badge">
-      <span class="connection-dot connection-dot--ready"></span>
-      Gemini &middot; Flash Lite
-    </span>
-  </div>
+""" + CHAT_LABEL_EMPTY + """
   <div id="chat-history">
     <div class="chat-empty">
       <div class="chat-empty__icon">
@@ -497,16 +497,7 @@ print("✅ main-view.png")
 html = make_html(
     MAIN_HEADER + """
 <div class="chat-section">
-  <div class="chat-section__label">
-    <span class="section-title">
-      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
-      Chat
-    </span>
-    <span class="connection-badge">
-      <span class="connection-dot connection-dot--ready"></span>
-      Gemini &middot; Flash Lite
-    </span>
-  </div>
+""" + CHAT_LABEL_EMPTY + """
   <div id="chat-history">
     <div class="chat-bubble chat-bubble--user">
       <p class="chat-label">You</p>
