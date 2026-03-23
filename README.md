@@ -6,6 +6,7 @@ Supported providers:
 - **Gemini** — direct Google Gemini API with your own Google AI Studio key (BYOK) — **default**.
 - **OpenAI** — direct Chat Completions API with your own OpenAI key (BYOK).
 - **Anthropic** — direct Messages API with your own Anthropic key (BYOK).
+- **Mistral** — direct Mistral AI API with your own Mistral key (BYOK).
 
 ---
 
@@ -119,7 +120,8 @@ src/
 │   ├── llm-provider.ts        # LLMProvider interface
 │   ├── gemini-provider.ts     # Direct Google Gemini API (default)
 │   ├── openai-provider.ts     # Direct OpenAI Chat Completions
-│   └── anthropic-provider.ts  # Direct Anthropic Messages API
+│   ├── anthropic-provider.ts  # Direct Anthropic Messages API
+│   └── mistral-provider.ts    # Direct Mistral AI API
 ├── services/
 │   ├── ai-service.ts          # Provider factory + AIService (generateAlternatives, ask)
 │   ├── context-engine.ts      # Extracts design system + selected text from Figma doc
@@ -185,7 +187,7 @@ The AI is instructed to return a JSON array of `TextAlternative` objects. Each i
 
 ## Authentication & BYOK
 
-The plugin supports three providers, each with its own key:
+The plugin supports four providers, each with its own key:
 
 ### Gemini (default)
 
@@ -213,6 +215,14 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 2. Click **Create key**.
 3. Copy the key and paste it into the **API Key** field when **Anthropic** is selected as the provider.
 
+### Mistral (BYOK)
+
+Uses a **Mistral AI API key**.
+
+1. Go to **console.mistral.ai/api-keys**.
+2. Click **Create new key**.
+3. Copy the key and paste it into the **API Key** field when **Mistral** is selected as the provider.
+
 **Security:** Keys are stored in `localStorage` within the plugin iframe. They are never committed to source code or sent to any endpoint other than the respective provider's official API.
 
 ---
@@ -223,18 +233,17 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 
 | UI label | API model id | Best for |
 |----------|-------------|----------|
-| Gemini 3.1 Flash Lite *(default)* | `gemini-3.1-flash-lite-preview` | Fast, cost-efficient generation |
-| Gemini 3 Pro | `gemini-3-pro` | Higher-quality suggestions |
+| Gemini Flash Lite *(default)* | `gemini-flash-lite-latest` | Fast, cost-efficient generation |
+| Gemini Flash | `gemini-flash-latest` | Balanced quality and speed |
+| Gemini Pro | `gemini-pro-latest` | Higher-quality suggestions |
 
 ### OpenAI
 
 | UI label | API model id |
 |----------|-------------|
-| GPT-5 mini | `gpt-5-mini` |
-| GPT-5 | `gpt-5` |
-| GPT-5.2 | `gpt-5.2` |
-| GPT-5.3 | `gpt-5.3` |
-| Codex | `codex` |
+| GPT-5.4 Nano | `gpt-5.4-nano` |
+| GPT-5.4 Mini | `gpt-5.4-mini` |
+| GPT-5.4 | `gpt-5.4` |
 
 ### Anthropic
 
@@ -243,6 +252,14 @@ Uses an **Anthropic API key** (`sk-ant-…`).
 | Claude Haiku 4.5 | `claude-haiku-4-5` |
 | Claude Sonnet 4.6 | `claude-sonnet-4-6` |
 | Claude Opus 4.6 | `claude-opus-4-6` |
+
+### Mistral
+
+| UI label | API model id |
+|----------|-------------|
+| Mistral Small | `mistral-small-latest` |
+| Mistral Medium | `mistral-medium-latest` |
+| Mistral Large | `mistral-large-latest` |
 
 ---
 
@@ -413,3 +430,28 @@ type UIToPluginMessage  = GetContextMessage | GetSettingsMessage | SaveSettingsM
 type PluginToUIMessage  = ContextReadyMessage | SettingsLoadedMessage | OnboardingStatusMessage
                         | TextAppliedMessage | ErrorMessage | NotifyMessage;
 ```
+
+---
+
+## Contributing
+
+Contributions are always welcome! Whether it's reporting a bug, proposing a new feature, or submitting a Pull Request.
+
+1. Fork the project.
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
+
+Please make sure to run the tests and linting (`npm run test` and `npm run lint`) before submitting your PR.
+
+---
+
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
+
+Copyright (C) 2026 Mathieu MOUBRI "mat-moub"
+
+The AGPL-3.0 license ensures that any modifications to this software, even if deployed as a service over a network, must be shared back with the community under the same license.
+

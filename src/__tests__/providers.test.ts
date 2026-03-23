@@ -20,7 +20,7 @@ import type { ChatMessage, ModelConfig } from "../types/ui-types";
 function makeConfig(overrides: Partial<ModelConfig>): ModelConfig {
   return {
     provider: "gemini",
-    model: "gemini-3.1-flash-lite-preview",
+    model: "gemini-flash-lite-latest",
     geminiKey: "AIza-test",
     ...overrides,
   };
@@ -70,7 +70,7 @@ describe("createProvider", () => {
 
   it("defaults to GeminiProvider when provider is undefined", () => {
     // Simulate a config that lacks the provider field
-    const config = { model: "gemini-3.1-flash-lite-preview", geminiKey: "AIza-test" } as unknown as ModelConfig;
+    const config = { model: "gemini-flash-lite-latest", geminiKey: "AIza-test" } as unknown as ModelConfig;
     const provider = createProvider(config);
     expect(provider).toBeInstanceOf(GeminiProvider);
   });
@@ -90,13 +90,13 @@ describe("GeminiProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new GeminiProvider("AIza-test");
-    const result = await provider.chat([systemMsg, userMsg], "gemini-3.1-flash-lite-preview");
+    const result = await provider.chat([systemMsg, userMsg], "gemini-flash-lite-latest");
 
     expect(result).toBe("gemini response");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("gemini-3.1-flash-lite-preview:generateContent");
+    expect(url).toContain("gemini-flash-lite-latest:generateContent");
     expect(url).toContain("key=AIza-test");
     expect(init.method).toBe("POST");
 
@@ -116,7 +116,7 @@ describe("GeminiProvider", () => {
 
     const assistantMsg: ChatMessage = { role: "assistant", content: "Previous answer" };
     const provider = new GeminiProvider("AIza-test");
-    await provider.chat([userMsg, assistantMsg, userMsg], "gemini-3.1-flash-lite-preview");
+    await provider.chat([userMsg, assistantMsg, userMsg], "gemini-flash-lite-latest");
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
@@ -131,7 +131,7 @@ describe("GeminiProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new GeminiProvider("AIza-test");
-    await provider.chat([userMsg], "gemini-3.1-flash-lite-preview");
+    await provider.chat([userMsg], "gemini-flash-lite-latest");
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
@@ -141,7 +141,7 @@ describe("GeminiProvider", () => {
   it("throws a clear message on 401/403 Unauthorized", async () => {
     global.fetch = mockFetchError(401, "Unauthorized");
     const provider = new GeminiProvider("AIza-bad");
-    await expect(provider.chat([userMsg], "gemini-3.1-flash-lite-preview")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "gemini-flash-lite-latest")).rejects.toThrow(
       /invalid or lacks permissions/i
     );
   });
@@ -149,7 +149,7 @@ describe("GeminiProvider", () => {
   it("throws a clear message on 429 Too Many Requests", async () => {
     global.fetch = mockFetchError(429, "Rate limited");
     const provider = new GeminiProvider("AIza-good");
-    await expect(provider.chat([userMsg], "gemini-3.1-flash-lite-preview")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "gemini-flash-lite-latest")).rejects.toThrow(
       /rate limit/i
     );
   });
@@ -159,7 +159,7 @@ describe("GeminiProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new GeminiProvider("AIza-test");
-    const result = await provider.chat([userMsg], "gemini-3.1-flash-lite-preview");
+    const result = await provider.chat([userMsg], "gemini-flash-lite-latest");
     expect(result).toBe("");
   });
 });
@@ -178,7 +178,7 @@ describe("OpenAIProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new OpenAIProvider("sk-test");
-    const result = await provider.chat([systemMsg, userMsg], "gpt-5");
+    const result = await provider.chat([systemMsg, userMsg], "gpt-5.4");
 
     expect(result).toBe("openai response");
 
@@ -189,7 +189,7 @@ describe("OpenAIProvider", () => {
     expect(headers["Authorization"]).toBe("Bearer sk-test");
 
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body["model"]).toBe("gpt-5");
+    expect(body["model"]).toBe("gpt-5.4");
     expect(body["messages"]).toEqual([
       { role: "system", content: "You are a designer." },
       { role: "user", content: "Create a login screen." },
@@ -199,19 +199,19 @@ describe("OpenAIProvider", () => {
   it("throws a clear message on 401 Unauthorized", async () => {
     global.fetch = mockFetchError(401, "Unauthorized");
     const provider = new OpenAIProvider("sk-bad");
-    await expect(provider.chat([userMsg], "gpt-5")).rejects.toThrow(/invalid or expired/i);
+    await expect(provider.chat([userMsg], "gpt-5.4")).rejects.toThrow(/invalid or expired/i);
   });
 
   it("throws a clear message on 429 Too Many Requests", async () => {
     global.fetch = mockFetchError(429, "Rate limited");
     const provider = new OpenAIProvider("sk-good");
-    await expect(provider.chat([userMsg], "gpt-5")).rejects.toThrow(/rate limit/i);
+    await expect(provider.chat([userMsg], "gpt-5.4")).rejects.toThrow(/rate limit/i);
   });
 
   it("throws a generic error on other HTTP errors", async () => {
     global.fetch = mockFetchError(503, "Service Unavailable");
     const provider = new OpenAIProvider("sk-good");
-    await expect(provider.chat([userMsg], "gpt-5")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "gpt-5.4")).rejects.toThrow(
       /OpenAI API error 503/
     );
   });

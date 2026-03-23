@@ -71,6 +71,10 @@ figma.ui.onmessage = async (msg: UIToPluginMessage) => {
         await handleSetOnboardingDone();
         break;
 
+      case "reset-onboarding":
+        await handleResetOnboarding();
+        break;
+
       case "apply-text":
         await handleApplyText(msg);
         break;
@@ -107,6 +111,10 @@ async function handleSaveSettings(msg: SaveSettingsMessage): Promise<void> {
 
 async function handleSetOnboardingDone(): Promise<void> {
   await figma.clientStorage.setAsync(ONBOARDING_DONE_KEY, true);
+}
+
+async function handleResetOnboarding(): Promise<void> {
+  await figma.clientStorage.setAsync(ONBOARDING_DONE_KEY, false);
 }
 
 /**

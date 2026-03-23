@@ -251,6 +251,94 @@ window.onmessage = (event: MessageEvent) => {
   }
 };
 
+// ── Developer tools ───────────────────────────────────────────────────────────
+
+/** Pending callback for the dev confirm modal. */
+let devConfirmCallback: (() => void) | null = null;
+
+function openDevConfirm(title: string, body: string, okLabel: string, onConfirm: () => void): void {
+  const modal    = document.getElementById("confirm-dev-action");
+  const titleEl  = document.getElementById("confirm-dev-title-text");
+  const bodyEl   = document.getElementById("confirm-dev-body");
+  const okLabelEl = document.getElementById("confirm-dev-ok-label");
+  const okBtn    = document.getElementById("confirm-dev-ok-btn");
+
+  if (titleEl)   titleEl.textContent  = title;
+  if (bodyEl)    bodyEl.textContent   = body;
+  if (okLabelEl) okLabelEl.textContent = okLabel;
+
+  devConfirmCallback = onConfirm;
+
+  // Wire the OK button (replace any previous listener by cloning)
+  if (okBtn) {
+    const fresh = okBtn.cloneNode(true) as HTMLElement;
+    okBtn.parentNode?.replaceChild(fresh, okBtn);
+    // Re-append label span since cloneNode copies children
+    fresh.addEventListener("click", () => {
+      closeDevConfirm();
+      devConfirmCallback?.();
+      devConfirmCallback = null;
+    });
+  }
+
+  modal?.classList.remove("hidden");
+}
+
+function closeDevConfirm(): void {
+  document.getElementById("confirm-dev-action")?.classList.add("hidden");
+}
+
+function restartOnboarding(): void {
+  // Close settings panel if open
+  document.getElementById("settings-view")?.classList.add("hidden");
+  // Reset onboarding step and show the overlay
+  onboardingStep = 0;
+  setupOnboarding();
+}
+
+function resetAllData(): void {
+  // Clear all persisted data
+  safeStorage.clear();
+  // Tell the plugin backend to reset the onboarding flag to false
+  parent.postMessage({ pluginMessage: { type: "reset-onboarding" } }, "*");
+
+  // In-place UI reset — do NOT reload (Figma won't re-send settings-loaded,
+  // causing a white screen and re-restoring stale keys from clientStorage).
+
+  // 1. Clear chat history
+  const chatContainer = document.getElementById("chat-history");
+  if (chatContainer) chatContainer.innerHTML = chatEmptyStateHTML();
+  chatHistory = [];
+
+  // 2. Reset provider to default and clear API key input
+  const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
+  if (providerSelect) providerSelect.value = "gemini";
+  syncProviderUI("gemini");
+  const keyInput = document.getElementById("api-key-input") as HTMLInputElement | null;
+  if (keyInput) keyInput.value = "";
+
+  // 3. Reset functional context
+  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
+  if (contextInput) contextInput.value = "";
+
+  // 4. Reset debug mode
+  const debugEl = document.getElementById("debug-mode") as HTMLInputElement | null;
+  if (debugEl) debugEl.checked = false;
+
+  // 5. Reset interaction mode
+  setInteractionMode("generate");
+
+  // 6. Apply default theme
+  applyTheme(DEFAULT_THEME);
+
+  // 7. Close settings panel if open
+  document.getElementById("settings-view")?.classList.add("hidden");
+
+  // 8. Show onboarding overlay
+  onboardingStep = 0;
+  setupOnboarding();
+}
+
 // ── Event listeners ───────────────────────────────────────────────────────────
 
 function setupEventListeners(): void {
@@ -381,6 +469,38 @@ function setupEventListeners(): void {
   const testConnectionBtn = document.getElementById("test-connection-btn");
   if (testConnectionBtn) {
     testConnectionBtn.addEventListener("click", () => void handleTestConnection());
+  }
+
+  // ── Developer: Restart onboarding ───────────────────────────────────────
+  const restartOnboardingBtn = document.getElementById("restart-onboarding-btn");
+  if (restartOnboardingBtn) {
+    restartOnboardingBtn.addEventListener("click", () => {
+      openDevConfirm(
+        "Restart onboarding?",
+        "The setup wizard will open again. Your settings and API keys will be kept.",
+        "Restart",
+        restartOnboarding
+      );
+    });
+  }
+
+  // ── Developer: Reset all data ────────────────────────────────────────────
+  const resetAllDataBtn = document.getElementById("reset-all-data-btn");
+  if (resetAllDataBtn) {
+    resetAllDataBtn.addEventListener("click", () => {
+      openDevConfirm(
+        "Reset all data?",
+        "This will permanently erase all settings, API keys, and plugin data. This cannot be undone.",
+        "Reset all data",
+        resetAllData
+      );
+    });
+  }
+
+  // ── Developer confirm modal wiring ──────────────────────────────────────
+  const devCancelBtn = document.getElementById("confirm-dev-cancel-btn");
+  if (devCancelBtn) {
+    devCancelBtn.addEventListener("click", closeDevConfirm);
   }
 }
 
@@ -628,15 +748,14 @@ function handleSelectionChanged(selectedText: SelectedTextContext | null): void 
 /** Models available per provider, used to populate the model dropdown. */
 const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string }>> = {
   "gemini": [
-    { value: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite" },
-    { value: "gemini-3-pro", label: "Gemini 3 Pro" },
+    { value: "gemini-flash-lite-latest", label: "Gemini Flash Lite" },
+    { value: "gemini-flash-latest",      label: "Gemini Flash" },
+    { value: "gemini-pro-latest",        label: "Gemini Pro" },
   ],
   openai: [
-    { value: "gpt-5-mini", label: "GPT-5 mini" },
-    { value: "gpt-5", label: "GPT-5" },
-    { value: "gpt-5.2", label: "GPT-5.2" },
-    { value: "gpt-5.3", label: "GPT-5.3" },
-    { value: "codex", label: "Codex" },
+    { value: "gpt-5.4-nano", label: "GPT-5.4 nano" },
+    { value: "gpt-5.4-mini", label: "GPT-5.4 mini" },
+    { value: "gpt-5.4",      label: "GPT-5.4" },
   ],
   anthropic: [
     { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
@@ -644,9 +763,9 @@ const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string 
     { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
   ],
   mistral: [
-    { value: "ministral-8b-2512",  label: "Ministral 8B" },
-    { value: "mistral-small-2603", label: "Mistral Small 4" },
-    { value: "mistral-large-2512", label: "Mistral Large 3" },
+    { value: "mistral-small-latest",  label: "Mistral Small" },
+    { value: "mistral-medium-latest", label: "Mistral Medium" },
+    { value: "mistral-large-latest",  label: "Mistral Large" },
   ],
 };
 
@@ -681,7 +800,7 @@ const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: strin
     placeholder: "… (Mistral API key)",
     storageKey: "copilot_mistral_key",
     hint: "Get your API key at console.mistral.ai.",
-    icon: '<svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>',
+    icon: '<span class="provider-icon-badge" aria-hidden="true">M</span>',
     instructionsHtml: `<div class="ob-inst-header">Mistral — How to get your API key</div><ol><li>Go to <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener noreferrer">console.mistral.ai → API Keys</a>.</li><li>Click <strong>Create new key</strong>.</li><li>Copy the key and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
   },
 };

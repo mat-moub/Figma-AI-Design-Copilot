@@ -271,7 +271,7 @@ html = make_html("""
             Model
           </label>
           <select id="ob-mod" style="flex:1">
-            <option>Gemini 3.1 Flash Lite</option>
+            <option>Gemini Flash Lite</option>
           </select>
         </div>
         <div class="settings__row">
@@ -590,8 +590,9 @@ html = make_html("""
           Model
         </label>
         <select id="s-mod" style="flex:1">
-          <option selected>Gemini 3.1 Flash Lite</option>
-          <option>Gemini 3 Pro</option>
+          <option selected>Gemini Flash Lite</option>
+          <option>Gemini Flash</option>
+          <option>Gemini Pro</option>
         </select>
       </div>
       <div class="settings__row">

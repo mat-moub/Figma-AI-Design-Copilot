@@ -911,11 +911,22 @@
       font-size: 11px;
       padding: 5px 10px;
     }
-    .btn--secondary:hover:not(:disabled) {
-      background: var(--bg);
-      color: var(--primary);
-      border-color: var(--border-aura);
-    }
+     .btn--secondary:hover:not(:disabled) {
+       background: var(--bg);
+       color: var(--primary);
+       border-color: var(--border-aura);
+     }
+     .btn--danger {
+       background: #c0392b;
+       color: #fff;
+       border: 1px solid transparent;
+       font-size: 11px;
+       padding: 5px 10px;
+     }
+     .btn--danger:hover:not(:disabled) {
+       background: #a93226;
+     }
+     .btn--danger:disabled { opacity: 0.55; cursor: not-allowed; }
     .btn--secondary:disabled { opacity: 0.55; cursor: not-allowed; }
 
     .test-connection-status {
@@ -1352,6 +1363,21 @@
       justify-content: center;
     }
 
+    .provider-icon-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
     .ob-token-instructions {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -1693,8 +1719,9 @@
             Model
           </label>
           <select id="model-select" aria-label="Model" style="flex:1">
-            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
-            <option value="gemini-3-pro">Gemini 3 Pro</option>
+            <option value="gemini-flash-lite-latest">Gemini Flash Lite</option>
+            <option value="gemini-flash-latest">Gemini Flash</option>
+            <option value="gemini-pro-latest">Gemini Pro</option>
           </select>
         </div>
 
@@ -1813,23 +1840,36 @@
         </div>
       </div>
 
-      <!-- ── Section: Developer ── -->
-      <div class="settings-section">
-        <div class="settings-section__header">
-          <div class="settings-section__title">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
-            Developer
-          </div>
-        </div>
-        <label class="checkbox-option" title="Log prompts, Figma context and raw AI responses to the browser console">
-          <input type="checkbox" id="debug-mode" />
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
-          Debug mode
-        </label>
-        <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:4px 0 0">
-          Logs prompts &amp; AI responses to the console (F12 → Console).
-        </p>
-      </div>
+       <!-- ── Section: Developer ── -->
+       <div class="settings-section">
+         <div class="settings-section__header">
+           <div class="settings-section__title">
+             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
+             Developer
+           </div>
+         </div>
+         <label class="checkbox-option" title="Log prompts, Figma context and raw AI responses to the browser console">
+           <input type="checkbox" id="debug-mode" />
+           <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
+           Debug mode
+         </label>
+         <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:4px 0 0">
+           Logs prompts &amp; AI responses to the console (F12 → Console).
+         </p>
+         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+           <button class="btn btn--secondary" id="restart-onboarding-btn" type="button">
+             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
+             Restart onboarding
+           </button>
+           <button class="btn btn--danger" id="reset-all-data-btn" type="button">
+             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-warning"/></svg>
+             Reset all data
+           </button>
+         </div>
+         <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:4px 0 0">
+           <strong>Reset all data</strong> clears all settings, API keys, and plugin data.
+         </p>
+       </div>
 
     </div><!-- end settings-overlay__body -->
   </div><!-- end settings-view -->
@@ -2009,6 +2049,24 @@
         <button class="btn btn--primary" id="confirm-ok-btn" type="button">
           <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
           New conversation
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation modal: developer actions (restart onboarding / reset all data) -->
+  <div id="confirm-dev-action" class="confirm-overlay hidden" role="dialog"
+       aria-modal="true" aria-labelledby="confirm-dev-title">
+    <div class="confirm-dialog">
+      <div class="confirm-dialog__title" id="confirm-dev-title">
+        <svg class="icon icon-md" aria-hidden="true"><use href="#icon-warning"/></svg>
+        <span id="confirm-dev-title-text"></span>
+      </div>
+      <p class="confirm-dialog__body" id="confirm-dev-body"></p>
+      <div class="confirm-dialog__actions">
+        <button class="btn btn--ghost" id="confirm-dev-cancel-btn" type="button">Cancel</button>
+        <button class="btn btn--danger" id="confirm-dev-ok-btn" type="button">
+          <span id="confirm-dev-ok-label"></span>
         </button>
       </div>
     </div>

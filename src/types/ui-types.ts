@@ -36,16 +36,15 @@ export type LLMProvider = "gemini" | "openai" | "anthropic" | "mistral";
 
 /** Models available directly on the Google Gemini API. */
 export type GeminiModel =
-  | "gemini-3.1-flash-lite-preview"
-  | "gemini-3-pro";
+  | "gemini-flash-lite-latest"
+  | "gemini-flash-latest"
+  | "gemini-pro-latest";
 
 /** Models available directly on the OpenAI API. */
 export type OpenAIModel =
-  | "gpt-5-mini"
-  | "gpt-5"
-  | "gpt-5.2"
-  | "gpt-5.3"
-  | "codex";
+  | "gpt-5.4-nano"
+  | "gpt-5.4-mini"
+  | "gpt-5.4";
 
 /** Models available directly on the Anthropic API. */
 export type AnthropicModel =
@@ -55,9 +54,9 @@ export type AnthropicModel =
 
 /** Models available directly on the Mistral AI API. */
 export type MistralModel =
-  | "ministral-8b-2512"
-  | "mistral-small-2603"
-  | "mistral-large-2512";
+  | "mistral-small-latest"
+  | "mistral-medium-latest"
+  | "mistral-large-latest";
 
 /** Union of all model IDs supported across providers. */
 export type AIModel = GeminiModel | OpenAIModel | AnthropicModel | MistralModel;
@@ -242,6 +241,7 @@ export type PluginMessageType =
   | "get-onboarding-status"
   | "onboarding-status"
   | "set-onboarding-done"
+  | "reset-onboarding"
   | "apply-text"
   | "text-applied"
   | "error"
@@ -292,6 +292,10 @@ export interface SetOnboardingDoneMessage {
   type: "set-onboarding-done";
 }
 
+export interface ResetOnboardingMessage {
+  type: "reset-onboarding";
+}
+
 export interface ErrorMessage {
   type: "error";
   message: string;
@@ -322,4 +326,5 @@ export type UIToPluginMessage =
   | SaveSettingsMessage
   | GetOnboardingStatusMessage
   | SetOnboardingDoneMessage
+  | ResetOnboardingMessage
   | ApplyTextMessage;

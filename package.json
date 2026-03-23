@@ -2,6 +2,8 @@
   "name": "figma-ux-writer-copilot",
   "version": "1.0.0",
   "description": "AI-powered UX writing assistant for Figma designers — generate text alternatives, microcopy, and wording suggestions directly in your Figma file.",
+  "author": "Mathieu MOUBRI <mat-moub>",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "build": "node build.js",
     "watch": "node build.js --watch",
