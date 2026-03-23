@@ -1429,15 +1429,17 @@ function setupOnboarding(): void {
   if (obProviderSelect) obProviderSelect.value = savedProvider;
   syncOnboardingProviderUI(savedProvider);
 
+  // Use onclick assignment (not addEventListener) so re-calling setupOnboarding()
+  // during restart/reset never stacks duplicate handlers that would skip steps.
   if (obProviderSelect) {
-    obProviderSelect.addEventListener("change", () => {
+    obProviderSelect.onchange = () => {
       syncOnboardingProviderUI(obProviderSelect.value as LLMProvider);
-    });
+    };
   }
 
   const keyToggle = document.getElementById("ob-api-key-toggle");
   if (keyToggle) {
-    keyToggle.addEventListener("click", () => {
+    keyToggle.onclick = () => {
       const input = document.getElementById("ob-api-key-input") as HTMLInputElement | null;
       const eye      = document.getElementById("ob-key-icon-eye");
       const eyeSlash = document.getElementById("ob-key-icon-eye-slash");
@@ -1446,26 +1448,24 @@ function setupOnboarding(): void {
       input.type = isPassword ? "text" : "password";
       eye?.classList.toggle("hidden", !isPassword);
       eyeSlash?.classList.toggle("hidden", isPassword);
-    });
+    };
   }
 
   const skipBtn = document.getElementById("ob-skip-btn");
   if (skipBtn) {
-    skipBtn.addEventListener("click", () => {
-      dismissOnboarding();
-    });
+    skipBtn.onclick = () => dismissOnboarding();
   }
 
   const backBtn = document.getElementById("ob-back-btn");
   if (backBtn) {
-    backBtn.addEventListener("click", () => {
+    backBtn.onclick = () => {
       if (onboardingStep > 0) goToOnboardingStep(onboardingStep - 1);
-    });
+    };
   }
 
   const nextBtn = document.getElementById("ob-next-btn");
   if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
+    nextBtn.onclick = () => {
       if (onboardingStep < ONBOARDING_TOTAL_STEPS - 1) {
         if (onboardingStep === 1) applyOnboardingConfig();
         if (onboardingStep === 2) applyOnboardingCustomAgent();
@@ -1473,7 +1473,7 @@ function setupOnboarding(): void {
       } else {
         dismissOnboarding();
       }
-    });
+    };
   }
 
   goToOnboardingStep(0);
