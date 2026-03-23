@@ -8,11 +8,10 @@
 
 import { AIService } from "./services/ai-service";
 import { UXWriterAgent } from "./agents/ux-writer-agent";
-import { CustomAgentRegistry } from "./services/custom-agent-registry";
 import type {
   ChatMessage,
-  CopilotConfig,
   DocumentContext,
+  FunctionalContext,
   LLMProvider,
   ModelConfig,
   PersistedSettings,
@@ -35,8 +34,14 @@ window.__AICOPILOT_UI_LOADED__ = true;
 /** After this many milliseconds without a context refresh, warn the designer. */
 const CONTEXT_STALE_MS = 10 * 60 * 1000; // 10 minutes
 
-/** localStorage key for the user's functional/business context. */
-const FUNCTIONAL_CONTEXT_KEY = "copilot_functional_context";
+/** localStorage key for the user's functional contexts array. */
+const CONTEXTS_KEY = "copilot_contexts";
+
+/** localStorage key for the active context ID. */
+const ACTIVE_CONTEXT_KEY = "copilot_active_context_id";
+
+/** @deprecated Legacy key — used only for migration from single-context. */
+const LEGACY_FUNCTIONAL_CONTEXT_KEY = "copilot_functional_context";
 
 /** localStorage key for the active interaction mode. */
 const INTERACTION_MODE_KEY = "copilot_interaction_mode";
@@ -50,8 +55,30 @@ const ALTERNATIVES_COUNT_KEY = "copilot_alternatives_count";
 /** localStorage key for the UI theme preference. */
 const THEME_KEY = "copilot_theme";
 
+/** localStorage key for the badge animation preference. */
+const ANIMATE_BADGE_KEY = "copilot_animate_badge";
+
 /** Default theme when no preference is stored. */
 const DEFAULT_THEME: ThemeMode = "dark";
+
+/**
+ * Generate a random UUID-like identifier.
+ * `generateId()` requires a secure context, which Figma's plugin
+ * iframe (data: URI) does not provide. Fall back to `crypto.getRandomValues`
+ * which *is* available in that environment.
+ */
+function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return generateId();
+  }
+  // Fallback: build a v4-style UUID from getRandomValues
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 1
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 function createInMemoryStorage(): Storage {
   const store = new Map<string, string>();
@@ -110,10 +137,15 @@ function applyTheme(theme: ThemeMode): void {
   safeStorage.setItem(THEME_KEY, theme);
   const toggle = document.getElementById("theme-toggle") as HTMLInputElement | null;
   if (toggle) toggle.checked = theme === "dark";
-  const lightLabel = document.getElementById("theme-label-light");
-  const darkLabel = document.getElementById("theme-label-dark");
-  if (lightLabel) lightLabel.classList.toggle("theme-switch-label--active", theme === "light");
-  if (darkLabel) darkLabel.classList.toggle("theme-switch-label--active", theme === "dark");
+  
+  const statusLabel = document.getElementById("theme-status-label");
+  if (statusLabel) {
+    if (theme === "dark") {
+      statusLabel.innerHTML = '<i class="fa-solid fa-moon" aria-hidden="true"></i> Dark';
+    } else {
+      statusLabel.innerHTML = '<i class="fa-solid fa-sun" aria-hidden="true"></i> Light';
+    }
+  }
 }
 
 /** Return the currently persisted theme, falling back to the default. */
@@ -140,7 +172,6 @@ let typingBubbleEl: HTMLDivElement | null = null;
 
 const aiService = new AIService();
 const uxWriterAgent = new UXWriterAgent();
-const registry = new CustomAgentRegistry();
 
 // ── DOM References ────────────────────────────────────────────────────────────
 
@@ -160,8 +191,8 @@ function initializeUI(): void {
   }
 
   try {
-    registry.loadFromStorage(safeStorage);
-    renderCustomConfigSummary();
+    // Migrate legacy single functional context → named contexts system
+    migrateLegacyContext();
 
     // Restore provider selection and sync model/key UI
     const savedProvider = (safeStorage.getItem("copilot_provider") as LLMProvider | null) ?? "gemini";
@@ -177,10 +208,9 @@ function initializeUI(): void {
     const themeToggleInit = document.getElementById("theme-toggle") as HTMLInputElement | null;
     if (themeToggleInit) themeToggleInit.checked = getStoredTheme() === "dark";
 
-    // Restore functional context in settings textarea
-    const savedContext = safeStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "";
-    const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
-    if (contextInput) contextInput.value = savedContext;
+    // Render contexts list in settings and sync context selector in chat
+    renderContextsList();
+    syncContextSelector();
 
     // Restore alternatives count
     const savedCount = safeStorage.getItem(ALTERNATIVES_COUNT_KEY);
@@ -253,21 +283,21 @@ window.onmessage = (event: MessageEvent) => {
 
 // ── Developer tools ───────────────────────────────────────────────────────────
 
-/** Pending callback for the dev confirm modal. */
-let devConfirmCallback: (() => void) | null = null;
+/** Pending callback for the generic confirm modal. */
+let confirmCallback: (() => void) | null = null;
 
-function openDevConfirm(title: string, body: string, okLabel: string, onConfirm: () => void): void {
-  const modal    = document.getElementById("confirm-dev-action");
-  const titleEl  = document.getElementById("confirm-dev-title-text");
-  const bodyEl   = document.getElementById("confirm-dev-body");
-  const okLabelEl = document.getElementById("confirm-dev-ok-label");
-  const okBtn    = document.getElementById("confirm-dev-ok-btn");
+function openConfirmDialog(title: string, body: string, okLabel: string, onConfirm: () => void): void {
+  const modal    = document.getElementById("confirm-action");
+  const titleEl  = document.getElementById("confirm-action-title-text");
+  const bodyEl   = document.getElementById("confirm-action-body");
+  const okLabelEl = document.getElementById("confirm-action-ok-label");
+  const okBtn    = document.getElementById("confirm-action-ok-btn");
 
   if (titleEl)   titleEl.textContent  = title;
   if (bodyEl)    bodyEl.textContent   = body;
   if (okLabelEl) okLabelEl.textContent = okLabel;
 
-  devConfirmCallback = onConfirm;
+  confirmCallback = onConfirm;
 
   // Wire the OK button (replace any previous listener by cloning)
   if (okBtn) {
@@ -275,17 +305,17 @@ function openDevConfirm(title: string, body: string, okLabel: string, onConfirm:
     okBtn.parentNode?.replaceChild(fresh, okBtn);
     // Re-append label span since cloneNode copies children
     fresh.addEventListener("click", () => {
-      closeDevConfirm();
-      devConfirmCallback?.();
-      devConfirmCallback = null;
+      closeConfirmDialog();
+      confirmCallback?.();
+      confirmCallback = null;
     });
   }
 
   modal?.classList.remove("hidden");
 }
 
-function closeDevConfirm(): void {
-  document.getElementById("confirm-dev-action")?.classList.add("hidden");
+function closeConfirmDialog(): void {
+  document.getElementById("confirm-action")?.classList.add("hidden");
 }
 
 function restartOnboarding(): void {
@@ -317,9 +347,9 @@ function resetAllData(): void {
   const keyInput = document.getElementById("api-key-input") as HTMLInputElement | null;
   if (keyInput) keyInput.value = "";
 
-  // 3. Reset functional context
-  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
-  if (contextInput) contextInput.value = "";
+  // 3. Reset functional contexts
+  renderContextsList();
+  syncContextSelector();
 
   // 4. Reset debug mode
   const debugEl = document.getElementById("debug-mode") as HTMLInputElement | null;
@@ -437,32 +467,69 @@ function setupEventListeners(): void {
     });
   }
 
-  // ── Functional context: persist on change ──────────────────────────────
-  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
-  if (contextInput) {
-    contextInput.addEventListener("input", () => {
-      safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, contextInput.value.trim());
+  // ── Badge animation toggle ───────────────────────────────────────────────
+  const animateBadgeToggle = document.getElementById("animate-badge-toggle") as HTMLInputElement | null;
+  if (animateBadgeToggle) {
+    animateBadgeToggle.addEventListener("change", () => {
+      const animate = animateBadgeToggle.checked;
+      safeStorage.setItem(ANIMATE_BADGE_KEY, animate ? "1" : "0");
+      
+      const badge = document.getElementById("ctx-badge");
+      if (badge) {
+        if (animate && documentContext?.selectedText) {
+          badge.classList.add("ctx-badge--animate");
+        } else {
+          badge.classList.remove("ctx-badge--animate");
+        }
+      }
       persistSettingsToPlugin();
     });
   }
 
-  // ── Custom skills: file-drop zone ───────────────────────────────────────
-  setupDropZone();
-
-  // ── Custom skills: file picker fallback ────────────────────────────────
-  const fileInput = document.getElementById("config-file-input") as HTMLInputElement | null;
-  if (fileInput) {
-    fileInput.addEventListener("change", () => {
-      const file = fileInput.files?.[0];
-      if (file) void loadConfigFile(file);
-      fileInput.value = "";
+  // ── Context selector: change active context ──────────────────────────────
+  const contextSelector = document.getElementById("context-selector") as HTMLSelectElement | null;
+  if (contextSelector) {
+    contextSelector.addEventListener("change", () => {
+      const id = contextSelector.value || null;
+      setActiveContextId(id);
+      persistSettingsToPlugin();
     });
   }
 
-  // ── Custom skills: clear button ─────────────────────────────────────────
-  const clearCustomBtn = document.getElementById("clear-custom-btn");
-  if (clearCustomBtn) {
-    clearCustomBtn.addEventListener("click", clearCustomConfig);
+  // ── Context CRUD buttons (delegated on the contexts list container) ─────
+  const ctxListContainer = document.getElementById("contexts-list");
+  if (ctxListContainer) {
+    ctxListContainer.addEventListener("click", (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const btn = target.closest<HTMLElement>("[data-ctx-action]");
+      if (!btn) return;
+      const action = btn.dataset.ctxAction;
+      const id = btn.dataset.ctxId ?? "";
+      if (action === "edit") openContextForm(id);
+      if (action === "delete") {
+        openConfirmDialog(
+          "Delete Context",
+          "Are you sure you want to delete this context? This action cannot be undone.",
+          "Delete",
+          () => deleteContext(id)
+        );
+      }
+    });
+  }
+
+  const ctxAddBtn = document.getElementById("ctx-add-btn");
+  if (ctxAddBtn) {
+    ctxAddBtn.addEventListener("click", () => openContextForm());
+  }
+
+  const ctxFormSaveBtn = document.getElementById("ctx-form-save-btn");
+  if (ctxFormSaveBtn) {
+    ctxFormSaveBtn.addEventListener("click", () => saveContextForm());
+  }
+
+  const ctxFormCancelBtn = document.getElementById("ctx-form-cancel-btn");
+  if (ctxFormCancelBtn) {
+    ctxFormCancelBtn.addEventListener("click", () => closeContextForm());
   }
 
   // ── Test connection button ───────────────────────────────────────────────
@@ -475,7 +542,7 @@ function setupEventListeners(): void {
   const restartOnboardingBtn = document.getElementById("restart-onboarding-btn");
   if (restartOnboardingBtn) {
     restartOnboardingBtn.addEventListener("click", () => {
-      openDevConfirm(
+      openConfirmDialog(
         "Restart onboarding?",
         "The setup wizard will open again. Your settings and API keys will be kept.",
         "Restart",
@@ -488,7 +555,7 @@ function setupEventListeners(): void {
   const resetAllDataBtn = document.getElementById("reset-all-data-btn");
   if (resetAllDataBtn) {
     resetAllDataBtn.addEventListener("click", () => {
-      openDevConfirm(
+      openConfirmDialog(
         "Reset all data?",
         "This will permanently erase all settings, API keys, and plugin data. This cannot be undone.",
         "Reset all data",
@@ -497,10 +564,10 @@ function setupEventListeners(): void {
     });
   }
 
-  // ── Developer confirm modal wiring ──────────────────────────────────────
-  const devCancelBtn = document.getElementById("confirm-dev-cancel-btn");
+  // ── Generic confirm modal wiring ──────────────────────────────────────
+  const devCancelBtn = document.getElementById("confirm-action-cancel-btn");
   if (devCancelBtn) {
-    devCancelBtn.addEventListener("click", closeDevConfirm);
+    devCancelBtn.addEventListener("click", closeConfirmDialog);
   }
 }
 
@@ -682,6 +749,12 @@ function setInteractionMode(mode: "generate" | "ask"): void {
     if (generateIcon) generateIcon.className = "fa-solid fa-wand-magic-sparkles";
     if (optionsBar) optionsBar.classList.remove("hidden");
   }
+
+  // Update empty state text if there is no chat history yet
+  if (chatHistory.length === 0) {
+    const container = document.getElementById("chat-history");
+    if (container) container.innerHTML = chatEmptyStateHTML();
+  }
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -702,15 +775,36 @@ function requestOnboardingStatus(): void {
 function showContextBadge(context: DocumentContext): void {
   contextFetchedAt = Date.now();
   const badge = document.getElementById("ctx-badge");
-  if (!badge) return;
+  const badgeLabel = document.getElementById("ctx-badge-label");
+  const badgeText = document.getElementById("ctx-badge-text");
+  if (!badge || !badgeLabel || !badgeText) return;
 
   const hasSelectedText = context.selectedText !== null;
   const screenCount = context.screens.length;
+  
+  const textContent = context.selectedText?.characters || "";
+  const truncatedText = textContent.length > 20 ? textContent.slice(0, 20) + "…" : textContent;
+  
   const selectedLabel = hasSelectedText
-    ? `"${context.selectedText!.characters.slice(0, 30)}${context.selectedText!.characters.length > 30 ? "…" : ""}"`
+    ? `"${textContent.slice(0, 30)}${textContent.length > 30 ? "…" : ""}"`
     : "none";
 
-  badge.textContent = hasSelectedText ? "Text selected" : `${String(screenCount)} screens`;
+  badgeLabel.textContent = hasSelectedText ? "Text selected" : `${String(screenCount)} screens`;
+  badgeText.textContent = hasSelectedText ? `"${truncatedText}"` : "None";
+  
+  // If no text is selected, stop animation by showing only the first line
+  if (!hasSelectedText) {
+    badge.classList.remove("ctx-badge--animate");
+  } else {
+    // Check global setting to re-enable
+    const animateSetting = safeStorage.getItem("copilot_animate_badge") !== "0";
+    if (animateSetting) {
+      badge.classList.add("ctx-badge--animate");
+    } else {
+      badge.classList.remove("ctx-badge--animate");
+    }
+  }
+
   const refreshedAt = new Date(contextFetchedAt).toLocaleTimeString();
   badge.title = [
     `Refreshed: ${refreshedAt}`,
@@ -841,9 +935,8 @@ function getSelectedProvider(): LLMProvider {
 
 function collectPersistedSettings(): PersistedSettings {
   const provider = getSelectedProvider();
-  const functionalContext = (
-    (document.getElementById("functional-context-input") as HTMLTextAreaElement | null)?.value ?? ""
-  ).trim();
+  const contexts = getContexts();
+  const activeContextId = getActiveContextId();
 
   const modelByProvider: Partial<Record<LLMProvider, ModelConfig["model"]>> = {
     gemini: (safeStorage.getItem("copilot_model_gemini") as ModelConfig["model"] | null) ?? undefined,
@@ -864,9 +957,11 @@ function collectPersistedSettings(): PersistedSettings {
     modelByProvider,
     apiKeyByProvider,
     interactionMode,
-    functionalContext,
+    contexts,
+    activeContextId,
     debugMode: getDebugMode(),
     theme: getStoredTheme(),
+    animateBadge: safeStorage.getItem(ANIMATE_BADGE_KEY) !== "0",
   };
 }
 
@@ -896,14 +991,33 @@ function applyPersistedSettings(settings: PersistedSettings): void {
   }
 
   safeStorage.setItem(INTERACTION_MODE_KEY, settings.interactionMode);
-  safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, settings.functionalContext);
+
+  // Restore contexts and active context ID
+  if (settings.contexts && settings.contexts.length > 0) {
+    saveContexts(settings.contexts);
+    if (settings.activeContextId) {
+      setActiveContextId(settings.activeContextId);
+    }
+  } else if (settings.functionalContext) {
+    // Migration from legacy single context in persisted settings
+    const legacyContent = settings.functionalContext.trim();
+    if (legacyContent) {
+      const ctx: FunctionalContext = {
+        id: generateId(),
+        title: "My context",
+        content: legacyContent,
+      };
+      saveContexts([ctx]);
+      setActiveContextId(ctx.id);
+    }
+  }
+
+  renderContextsList();
+  syncContextSelector();
 
   const providerSelect = document.getElementById("provider-select") as HTMLSelectElement | null;
   if (providerSelect) providerSelect.value = settings.provider;
   syncProviderUI(settings.provider);
-
-  const contextInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
-  if (contextInput) contextInput.value = settings.functionalContext;
 
   const debugModeEl = document.getElementById("debug-mode") as HTMLInputElement | null;
   if (debugModeEl) {
@@ -917,6 +1031,14 @@ function applyPersistedSettings(settings: PersistedSettings): void {
   // Apply theme from persisted settings
   const theme = settings.theme ?? DEFAULT_THEME;
   applyTheme(theme);
+
+  // Restore badge animation preference
+  const animateBadge = settings.animateBadge !== false;
+  safeStorage.setItem(ANIMATE_BADGE_KEY, animateBadge ? "1" : "0");
+  const animateToggle = document.getElementById("animate-badge-toggle") as HTMLInputElement | null;
+  if (animateToggle) {
+    animateToggle.checked = animateBadge;
+  }
 }
 
 function getDebugMode(): boolean {
@@ -978,27 +1100,15 @@ function getAlternativesCount(): number {
   return isNaN(val) || val < 1 ? 3 : Math.min(val, 10);
 }
 
-/** Returns the functional context text entered by the user. */
-function getFunctionalContext(): string {
-  return (safeStorage.getItem(FUNCTIONAL_CONTEXT_KEY) ?? "").trim();
-}
-
 /**
- * Build an additional system-prompt block from user-provided custom skills.
+ * Returns the content of the currently active functional context, or empty string.
  */
-function buildCustomSkillsAddition(): string {
-  const skills = registry.getSkills();
-  if (skills.length === 0) return "";
-  return skills.map((s) => s.promptModifier).join("\n\n");
-}
-
 function buildFullFunctionalContext(): string {
-  const parts: string[] = [];
-  const ctx = getFunctionalContext();
-  if (ctx) parts.push(ctx);
-  const customSkills = buildCustomSkillsAddition();
-  if (customSkills) parts.push(customSkills);
-  return parts.join("\n\n");
+  const contexts = getContexts();
+  const activeId = getActiveContextId();
+  if (!activeId) return "";
+  const active = contexts.find((c) => c.id === activeId);
+  return active?.content.trim() ?? "";
 }
 
 // ── Chat UI helpers ───────────────────────────────────────────────────────────
@@ -1015,10 +1125,10 @@ function chatEmptyStateHTML(): string {
   }
   return `<div class="chat-empty" id="chat-empty-state">
     <div class="chat-empty__icon">
-      <i class="fa-solid fa-pen-nib" aria-hidden="true"></i>
+      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
     </div>
-    <p class="chat-empty__title">Generate text alternatives</p>
-    <p class="chat-empty__subtitle">Select a text node in Figma, describe what you need,<br>and click Generate.</p>
+    <p class="chat-empty__title">Select a text node to start</p>
+    <p class="chat-empty__subtitle">Select any text in Figma, then describe<br>what you want &mdash; I'll suggest alternatives.</p>
   </div>`;
 }
 
@@ -1259,79 +1369,240 @@ function showToast(message: string, level: "info" | "warning" | "error" = "info"
   setTimeout(() => toast.classList.remove("toast--visible"), 3000);
 }
 
-// ── Pluralize helper ──────────────────────────────────────────────────────────
+// ── Context management helpers ────────────────────────────────────────────────
 
-function pluralize(count: number, singular: string): string {
-  return `${String(count)} ${singular}${count !== 1 ? "s" : ""}`;
-}
-
-// ── Custom skills: config loading ─────────────────────────────────────────────
-
-function setupDropZone(): void {
-  const zone = document.getElementById("drop-zone");
-  if (!zone) return;
-
-  zone.addEventListener("dragover", (e: DragEvent) => {
-    e.preventDefault();
-    zone.classList.add("drop-zone--active");
-  });
-
-  zone.addEventListener("dragleave", () => {
-    zone.classList.remove("drop-zone--active");
-  });
-
-  zone.addEventListener("drop", (e: DragEvent) => {
-    e.preventDefault();
-    zone.classList.remove("drop-zone--active");
-
-    const files = e.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.name.endsWith(".json")) {
-        void loadConfigFile(file);
-        return;
-      }
-    }
-
-    showToast("Please drop a JSON config file.", "warning");
-  });
-}
-
-async function loadConfigFile(file: File): Promise<void> {
+/** Read all functional contexts from localStorage. */
+function getContexts(): FunctionalContext[] {
+  const raw = safeStorage.getItem(CONTEXTS_KEY);
+  if (!raw) return [];
   try {
-    const text = await file.text();
-    const json = JSON.parse(text) as unknown;
-    registry.load(json as CopilotConfig);
-    registry.saveToStorage(safeStorage);
-    renderCustomConfigSummary();
-    showToast(
-      `Loaded ${pluralize(registry.skillCount, "skill")} from ${file.name}.`
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to parse config file.";
-    showToast(message, "error");
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as FunctionalContext[]) : [];
+  } catch {
+    return [];
   }
 }
 
-function clearCustomConfig(): void {
-  registry.clear(safeStorage);
-  renderCustomConfigSummary();
-  showToast("Custom skills cleared.");
+/** Persist the full contexts array to localStorage. */
+function saveContexts(contexts: FunctionalContext[]): void {
+  safeStorage.setItem(CONTEXTS_KEY, JSON.stringify(contexts));
 }
 
-function renderCustomConfigSummary(): void {
-  const summary = document.getElementById("custom-config-summary");
-  if (!summary) return;
+/** Read the active context ID from localStorage. */
+function getActiveContextId(): string | null {
+  return safeStorage.getItem(ACTIVE_CONTEXT_KEY) ?? null;
+}
 
-  const skills = registry.getSkills();
-
-  if (skills.length === 0) {
-    summary.textContent = "No custom config loaded.";
+/** Set the active context ID in localStorage and sync the selector. */
+function setActiveContextId(id: string | null): void {
+  if (id) {
+    safeStorage.setItem(ACTIVE_CONTEXT_KEY, id);
   } else {
-    summary.textContent = `Skills: ${skills.map((s) => s.name).join(", ")}`;
+    safeStorage.removeItem(ACTIVE_CONTEXT_KEY);
   }
+  syncContextSelector();
+}
+
+/**
+ * One-time migration: convert the legacy single functional context to a named
+ * context in the new multi-context system.
+ */
+function migrateLegacyContext(): void {
+  const legacy = safeStorage.getItem(LEGACY_FUNCTIONAL_CONTEXT_KEY);
+  if (!legacy || !legacy.trim()) return;
+
+  // Only migrate if there are no existing contexts yet
+  if (getContexts().length > 0) {
+    safeStorage.removeItem(LEGACY_FUNCTIONAL_CONTEXT_KEY);
+    return;
+  }
+
+  const ctx: FunctionalContext = {
+    id: generateId(),
+    title: "My context",
+    content: legacy.trim(),
+  };
+  saveContexts([ctx]);
+  setActiveContextId(ctx.id);
+  safeStorage.removeItem(LEGACY_FUNCTIONAL_CONTEXT_KEY);
+}
+
+/** Render the list of context cards in the Settings panel. */
+function renderContextsList(): void {
+  const container = document.getElementById("contexts-list");
+  if (!container) return;
+
+  const contexts = getContexts();
+
+  if (contexts.length === 0) {
+    container.innerHTML = '<p class="ctx-empty">No contexts yet. Click "+ Add" to create one.</p>';
+    return;
+  }
+
+  container.innerHTML = "";
+  for (const ctx of contexts) {
+    const card = document.createElement("div");
+    card.className = "ctx-card";
+    card.innerHTML = `
+      <div class="ctx-card__header">
+        <span class="ctx-card__title">${escapeHTML(ctx.title)}</span>
+        <div class="ctx-card__actions">
+          <button class="btn btn--icon-sm" data-ctx-action="edit" data-ctx-id="${escapeHTML(ctx.id)}" title="Edit">
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+          </button>
+          <button class="btn btn--icon-sm" data-ctx-action="delete" data-ctx-id="${escapeHTML(ctx.id)}" title="Delete">
+            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="ctx-card__preview">${escapeHTML(ctx.content.substring(0, 120))}${ctx.content.length > 120 ? "…" : ""}</div>
+    `;
+    container.appendChild(card);
+  }
+}
+
+
+
+/** Populate the context selector dropdown in the chat input area. */
+function syncContextSelector(): void {
+  const selector = document.getElementById("context-selector") as HTMLSelectElement | null;
+  if (!selector) return;
+
+  const contexts = getContexts();
+  let activeId = getActiveContextId();
+
+  if (contexts.length === 0) {
+    selector.innerHTML = '<option value="">(No context)</option>';
+    return;
+  }
+
+  // If there are contexts but no valid activeId, auto-select the first one
+  if (!activeId || !contexts.find((c) => c.id === activeId)) {
+    activeId = contexts[0].id;
+    safeStorage.setItem(ACTIVE_CONTEXT_KEY, activeId);
+    // Persist to ensure the plugin has the active context correct.
+    persistSettingsToPlugin();
+  }
+
+  selector.innerHTML = "";
+  for (const ctx of contexts) {
+    const opt = document.createElement("option");
+    opt.value = ctx.id;
+    opt.textContent = ctx.title;
+    if (ctx.id === activeId) opt.selected = true;
+    selector.appendChild(opt);
+  }
+}
+
+/** Open the inline add/edit form in the settings panel. */
+function openContextForm(editId?: string): void {
+  const form = document.getElementById("ctx-form");
+  const titleInput = document.getElementById("ctx-form-title") as HTMLInputElement | null;
+  const contentInput = document.getElementById("ctx-form-content") as HTMLTextAreaElement | null;
+  const formEditId = document.getElementById("ctx-form-edit-id") as HTMLInputElement | null;
+  if (!form || !titleInput || !contentInput || !formEditId) return;
+
+  if (editId) {
+    const contexts = getContexts();
+    const existing = contexts.find((c) => c.id === editId);
+    if (existing) {
+      titleInput.value = existing.title;
+      contentInput.value = existing.content;
+      formEditId.value = existing.id;
+    }
+  } else {
+    titleInput.value = "";
+    contentInput.value = "";
+    formEditId.value = "";
+  }
+
+  form.classList.remove("hidden");
+  titleInput.focus();
+}
+
+/** Hide the context add/edit form. */
+function closeContextForm(): void {
+  const form = document.getElementById("ctx-form");
+  form?.classList.add("hidden");
+}
+
+/** Save (create or update) a context from the inline form fields. */
+function saveContextForm(): void {
+  const titleInput = document.getElementById("ctx-form-title") as HTMLInputElement | null;
+  const contentInput = document.getElementById("ctx-form-content") as HTMLTextAreaElement | null;
+  const formEditId = document.getElementById("ctx-form-edit-id") as HTMLInputElement | null;
+  if (!titleInput || !contentInput || !formEditId) return;
+
+  const title = titleInput.value.trim();
+  const content = contentInput.value.trim();
+  if (!title) {
+    showToast("Please enter a context title.", "warning");
+    return;
+  }
+  if (!content) {
+    showToast("Please enter context content.", "warning");
+    return;
+  }
+
+  const contexts = getContexts();
+  const editId = formEditId.value;
+
+  if (editId) {
+    // Update existing
+    const idx = contexts.findIndex((c) => c.id === editId);
+    if (idx !== -1) {
+      contexts[idx] = { ...contexts[idx], title, content };
+    }
+  } else {
+    // Create new
+    const newCtx: FunctionalContext = {
+      id: generateId(),
+      title,
+      content,
+    };
+    contexts.push(newCtx);
+  }
+
+  saveContexts(contexts);
+  
+  if (!editId && contexts.length === 1) {
+    // Auto-activate if it's the first context (requires contexts to be saved first)
+    setActiveContextId(contexts[0].id);
+  } else {
+    // If not doing setActiveContextId (which calls syncContextSelector), do it manually
+    syncContextSelector();
+  }
+
+  renderContextsList();
+  closeContextForm();
+  persistSettingsToPlugin();
+  showToast(editId ? "Context updated." : "Context added.");
+}
+
+/** Delete a context by ID. */
+function deleteContext(id: string): void {
+  let contexts = getContexts();
+  contexts = contexts.filter((c) => c.id !== id);
+  saveContexts(contexts);
+
+  // If the deleted context was active, clear the active selection
+  if (getActiveContextId() === id) {
+    setActiveContextId(null);
+  }
+
+  renderContextsList();
+  syncContextSelector();
+  persistSettingsToPlugin();
+  showToast("Context deleted.");
+}
+
+/** Escape HTML special characters for safe insertion. */
+function escapeHTML(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ── Test connection ───────────────────────────────────────────────────────────
@@ -1567,17 +1838,27 @@ function dismissOnboarding(): void {
 }
 
 function applyOnboardingCustomAgent(): void {
+  const titleInput = document.getElementById("ob-context-title") as HTMLInputElement | null;
   const promptInput = document.getElementById("ob-agent-prompt") as HTMLTextAreaElement | null;
 
-  const functionalContext = promptInput?.value.trim() ?? "";
+  const title = titleInput?.value.trim() ?? "";
+  const content = promptInput?.value.trim() ?? "";
 
-  if (!functionalContext || functionalContext === OB_AGENT_DEFAULT_PROMPT) return;
+  if (!content || content === OB_AGENT_DEFAULT_PROMPT) return;
 
-  safeStorage.setItem(FUNCTIONAL_CONTEXT_KEY, functionalContext);
+  const ctx: FunctionalContext = {
+    id: generateId(),
+    title: title || "My context",
+    content,
+  };
 
-  const settingsInput = document.getElementById("functional-context-input") as HTMLTextAreaElement | null;
-  if (settingsInput) settingsInput.value = functionalContext;
+  const contexts = getContexts();
+  contexts.push(ctx);
+  saveContexts(contexts);
+  setActiveContextId(ctx.id);
 
+  renderContextsList();
+  syncContextSelector();
   persistSettingsToPlugin();
   showToast("Functional context saved!");
 }

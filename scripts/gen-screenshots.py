@@ -70,11 +70,11 @@ svg_match = re.search(
 SVG_DEFS = svg_match.group(1)
 FA_LINK = f'<link rel="stylesheet" href="file://{FA_CSS}">'
 
-RENDER_H = 900  # render taller than H so nothing gets clipped by viewport
+RENDER_H = 1000  # render taller than H so nothing gets clipped by viewport
 
 # Screenshot crop size for README assets (fixed)
 W = 420
-H = 640
+H = 800
 
 def make_html(body_html: str, extra_css: str = "") -> str:
     """Build a standalone HTML file for screenshot rendering."""
@@ -173,11 +173,11 @@ CHAT_LABEL_EMPTY = """
   </div>"""
 
 # For main-view pages: pin the chat-section to a fixed height so the input-section
-# below it gets its natural height (~200 px) and both fit within the 640 px crop.
-# Header ~50px + chat 380px + resize 5px + input ~205px = ~640px total.
+# below it gets its natural height (~200 px) and both fit within the 800 px crop.
+# Header ~50px + chat 540px + resize 5px + input ~205px = ~800px total.
 MAIN_LAYOUT_CSS = """
 body { display: flex; flex-direction: column; }
-.chat-section { flex: 0 0 380px !important; height: 380px !important; overflow: hidden; }
+.chat-section { flex: 0 0 540px !important; height: 540px !important; overflow: hidden; }
 .resize-handle { height: 5px; flex-shrink: 0; }
 .input-section { flex-shrink: 0; overflow: hidden; }
 """
@@ -186,7 +186,7 @@ body { display: flex; flex-direction: column; }
 # 1. onboarding-step-1.png — Welcome
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:800px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -231,7 +231,7 @@ print("✅ onboarding-step-1.png")
 # 2. onboarding-step-2.png — Configure Provider
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:800px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -320,7 +320,7 @@ print("✅ onboarding-step-2.png")
 # 3. onboarding-step-3.png — Functional Context
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:800px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -344,6 +344,13 @@ html = make_html("""
         in every generation to produce copy that fits your application&#39;s voice and audience.
       </p>
       <div class="onboarding-configure">
+        <div style="margin-bottom:8px">
+          <label for="ob-ctitle" class="settings__label">
+            <i class="fa-solid fa-tag" aria-hidden="true"></i>
+            Context title
+          </label>
+          <input type="text" id="ob-ctitle" placeholder="e.g. B2B SaaS HR" style="margin-top:4px;width:100%;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);box-sizing:border-box"/>
+        </div>
         <div>
           <label for="ob-ctx" class="settings__label">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
@@ -353,8 +360,8 @@ html = make_html("""
         </div>
       </div>
       <p class="onboarding-hint">
-        💡 This context will be automatically applied to all AI generations. You can update it
-        anytime in <strong>Settings → Functional Context</strong>.
+        This context will be automatically applied to all AI generations. You can manage
+        multiple contexts anytime in <strong>Settings &rarr; Functional Contexts</strong>.
         Click <strong>Skip for now</strong> to start without it.
       </p>
     </div>
@@ -375,7 +382,7 @@ print("✅ onboarding-step-3.png")
 # 4. onboarding-final.png — You're all set!
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:640px;">
+<div class="onboarding-overlay" style="display:flex; position:relative; inset:auto; width:420px; height:800px;">
   <div class="onboarding-header">
     <div class="onboarding-header__brand">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-sparkles"/></svg>
@@ -423,7 +430,7 @@ html = make_html("""
          </li>
          <li>
            <i class="fa-solid fa-gear" style="width:14px;color:var(--primary)"></i>
-           <strong>Settings</strong> — Change provider, model, or functional context
+            <strong>Settings</strong> — Change provider, model, or functional contexts
          </li>
       </ul>
     </div>
@@ -459,15 +466,20 @@ html = make_html(
 <div class="resize-handle"></div>
 
 <section class="input-section">
-  <div class="mode-toggle" role="tablist">
-    <button class="mode-tab mode-tab--active" role="tab" type="button">
-      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-      Generate
-    </button>
-    <button class="mode-tab" role="tab" type="button">
-      <i class="fa-solid fa-comments" aria-hidden="true"></i>
-      Ask
-    </button>
+  <div class="mode-bar">
+    <div class="mode-toggle" role="tablist">
+      <button class="mode-tab mode-tab--active" role="tab" type="button">
+        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+        Generate
+      </button>
+      <button class="mode-tab" role="tab" type="button">
+        <i class="fa-solid fa-comments" aria-hidden="true"></i>
+        Ask
+      </button>
+    </div>
+    <select id="context-selector" aria-label="Active functional context">
+      <option value="">B2B SaaS HR</option>
+    </select>
   </div>
   <textarea id="prompt-input" placeholder="Describe the wording you want &mdash; tone, audience, context&#8230;"></textarea>
   <div class="options-bar" id="options-bar">
@@ -520,15 +532,20 @@ html = make_html(
 <div class="resize-handle"></div>
 
 <section class="input-section mode--ask">
-  <div class="mode-toggle" role="tablist">
-    <button class="mode-tab" role="tab" type="button">
-      <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-      Generate
-    </button>
-    <button class="mode-tab mode-tab--active" role="tab" type="button">
-      <i class="fa-solid fa-comments" aria-hidden="true"></i>
-      Ask
-    </button>
+  <div class="mode-bar">
+    <div class="mode-toggle" role="tablist">
+      <button class="mode-tab" role="tab" type="button">
+        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+        Generate
+      </button>
+      <button class="mode-tab mode-tab--active" role="tab" type="button">
+        <i class="fa-solid fa-comments" aria-hidden="true"></i>
+        Ask
+      </button>
+    </div>
+    <select id="context-selector" aria-label="Active functional context">
+      <option value="">B2B SaaS HR</option>
+    </select>
   </div>
   <textarea id="prompt-input" placeholder="Ask a UX writing question&#8230;"></textarea>
   <div class="input-bottom">
@@ -549,10 +566,10 @@ screenshot(html, os.path.join(SHOTS_DIR, "main-view-ask.png"))
 print("✅ main-view-ask.png")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 7. settings-view.png — Settings overlay (no Skills Library section)
+# 7. settings-view.png — Settings overlay (Functional Contexts with cards)
 # ══════════════════════════════════════════════════════════════════════════════
 html = make_html("""
-<div class="settings-overlay" style="display:flex; position:relative; inset:auto; width:420px; min-height:640px;">
+<div class="settings-overlay" style="display:flex; position:relative; inset:auto; width:420px; min-height:800px;">
   <div class="settings-overlay__header">
     <div class="settings-overlay__title">
       <svg class="icon icon-md" aria-hidden="true"><use href="#icon-cog"/></svg>
@@ -620,39 +637,41 @@ html = make_html("""
       <div class="settings-section__header">
         <div class="settings-section__title">
           <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
-          Functional Context
-        </div>
-      </div>
-      <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:0 0 6px">
-        Describe your product, industry, target users, or tone of voice. This context is automatically
-        injected into every generation to produce more relevant copy.
-      </p>
-      <textarea class="functional-context-textarea" spellcheck="false">We are building a B2B SaaS for HR managers in mid-sized companies&#8230;</textarea>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section__header">
-        <div class="settings-section__title">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-puzzle"/></svg>
-          Custom Skills
+          Functional Contexts
         </div>
         <div class="settings-section__actions">
-          <button class="btn btn--ghost" type="button">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
-            Clear
+          <button class="btn btn--ghost" type="button" title="Add a new context">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            Add
           </button>
         </div>
       </div>
-      <div class="drop-zone">
-        <p class="drop-zone__label">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
-          Drop <strong>copilot.json</strong> or <strong>click to browse</strong>
-        </p>
-      </div>
-      <p id="custom-config-summary">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
-        No custom config loaded.
+      <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:0 0 6px">
+        Create named contexts for different products or audiences. The active context is
+        injected into every AI generation. Select one in the chat area dropdown.
       </p>
+      <div id="contexts-list">
+        <div class="ctx-card">
+          <div class="ctx-card__header">
+            <span class="ctx-card__title">B2B SaaS HR</span>
+            <div class="ctx-card__actions">
+              <button class="btn btn--icon-sm" title="Edit" type="button"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+              <button class="btn btn--icon-sm" title="Delete" type="button"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+            </div>
+          </div>
+          <div class="ctx-card__preview">We are building a B2B SaaS for HR managers in mid-sized companies&#8230;</div>
+        </div>
+        <div class="ctx-card">
+          <div class="ctx-card__header">
+            <span class="ctx-card__title">E-commerce</span>
+            <div class="ctx-card__actions">
+              <button class="btn btn--icon-sm" title="Edit" type="button"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+              <button class="btn btn--icon-sm" title="Delete" type="button"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+            </div>
+          </div>
+          <div class="ctx-card__preview">Online retail store for fashion and lifestyle products targeting 25-40&#8230;</div>
+        </div>
+      </div>
     </div>
 
     <div class="settings-section">

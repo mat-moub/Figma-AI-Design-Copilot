@@ -86,9 +86,15 @@ export interface PersistedSettings {
   modelByProvider: Partial<Record<LLMProvider, AIModel>>;
   apiKeyByProvider: Partial<Record<LLMProvider, string>>;
   interactionMode: "generate" | "ask";
-  functionalContext: string;
+  /** Named functional contexts (replaces legacy single functionalContext). */
+  contexts: FunctionalContext[];
+  /** ID of the currently active context, or null for none. */
+  activeContextId: string | null;
+  /** @deprecated Legacy single context — kept for migration only. */
+  functionalContext?: string;
   debugMode: boolean;
   theme: ThemeMode;
+  animateBadge: boolean;
 }
 
 // ─── Document Context ────────────────────────────────────────────────────────
@@ -192,32 +198,20 @@ export interface AgentConfig {
   systemPrompt: string;
 }
 
-// ─── Custom Skills (prompt modifiers via copilot.json) ───────────────────────
+// ─── Functional Contexts ─────────────────────────────────────────────────────
 
 /**
- * Definition of a user-provided custom skill loaded from a copilot config file.
- * A custom skill appends a `promptModifier` to the agent system prompt, letting
- * users extend wording generation behaviour without writing TypeScript.
+ * A named functional context that describes a product, industry, tone of voice,
+ * or any business context. The active context is injected into the AI system
+ * prompt on every generation to produce more relevant copy.
  */
-export interface CustomSkillConfig {
-  /** Unique identifier */
+export interface FunctionalContext {
+  /** Unique identifier (UUID v4). */
   id: string;
-  /** Human-readable name shown in the UI */
-  name: string;
-  /** Extra instructions appended to the agent system prompt */
-  promptModifier: string;
-}
-
-/**
- * Schema for the copilot config file (e.g. `copilot.json`) that users can drop
- * into the plugin panel to register their own skills — inspired by Claude Code's
- * `.claude` folder convention.
- */
-export interface CopilotConfig {
-  /** Optional schema version for future compatibility */
-  version?: string;
-  /** Custom skills available to the UX writer agent */
-  skills?: CustomSkillConfig[];
+  /** Short human-readable title shown in dropdowns and cards. */
+  title: string;
+  /** Full context description injected into the AI prompt. */
+  content: string;
 }
 
 export interface GenerateAlternativesInput {

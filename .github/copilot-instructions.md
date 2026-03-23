@@ -5,11 +5,11 @@
 This repository is a **Figma plugin** that helps designers write better copy by generating AI-powered wording alternatives for selected text nodes. The plugin reads the selected text node, the surrounding Figma document context (design system, screens, page text), and forwards everything to the selected AI provider to produce contextually-aware copy suggestions that can be applied in one click.
 
 **Key capabilities:**
-- Supports three AI providers: Gemini (Google), OpenAI, and Anthropic
+- Supports four AI providers: Gemini (Google), OpenAI, Anthropic, and Mistral
 - Generates N wording alternatives for any selected Figma text node
 - Context-aware: reads design system, screen names, and surrounding text from the document
 - `Ask` mode for free-form UX writing questions without modifying any node
-- Allows custom skills (prompt modifiers) via a drag-and-drop `copilot.json` file
+- Named functional contexts: create multiple business contexts and switch between them
 
 ## Tech Stack
 
@@ -30,9 +30,8 @@ src/
   ui.ts                    # Plugin iframe UI logic (compiled → dist/ui.js)
   types/ui-types.ts        # Shared TypeScript types for sandbox ↔ UI messaging
   providers/               # LLM provider implementations (one file per provider)
-  services/                # Core services: AI orchestration, context engine, custom-agent registry
+  services/                # Core services: AI orchestration, context engine
   agents/                  # Agent implementations (ux-writer-agent)
-  data/skills-library.ts   # Reserved for future bundled skills (currently empty)
   __tests__/               # Jest unit tests (co-located test files)
 build.js                   # esbuild build script
 manifest.json              # Figma plugin manifest
@@ -74,7 +73,7 @@ npm test             # Run Jest unit tests
 - **apply-text flow** — when the user clicks "Apply" in the UI, an `ApplyTextMessage` is posted to the sandbox (`main.ts`), which loads fonts and writes the new text into the selected `TextNode`.
 - **Adding a provider** — create a new file in `src/providers/`, implement `LLMProvider`, and register it in the provider factory in `src/services/ai-service.ts`.
 - **Adding an agent** — create a new file in `src/agents/` and wire it into `ui.ts`.
-- **Custom skills** — users can drop a `copilot.json` file to register `CustomSkillConfig` entries; these are managed by `src/services/custom-agent-registry.ts`.
+- **Functional contexts** — users create named contexts in Settings; the active context content is injected into the AI system prompt. Contexts are stored in `localStorage` under `copilot_contexts` (JSON array) and `copilot_active_context_id`.
 
 ---
 

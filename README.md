@@ -34,12 +34,11 @@ Supported providers:
 6. [Authentication & BYOK](#authentication--byok)
 7. [Available providers and models](#available-providers-and-models)
 8. [Interaction modes](#interaction-modes)
-9. [Functional context](#functional-context)
-10. [Custom skills (`copilot.json`)](#custom-skills-copilotjson)
-11. [Data flow — single request](#data-flow--single-request)
-12. [Build & develop](#build--develop)
-13. [Testing](#testing)
-14. [Key types quick reference](#key-types-quick-reference)
+9. [Functional contexts](#functional-contexts)
+10. [Data flow — single request](#data-flow--single-request)
+11. [Build & develop](#build--develop)
+12. [Testing](#testing)
+13. [Key types quick reference](#key-types-quick-reference)
 
 ---
 
@@ -58,7 +57,7 @@ Supported providers:
 │  Plugin iframe  (ui.ts → dist/ui.js)         │
 │  • Chat interface + mode toggle              │
 │  • Provider / model / alternatives count     │
-│  • Functional context + custom skills        │
+│  • Named functional contexts                 │
 │  • Routes requests to the selected provider  │
 └──────┬──────────────────┬───────────────────┘
        │ Gemini API   │ OpenAI / Anthropic
@@ -82,15 +81,14 @@ The provider is selected in the **Provider** dropdown. Each provider has its own
 | **Info bar** | Connection dot (🟠 no key / 🟢 ready) + current provider · model label |
 | **Chat** | Scrollable conversation history; shows a placeholder when empty |
 | **Mode toggle** | **Generate** tab (generates copy alternatives) · **Ask** tab (conversational UX writing Q&A) |
-| **Input** | Prompt textarea · **Alternatives** count input (Generate mode) · **Generate / Ask** button · Ctrl+Enter shortcut |
+| **Input** | Prompt textarea · **Context** selector dropdown · **Alternatives** count input (Generate mode) · **Generate / Ask** button · Ctrl+Enter shortcut |
 
 ### Settings view (full-screen overlay)
 
 | Section | Content |
 |---------|---------|
 | **Model Configuration** | Provider selector, Model selector, API key input with show/hide toggle |
-| **Functional Context** | Free-text textarea to describe your product/industry/tone — automatically injected into every generation |
-| **Custom Skills** | Drag-and-drop zone for `copilot.json` files + loaded skills summary |
+| **Functional Contexts** | Create, edit, and delete named contexts (product, industry, tone); active context is selected via the dropdown in the chat area |
 | **Developer** | Debug mode checkbox (logs prompts + AI responses to the browser console) |
 
 ---
@@ -124,16 +122,12 @@ src/
 │   └── mistral-provider.ts    # Direct Mistral AI API
 ├── services/
 │   ├── ai-service.ts          # Provider factory + AIService (generateAlternatives, ask)
-│   ├── context-engine.ts      # Extracts design system + selected text from Figma doc
-│   └── custom-agent-registry.ts  # Manages user-provided custom skills
+│   └── context-engine.ts      # Extracts design system + selected text from Figma doc
 ├── agents/
 │   └── ux-writer-agent.ts     # UX writer agent: system prompt + generate() method
-├── data/
-│   └── skills-library.ts      # Reserved for future bundled skills (currently empty)
 └── __tests__/                 # Jest unit tests
     ├── providers.test.ts
-    ├── ai-service.test.ts
-    └── custom-agent-registry.test.ts
+    └── ai-service.test.ts
 ```
 
 ---
@@ -278,40 +272,17 @@ In **Ask mode**, the Alternatives count input is hidden to keep the interface cl
 
 ---
 
-## Functional context
+## Functional contexts
 
-Set a free-text description of your product in **Settings → Functional Context**. This text is automatically appended to the AI system prompt on every generation.
+Create one or more named functional contexts in **Settings → Functional Contexts**. Each context has a title and content. The active context's content is automatically appended to the AI system prompt on every generation, producing copy tailored to that product or audience.
 
-**Example:**
-> We are building a B2B SaaS for HR managers in mid-sized companies. Our tone is professional but approachable. Users need clear, action-oriented labels with minimal jargon.
+Select the active context from the **Context** dropdown in the chat input area. Choose "(No context)" to generate without any business context.
 
-Custom skill `promptModifier` strings from `copilot.json` are always appended alongside the functional context.
+**Example context:**
+> **Title:** B2B SaaS HR  
+> **Content:** We are building a B2B SaaS for HR managers in mid-sized companies. Our tone is professional but approachable. Users need clear, action-oriented labels with minimal jargon.
 
----
-
-## Custom skills (`copilot.json`)
-
-Drop a `copilot.json` file into the plugin panel (**Settings → Custom Skills**) to register writing prompt modifiers without TypeScript.
-
-```jsonc
-{
-  "version": "1",
-  "skills": [
-    {
-      "id": "british-english",
-      "name": "British English",
-      "promptModifier": "Use British English spelling and grammar conventions throughout."
-    },
-    {
-      "id": "plain-language",
-      "name": "Plain Language",
-      "promptModifier": "Use plain language — short sentences, active voice, no jargon, Flesch reading ease above 60."
-    }
-  ]
-}
-```
-
-Custom skill `promptModifier` strings are appended to the UX writer agent's system prompt. The registry persists to `localStorage` so configs survive plugin restarts.
+You can create contexts for different products, brands, or audiences and switch between them without losing any data.
 
 ---
 
@@ -392,7 +363,7 @@ npm test -- ai-service        # run AI service suite only
 ```ts
 // src/types/ui-types.ts
 
-type LLMProvider = "gemini" | "openai" | "anthropic";
+type LLMProvider = "gemini" | "openai" | "anthropic" | "mistral";
 
 interface TextAlternative {
   text: string;
@@ -409,6 +380,12 @@ interface SelectedTextContext {
   screenName: string | null;
 }
 
+interface FunctionalContext {
+  id: string;       // crypto.randomUUID()
+  title: string;    // e.g. "B2B SaaS HR"
+  content: string;  // injected into the AI prompt
+}
+
 interface GenerateAlternativesInput {
   prompt: string;
   count: number;
@@ -416,12 +393,6 @@ interface GenerateAlternativesInput {
   modelConfig: ModelConfig;
   history: ChatMessage[];
   functionalContext?: string;
-}
-
-interface CustomSkillConfig {
-  id: string;
-  name: string;
-  promptModifier: string; // appended to every agent system prompt
 }
 
 // Messages between iframe ↔ plugin sandbox

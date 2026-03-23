@@ -32,8 +32,6 @@
       --user-bubble: #594AE2;
       --ai-bubble: #eef1fb;
       --ai-text: #1a1d2e;
-      --drop-zone-active-bg: #e8ecf8;
-
       --radius: 8px;
       --radius-lg: 12px;
       --shadow-aura: 0 0 0 1px var(--border-aura), 0 0 16px rgba(33, 150, 243, 0.10);
@@ -60,10 +58,6 @@
       --spinner-top: #fff;
       --toast-bg: #1a1d2e;
       --toast-color: #fff;
-      --skill-tag-bg: #e8ecf8;
-      --skill-tag-remote-bg: #e8f5e9;
-      --skill-tag-remote-color: #2e7d32;
-      --skill-tag-remote-border: rgba(46, 125, 50, 0.15);
       --confirm-backdrop: rgba(0, 0, 0, 0.40);
       --confirm-shadow: 0 8px 32px rgba(0,0,0,0.22);
       --input-shadow: 0 -2px 12px rgba(33, 150, 243, 0.07);
@@ -104,7 +98,6 @@
       --user-bubble: #7b6bef;
       --ai-bubble: #383838;
       --ai-text: #e5e5e5;
-      --drop-zone-active-bg: #333333;
 
       --shadow-aura: 0 0 0 1px var(--border-aura), 0 0 16px rgba(13, 153, 255, 0.08);
 
@@ -128,10 +121,6 @@
       --spinner-top: #e5e5e5;
       --toast-bg: #383838;
       --toast-color: #e5e5e5;
-      --skill-tag-bg: rgba(13, 153, 255, 0.12);
-      --skill-tag-remote-bg: rgba(48, 209, 88, 0.12);
-      --skill-tag-remote-color: #30d158;
-      --skill-tag-remote-border: rgba(48, 209, 88, 0.20);
       --confirm-backdrop: rgba(0, 0, 0, 0.60);
       --confirm-shadow: 0 8px 32px rgba(0,0,0,0.50);
       --input-shadow: 0 -2px 12px rgba(0, 0, 0, 0.20);
@@ -236,19 +225,45 @@
       background: var(--badge-bg);
       color: var(--badge-color);
       border: 1px solid var(--badge-border);
-      border-radius: 999px;
+      border-radius: var(--radius-lg);
       font-size: 11px;
       font-weight: 600;
-      padding: 4px 12px;
+      padding: 0;
       cursor: help;
       white-space: nowrap;
+      overflow: hidden;
+      height: 24px;
+      display: inline-flex;
+      flex-direction: column;
+    }
+    .ctx-badge__inner {
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 100%;
+    }
+    .ctx-badge--animate .ctx-badge__inner {
+      animation: badge-flip 6s infinite;
+    }
+    .ctx-badge__line {
+      height: 24px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    @keyframes badge-flip {
+      0%, 45% { transform: translateY(0); }
+      50%, 95% { transform: translateY(-24px); }
+      100% { transform: translateY(0); }
     }
 
     .btn--header {
       background: var(--header-btn-bg);
       border: 1px solid var(--header-btn-border);
       color: var(--header-btn-color);
-      border-radius: 6px;
+      border-radius: var(--radius-lg);
       padding: 4px 8px;
       font-size: 11px;
       font-family: var(--font);
@@ -344,32 +359,125 @@
       flex-shrink: 0;
     }
 
-    .agents-skills-info {
-      font-size: 10px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      flex-shrink: 0;
-      font-style: italic;
-      margin-left: auto;
-    }
-
-    /* ── Functional context textarea in settings ──────────────── */
-    .functional-context-textarea {
-      width: 100%;
-      min-height: 72px;
-      resize: vertical;
+    /* ── Context cards in settings ─────────────────────────────── */
+    .ctx-empty {
       font-size: 11px;
-      font-family: inherit;
-      padding: 7px 10px;
+      color: var(--text-muted);
+      margin: 4px 0 0;
+    }
+    .ctx-card {
       border: 1px solid var(--border);
       border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 6px;
+      background: var(--bg);
+    }
+    .ctx-card--active {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary-glow);
+    }
+    .ctx-card__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .ctx-card__title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .ctx-card__badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: var(--primary-text);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .ctx-card__preview {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin: 2px 0 4px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .ctx-card__actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* ── Context inline form ───────────────────────────────────── */
+    .ctx-form {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 8px;
+      background: var(--surface);
+    }
+    .ctx-form.hidden { display: none; }
+    .ctx-form__field {
+      margin-bottom: 6px;
+    }
+    .ctx-form__field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .ctx-form__field input,
+    .ctx-form__field textarea {
+      width: 100%;
+      font-size: 11px;
+      font-family: inherit;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
       background: var(--bg);
       color: var(--text);
       box-sizing: border-box;
+    }
+    .ctx-form__field input:focus,
+    .ctx-form__field textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .ctx-form__field textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+    .ctx-form__actions {
+      display: flex;
+      gap: 6px;
       margin-top: 6px;
     }
 
-    .functional-context-textarea:focus {
+    /* ── Context selector in chat area ──────────────────────────── */
+    .mode-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .mode-bar .mode-toggle {
+      margin-bottom: 0;
+    }
+    .mode-bar select {
+      flex: 1;
+      min-width: 0;
+      font-size: 10px;
+      font-family: inherit;
+      padding: 4px 6px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg);
+      color: var(--text);
+    }
+    .mode-bar select:focus {
       outline: none;
       border-color: var(--primary);
     }
@@ -465,6 +573,7 @@
     .settings__row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
       margin-bottom: 8px;
     }
@@ -686,26 +795,6 @@
       font-weight: 500;
     }
 
-    /* ── Chat Skill Chips ────────────────────────────────────── */
-    .chat-skills {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-      margin-top: 5px;
-    }
-
-    .chat-skill-tag {
-      font-size: 9px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 999px;
-      background: var(--chip-bg);
-      color: var(--primary);
-      border: 1px solid var(--chip-border);
-      letter-spacing: 0.4px;
-      text-transform: uppercase;
-    }
-
     /* ── Context badge: stale state ──────────────────────────── */
     .ctx-badge--stale {
       background: var(--stale-bg);
@@ -898,6 +987,19 @@
       padding: 5px 7px;
       border-radius: 6px;
     }
+    .btn--icon-sm {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .btn--icon-sm:hover {
+      background: var(--bg);
+      color: var(--primary);
+    }
     .btn--icon:hover {
       background: var(--bg);
       color: var(--primary);
@@ -990,79 +1092,6 @@
     .toast--visible { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast--warning { background: #b45309; }
     .toast--error   { background: #b91c1c; }
-
-    /* ── Drop Zone ────────────────────────────────────────────── */
-    .drop-zone {
-      border: 1.5px dashed var(--border);
-      border-radius: var(--radius);
-      padding: 10px 12px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
-      position: relative;
-    }
-    .drop-zone:hover, .drop-zone--active {
-      border-color: var(--primary);
-      background: var(--drop-zone-active-bg);
-      box-shadow: 0 0 0 3px var(--primary-glow), 0 0 16px rgba(33, 150, 243, 0.10);
-    }
-    .drop-zone__label {
-      font-size: 11px;
-      color: var(--text-muted);
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-    .drop-zone__label strong { color: var(--primary); font-weight: 600; }
-    .drop-zone input[type="file"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
-    }
-
-    #custom-config-summary {
-      margin-top: 6px;
-      font-size: 10px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    /* ── Skills ───────────────────────────────────────────────── */
-    #skills-library-summary {
-      margin-top: 4px;
-      font-size: 10px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    #skills-library-list {
-      margin-top: 6px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    .skill-tag {
-      background: var(--skill-tag-bg);
-      color: var(--primary);
-      border-radius: 999px;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 9px;
-      border: 1px solid rgba(33, 150, 243, 0.12);
-    }
-    .skill-tag--remote {
-      background: var(--skill-tag-remote-bg);
-      color: var(--skill-tag-remote-color);
-      border-color: var(--skill-tag-remote-border);
-    }
 
     /* ── Section Title (shared) ───────────────────────────────── */
     .section-title {
@@ -1589,7 +1618,12 @@
       </div>
     </div>
     <div class="header__actions">
-      <span id="ctx-badge" class="ctx-badge hidden" title="Design system context"></span>
+      <div id="ctx-badge" class="ctx-badge hidden" title="Design system context">
+        <div class="ctx-badge__inner">
+          <div class="ctx-badge__line" id="ctx-badge-label">Text selected</div>
+          <div class="ctx-badge__line" id="ctx-badge-text">...</div>
+        </div>
+      </div>
       <button class="btn--header" id="settings-btn" type="button" title="Open settings" aria-label="Open settings">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-cog"/></svg>
         Settings
@@ -1629,20 +1663,25 @@
 
   <!-- ── Input Area ─────────────────────────────────────────── -->
   <section class="input-section" id="input-section">
-    <!-- ── Mode toggle: Generate / Ask ─────────────────────── -->
-    <div class="mode-toggle" role="tablist" aria-label="Interaction mode">
-      <button class="mode-tab mode-tab--active" id="mode-tab-generate" role="tab"
-              aria-selected="true" aria-controls="input-section" type="button"
-              title="Generate wording alternatives for the selected text node">
-        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-        Generate
-      </button>
-      <button class="mode-tab" id="mode-tab-ask" role="tab"
-              aria-selected="false" aria-controls="input-section" type="button"
-              title="Ask the AI a UX writing question — no text node is modified">
-        <i class="fa-solid fa-comments" aria-hidden="true"></i>
-        Ask
-      </button>
+    <!-- ── Mode toggle: Generate / Ask + Context selector ──── -->
+    <div class="mode-bar">
+      <div class="mode-toggle" role="tablist" aria-label="Interaction mode">
+        <button class="mode-tab mode-tab--active" id="mode-tab-generate" role="tab"
+                aria-selected="true" aria-controls="input-section" type="button"
+                title="Generate wording alternatives for the selected text node">
+          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+          Generate
+        </button>
+        <button class="mode-tab" id="mode-tab-ask" role="tab"
+                aria-selected="false" aria-controls="input-section" type="button"
+                title="Ask the AI a UX writing question — no text node is modified">
+          <i class="fa-solid fa-comments" aria-hidden="true"></i>
+          Ask
+        </button>
+      </div>
+      <select id="context-selector" aria-label="Active functional context">
+        <option value="">(No context)</option>
+      </select>
     </div>
     <textarea id="prompt-input" placeholder="Describe the wording you want — tone, audience, context…"
               aria-label="Prompt"></textarea>
@@ -1655,7 +1694,6 @@
       <input type="number" id="alternatives-count-input" value="3" min="1" max="10"
              style="width:52px" aria-label="Number of alternatives to generate"/>
       <span style="color:var(--text-muted);font-size:11px">(1–10)</span>
-      <span class="agents-skills-info" id="agents-skills-info"></span>
     </div>
     <!-- ── Bottom row: hint (left) + generate/ask (right) ─ -->
     <div class="input-bottom">
@@ -1758,56 +1796,44 @@
         </div>
       </div>
 
-      <!-- ── Section: Functional Context ── -->
+      <!-- ── Section: Functional Contexts ── -->
       <div class="settings-section">
         <div class="settings-section__header">
           <div class="settings-section__title">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
-            Functional Context
-          </div>
-        </div>
-        <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:0 0 6px">
-          Describe your product, industry, target users, or tone of voice. This context is automatically
-          injected into every generation to produce more relevant copy.
-        </p>
-        <textarea
-          id="functional-context-input"
-          class="functional-context-textarea"
-          placeholder="e.g. We are building a B2B SaaS for HR managers in mid-sized companies. Our users need to track employee onboarding and performance reviews…"
-          aria-label="Functional context"
-          spellcheck="false"
-        ></textarea>
-      </div>
-
-      <!-- ── Section: Custom Skills ── -->
-      <div class="settings-section">
-        <div class="settings-section__header">
-          <div class="settings-section__title">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-puzzle"/></svg>
-            Custom Skills
+            Functional Contexts
           </div>
           <div class="settings-section__actions">
-            <button class="btn btn--ghost" id="clear-custom-btn" type="button"
-                    title="Remove all custom skills">
-              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-xmark"/></svg>
-              Clear
+            <button class="btn btn--ghost" id="ctx-add-btn" type="button" title="Add a new context">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+              Add
             </button>
           </div>
         </div>
-        <div id="drop-zone" class="drop-zone" role="button"
-             aria-label="Drop copilot.json here or click to browse"
-             title="Drop a copilot.json config file to load custom skills">
-          <p class="drop-zone__label">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-code"/></svg>
-            Drop <strong>copilot.json</strong> or <strong>click to browse</strong>
-          </p>
-          <input type="file" id="config-file-input" accept=".json,application/json"
-                 aria-label="Select copilot config file" tabindex="-1"/>
-        </div>
-        <p id="custom-config-summary">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
-          No custom config loaded.
+        <p class="settings-hint" style="font-size:11px;color:var(--text-muted);margin:0 0 6px">
+          Create named contexts for different products or audiences. The active context is
+          injected into every AI generation. Select one in the chat area dropdown.
         </p>
+
+        <!-- Context cards list (rendered by JS) -->
+        <div id="contexts-list"></div>
+
+        <!-- Inline add/edit form (hidden by default) -->
+        <div id="ctx-form" class="ctx-form hidden">
+          <input type="hidden" id="ctx-form-edit-id" value=""/>
+          <div class="ctx-form__field">
+            <label for="ctx-form-title">Title</label>
+            <input type="text" id="ctx-form-title" placeholder="e.g. B2B SaaS HR" maxlength="80"/>
+          </div>
+          <div class="ctx-form__field">
+            <label for="ctx-form-content">Content</label>
+            <textarea id="ctx-form-content" placeholder="Describe your product, industry, target users, or tone of voice…" spellcheck="false"></textarea>
+          </div>
+          <div class="ctx-form__actions">
+            <button class="btn btn--primary btn--sm" id="ctx-form-save-btn" type="button">Save</button>
+            <button class="btn btn--ghost btn--sm" id="ctx-form-cancel-btn" type="button">Cancel</button>
+          </div>
+        </div>
       </div>
 
       <!-- ── Section: Appearance ── -->
@@ -1824,8 +1850,8 @@
             Theme
           </span>
           <div class="theme-switch-row">
-            <span class="theme-switch-label" id="theme-label-light">
-              <i class="fa-solid fa-sun" aria-hidden="true"></i> Light
+            <span class="theme-switch-label theme-switch-label--active" id="theme-status-label">
+              <i class="fa-solid fa-moon" aria-hidden="true"></i> Dark
             </span>
             <label class="theme-switch" title="Toggle dark / light theme">
               <input type="checkbox" id="theme-toggle" checked />
@@ -1833,10 +1859,19 @@
                 <span class="theme-switch__thumb"></span>
               </span>
             </label>
-            <span class="theme-switch-label theme-switch-label--active" id="theme-label-dark">
-              <i class="fa-solid fa-moon" aria-hidden="true"></i> Dark
-            </span>
           </div>
+        </div>
+        <div class="settings__row">
+          <span class="settings__label">
+            <i class="fa-solid fa-play" aria-hidden="true" style="font-size:11px"></i>
+            Animate selection
+          </span>
+          <label class="theme-switch" title="Animate the selection badge in the header">
+            <input type="checkbox" id="animate-badge-toggle" checked />
+            <span class="theme-switch__track">
+              <span class="theme-switch__thumb"></span>
+            </span>
+          </label>
         </div>
       </div>
 
@@ -1959,9 +1994,21 @@
                 <svg class="icon icon-sm" id="ob-key-icon-eye" aria-hidden="true"><use href="#icon-eye"/></svg>
                 <svg class="icon icon-sm hidden" id="ob-key-icon-eye-slash" aria-hidden="true"><use href="#icon-eye-slash"/></svg>
               </button>
-            </div>
           </div>
         </div>
+        <div class="settings__row">
+          <span class="settings__label">
+            <i class="fa-solid fa-play" aria-hidden="true" style="font-size:11px"></i>
+            Animate selection
+          </span>
+          <label class="theme-switch" title="Animate the selection badge in the header">
+            <input type="checkbox" id="animate-badge-toggle" checked />
+            <span class="theme-switch__track">
+              <span class="theme-switch__thumb"></span>
+            </span>
+          </label>
+        </div>
+      </div>
         <div class="ob-token-instructions" id="ob-token-instructions" aria-live="polite">
           <!-- Populated by JS based on selected provider -->
         </div>
@@ -1981,6 +2028,16 @@
           in every generation to produce copy that fits your application's voice and audience.
         </p>
         <div class="onboarding-configure">
+          <!-- Context title -->
+          <div style="margin-bottom:8px">
+            <label for="ob-context-title" class="settings__label">
+              <i class="fa-solid fa-tag" aria-hidden="true"></i>
+              Context title
+            </label>
+            <input type="text" id="ob-context-title" class="onboarding-input"
+                   placeholder="e.g. B2B SaaS HR" maxlength="80"
+                   aria-label="Context title" style="margin-top:4px"/>
+          </div>
           <!-- Functional context -->
           <div>
             <label for="ob-agent-prompt" class="settings__label">
@@ -1993,8 +2050,8 @@
           </div>
         </div>
         <p class="onboarding-hint">
-          💡 This context will be automatically applied to all AI generations. You can update it
-          anytime in <strong>Settings → Functional Context</strong>.
+          This context will be automatically applied to all AI generations. You can manage
+          multiple contexts anytime in <strong>Settings &rarr; Functional Contexts</strong>.
           Click <strong>Skip for now</strong> to start without it.
         </p>
       </div>
@@ -2008,13 +2065,13 @@
           Here are some tips to get the most out of the plugin.
         </p>
         <ul class="onboarding-tips" aria-label="Usage tips">
-          <li>✍️ <strong>Generate mode</strong> — Select a text node, describe the wording you want, and get alternatives</li>
-          <li>💬 <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything</li>
-          <li>🔢 <strong>Alternatives</strong> — Set a number to generate multiple copy options at once</li>
-          <li>✅ <strong>Apply</strong> — Click "Apply" on any alternative to write it directly into the selected text node</li>
-          <li>🎯 <strong>Auto-selection</strong> — Select any text node in Figma and the plugin detects it automatically</li>
-          <li>🔁 <strong>New conversation</strong> — Use the refresh icon in the chat header to start fresh</li>
-          <li>⚙️ <strong>Settings</strong> — Change provider, model, or functional context</li>
+          <li><strong>Generate mode</strong> — Select a text node, describe the wording you want, and get alternatives</li>
+          <li><strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything</li>
+          <li><strong>Alternatives</strong> — Set a number to generate multiple copy options at once</li>
+          <li><strong>Apply</strong> — Click "Apply" on any alternative to write it directly into the selected text node</li>
+          <li><strong>Auto-selection</strong> — Select any text node in Figma and the plugin detects it automatically</li>
+          <li><strong>New conversation</strong> — Use the refresh icon in the chat header to start fresh</li>
+          <li><strong>Settings</strong> — Change provider, model, or functional contexts anytime</li>
         </ul>
       </div>
 
@@ -2054,19 +2111,19 @@
     </div>
   </div>
 
-  <!-- Confirmation modal: developer actions (restart onboarding / reset all data) -->
-  <div id="confirm-dev-action" class="confirm-overlay hidden" role="dialog"
-       aria-modal="true" aria-labelledby="confirm-dev-title">
+  <!-- Confirmation modal: generic actions -->
+  <div id="confirm-action" class="confirm-overlay hidden" role="dialog"
+       aria-modal="true" aria-labelledby="confirm-action-title">
     <div class="confirm-dialog">
-      <div class="confirm-dialog__title" id="confirm-dev-title">
+      <div class="confirm-dialog__title" id="confirm-action-title">
         <svg class="icon icon-md" aria-hidden="true"><use href="#icon-warning"/></svg>
-        <span id="confirm-dev-title-text"></span>
+        <span id="confirm-action-title-text"></span>
       </div>
-      <p class="confirm-dialog__body" id="confirm-dev-body"></p>
+      <p class="confirm-dialog__body" id="confirm-action-body"></p>
       <div class="confirm-dialog__actions">
-        <button class="btn btn--ghost" id="confirm-dev-cancel-btn" type="button">Cancel</button>
-        <button class="btn btn--danger" id="confirm-dev-ok-btn" type="button">
-          <span id="confirm-dev-ok-label"></span>
+        <button class="btn btn--ghost" id="confirm-action-cancel-btn" type="button">Cancel</button>
+        <button class="btn btn--danger" id="confirm-action-ok-btn" type="button">
+          <span id="confirm-action-ok-label"></span>
         </button>
       </div>
     </div>
@@ -2135,7 +2192,7 @@
         /* Min height: textarea min-height (60) + options bar + generate row +
            vertical padding ≈ 175px. Max height leaves at least 60px for chat. */
         var MIN_INPUT_H = 175;
-        var MAX_INPUT_H = 400;
+        var MAX_INPUT_H = 500;
         var startY      = 0;
         var startH      = 0;
         var pendingH    = null;

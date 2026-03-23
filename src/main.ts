@@ -30,7 +30,7 @@ function redactSecrets(raw: unknown): string {
 
 // ── Show the plugin UI ───────────────────────────────────────────────────────
 
-figma.showUI(__html__, { width: 420, height: 720, themeColors: true });
+figma.showUI(__html__, { width: 420, height: 800, themeColors: true });
 
 figma.ui.postMessage({
   type: "notify",
