@@ -28,8 +28,9 @@ export interface ChatMessage {
  * - `gemini`: Direct Google Gemini API (BYOK) — default provider.
  * - `openai`: Direct OpenAI Chat Completions API (BYOK).
  * - `anthropic`: Direct Anthropic Messages API (BYOK).
+ * - `mistral`: Direct Mistral AI Chat Completions API (BYOK).
  */
-export type LLMProvider = "gemini" | "openai" | "anthropic";
+export type LLMProvider = "gemini" | "openai" | "anthropic" | "mistral";
 
 // ─── Models ──────────────────────────────────────────────────────────────────
 
@@ -52,8 +53,14 @@ export type AnthropicModel =
   | "claude-sonnet-4-6"
   | "claude-opus-4-6";
 
+/** Models available directly on the Mistral AI API. */
+export type MistralModel =
+  | "ministral-8b-2512"
+  | "mistral-small-2603"
+  | "mistral-large-2512";
+
 /** Union of all model IDs supported across providers. */
-export type AIModel = GeminiModel | OpenAIModel | AnthropicModel;
+export type AIModel = GeminiModel | OpenAIModel | AnthropicModel | MistralModel;
 
 export interface ModelConfig {
   /** The LLM provider to use. Defaults to `"gemini"`. */
@@ -66,6 +73,8 @@ export interface ModelConfig {
   openaiKey?: string;
   /** Anthropic API key (Anthropic provider, BYOK). */
   anthropicKey?: string;
+  /** Mistral AI API key (Mistral provider, BYOK). */
+  mistralKey?: string;
   /** When true, log prompts, context, and AI responses to the browser console. */
   debug?: boolean;
 }

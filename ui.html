@@ -1682,6 +1682,7 @@
             <option value="gemini">Gemini (Google)</option>
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic</option>
+            <option value="mistral">Mistral</option>
           </select>
         </div>
 
@@ -1868,7 +1869,7 @@
           <li>💬 Ask UX writing questions in <strong>Ask mode</strong> — no edits needed</li>
           <li>🎯 Context-aware: AI reads your Figma layout for better copy</li>
           <li>🔁 Generate multiple alternatives at once and apply with one click</li>
-          <li>🤖 Supports Gemini, OpenAI, and Anthropic</li>
+          <li>🤖 Supports Gemini, OpenAI, Anthropic, and Mistral</li>
         </ul>
       </div>
 
@@ -1891,6 +1892,7 @@
                 <option value="gemini">Gemini (Google)</option>
                 <option value="openai">OpenAI</option>
                 <option value="anthropic">Anthropic</option>
+                <option value="mistral">Mistral</option>
               </select>
             </div>
           </div>
@@ -1906,11 +1908,11 @@
           <div class="settings__row">
             <span class="settings__label" id="ob-api-key-label">
               <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
-              GH Token
+              API Key
             </span>
             <div class="api-key-row">
               <input type="password" id="ob-api-key-input"
-                     placeholder="ghp_… (copilot scope)"
+                     placeholder="Enter your API key"
                      autocomplete="off" aria-label="API Key"/>
               <button class="btn btn--icon" id="ob-api-key-toggle" type="button"
                       title="Show/hide key" aria-label="Toggle key visibility">
@@ -1947,7 +1949,7 @@
             </label>
             <textarea id="ob-agent-prompt" class="onboarding-textarea"
                       aria-label="Functional context"
-                      spellcheck="false">We are building an application for... (describe your product, industry, or target users here). Generate copy that matches our brand voice and workflows.</textarea>
+                      spellcheck="false">We are building an application for... (describe your product, industry, or target users here). Generate wording that matches our brand and tone of voice.</textarea>
           </div>
         </div>
         <p class="onboarding-hint">
@@ -1970,6 +1972,8 @@
           <li>💬 <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything</li>
           <li>🔢 <strong>Alternatives</strong> — Set a number to generate multiple copy options at once</li>
           <li>✅ <strong>Apply</strong> — Click "Apply" on any alternative to write it directly into the selected text node</li>
+          <li>🎯 <strong>Auto-selection</strong> — Select any text node in Figma and the plugin detects it automatically</li>
+          <li>🔁 <strong>New conversation</strong> — Use the refresh icon in the chat header to start fresh</li>
           <li>⚙️ <strong>Settings</strong> — Change provider, model, or functional context</li>
         </ul>
       </div>

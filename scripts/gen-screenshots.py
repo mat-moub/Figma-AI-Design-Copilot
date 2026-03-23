@@ -212,7 +212,7 @@ html = make_html("""
         <li>💬 Ask UX writing questions in <strong>Ask mode</strong> — no edits needed</li>
         <li>🎯 Context-aware: AI reads your Figma layout for better copy</li>
         <li>🔁 Generate multiple alternatives at once and apply with one click</li>
-        <li>🤖 Supports Gemini, OpenAI, and Anthropic</li>
+        <li>🤖 Supports Gemini, OpenAI, Anthropic, and Mistral</li>
       </ul>
     </div>
   </div>
@@ -261,6 +261,7 @@ html = make_html("""
               <option selected>Gemini (Google)</option>
               <option>OpenAI</option>
               <option>Anthropic</option>
+              <option>Mistral</option>
             </select>
           </div>
         </div>
@@ -348,7 +349,7 @@ html = make_html("""
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chat"/></svg>
             Functional context
           </label>
-          <textarea id="ob-ctx" class="onboarding-textarea" spellcheck="false">We are building an application for... (describe your product, industry, or target users here). Generate copy that matches our brand voice and workflows.</textarea>
+          <textarea id="ob-ctx" class="onboarding-textarea" spellcheck="false">We are building an application for... (describe your product, industry, or target users here). Generate wording that matches our brand and tone of voice.</textarea>
         </div>
       </div>
       <p class="onboarding-hint">
@@ -396,30 +397,34 @@ html = make_html("""
         Here are some tips to get the most out of the plugin.
       </p>
       <ul class="onboarding-tips">
-        <li>
-          <i class="fa-solid fa-pen-nib" style="width:14px;color:var(--action)"></i>
-          <strong>Generate mode</strong> — Select a text node, describe the wording you want, and get alternatives
-        </li>
-        <li>
-          <i class="fa-solid fa-comments" style="width:14px;color:var(--primary)"></i>
-          <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything
-        </li>
-        <li>
-          <i class="fa-solid fa-list-ol" style="width:14px;color:var(--primary)"></i>
-          <strong>Alternatives</strong> — Set a number to generate multiple copy options at once
-        </li>
-        <li>
-          <i class="fa-solid fa-check" style="width:14px;color:var(--primary)"></i>
-          <strong>Apply</strong> — Click &ldquo;Apply&rdquo; on any alternative to write it directly into the text node
-        </li>
-        <li>
-          <i class="fa-solid fa-rotate" style="width:14px;color:var(--primary)"></i>
-          <strong>Context</strong> — Click &ldquo;Context&rdquo; so AI reads your Figma document for better suggestions
-        </li>
-        <li>
-          <i class="fa-solid fa-gear" style="width:14px;color:var(--primary)"></i>
-          <strong>Settings</strong> — Change provider, model, or functional context
-        </li>
+         <li>
+           <i class="fa-solid fa-pen-nib" style="width:14px;color:var(--action)"></i>
+           <strong>Generate mode</strong> — Select a text node, describe the wording you want, and get alternatives
+         </li>
+         <li>
+           <i class="fa-solid fa-comments" style="width:14px;color:var(--primary)"></i>
+           <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything
+         </li>
+         <li>
+           <i class="fa-solid fa-list-ol" style="width:14px;color:var(--primary)"></i>
+           <strong>Alternatives</strong> — Set a number to generate multiple copy options at once
+         </li>
+         <li>
+           <i class="fa-solid fa-check" style="width:14px;color:var(--primary)"></i>
+           <strong>Apply</strong> — Click &ldquo;Apply&rdquo; on any alternative to write it directly into the text node
+         </li>
+         <li>
+           <i class="fa-solid fa-bullseye" style="width:14px;color:var(--primary)"></i>
+           <strong>Auto-selection</strong> — Select any text node in Figma and the plugin detects it automatically
+         </li>
+         <li>
+           <i class="fa-solid fa-rotate" style="width:14px;color:var(--primary)"></i>
+           <strong>New conversation</strong> — Use the refresh icon in the chat header to start fresh
+         </li>
+         <li>
+           <i class="fa-solid fa-gear" style="width:14px;color:var(--primary)"></i>
+           <strong>Settings</strong> — Change provider, model, or functional context
+         </li>
       </ul>
     </div>
   </div>
@@ -576,6 +581,7 @@ html = make_html("""
           <option selected>Gemini (Google)</option>
           <option>OpenAI</option>
           <option>Anthropic</option>
+          <option>Mistral</option>
         </select>
       </div>
       <div class="settings__row">

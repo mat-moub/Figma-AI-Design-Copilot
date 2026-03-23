@@ -643,6 +643,11 @@ const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string 
     { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
     { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
   ],
+  mistral: [
+    { value: "ministral-8b-2512",  label: "Ministral 8B" },
+    { value: "mistral-small-2603", label: "Mistral Small 4" },
+    { value: "mistral-large-2512", label: "Mistral Large 3" },
+  ],
 };
 
 /** Key labels and placeholders per provider for the API key input field. */
@@ -670,6 +675,14 @@ const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: strin
     hint: "Get your API key at console.anthropic.com → API Keys.",
     icon: '<svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg>',
     instructionsHtml: `<div class="ob-inst-header"><svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg> Anthropic — How to get your API key</div><ol><li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com → API Keys</a>.</li><li>Click <strong>Create key</strong>.</li><li>Copy the key (<code>sk-ant-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
+  },
+  mistral: {
+    label: "API Key",
+    placeholder: "… (Mistral API key)",
+    storageKey: "copilot_mistral_key",
+    hint: "Get your API key at console.mistral.ai.",
+    icon: '<svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>',
+    instructionsHtml: `<div class="ob-inst-header">Mistral — How to get your API key</div><ol><li>Go to <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener noreferrer">console.mistral.ai → API Keys</a>.</li><li>Click <strong>Create new key</strong>.</li><li>Copy the key and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
   },
 };
 
@@ -717,12 +730,14 @@ function collectPersistedSettings(): PersistedSettings {
     gemini: (safeStorage.getItem("copilot_model_gemini") as ModelConfig["model"] | null) ?? undefined,
     openai: (safeStorage.getItem("copilot_model_openai") as ModelConfig["model"] | null) ?? undefined,
     anthropic: (safeStorage.getItem("copilot_model_anthropic") as ModelConfig["model"] | null) ?? undefined,
+    mistral: (safeStorage.getItem("copilot_model_mistral") as ModelConfig["model"] | null) ?? undefined,
   };
 
   const apiKeyByProvider: Partial<Record<LLMProvider, string>> = {
     gemini: safeStorage.getItem(PROVIDER_KEY_INFO.gemini.storageKey) ?? undefined,
     openai: safeStorage.getItem(PROVIDER_KEY_INFO.openai.storageKey) ?? undefined,
     anthropic: safeStorage.getItem(PROVIDER_KEY_INFO.anthropic.storageKey) ?? undefined,
+    mistral: safeStorage.getItem(PROVIDER_KEY_INFO.mistral.storageKey) ?? undefined,
   };
 
   return {
@@ -751,7 +766,7 @@ function persistSettingsToPlugin(): void {
 function applyPersistedSettings(settings: PersistedSettings): void {
   safeStorage.setItem("copilot_provider", settings.provider);
 
-  for (const provider of ["gemini", "openai", "anthropic"] as const) {
+  for (const provider of ["gemini", "openai", "anthropic", "mistral"] as const) {
     const model = settings.modelByProvider[provider];
     if (model) safeStorage.setItem(`copilot_model_${provider}`, model);
 
@@ -808,6 +823,8 @@ function getModelConfig(): ModelConfig {
     config.openaiKey = keyValue || undefined;
   } else if (provider === "anthropic") {
     config.anthropicKey = keyValue || undefined;
+  } else if (provider === "mistral") {
+    config.mistralKey = keyValue || undefined;
   }
 
   return config;
@@ -824,10 +841,14 @@ function validateApiKey(config: ModelConfig): string | null {
         ? null
         : "Please enter your OpenAI API key (sk-…) in the settings.";
     case "anthropic":
-    default:
       return config.anthropicKey
         ? null
         : "Please enter your Anthropic API key (sk-ant-…) in the settings.";
+    case "mistral":
+    default:
+      return config.mistralKey
+        ? null
+        : "Please enter your Mistral API key in the settings.";
   }
 }
 
@@ -1279,7 +1300,7 @@ const OB_AGENT_DEFAULT_PROMPT =
 let onboardingStep = 0;
 
 function setupOnboarding(): void {
-  const VALID_PROVIDERS: LLMProvider[] = ["gemini", "openai", "anthropic"];
+  const VALID_PROVIDERS: LLMProvider[] = ["gemini", "openai", "anthropic", "mistral"];
   const rawProvider = safeStorage.getItem("copilot_provider");
   const savedProvider: LLMProvider =
     rawProvider !== null && (VALID_PROVIDERS as string[]).includes(rawProvider)

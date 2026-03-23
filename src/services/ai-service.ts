@@ -10,6 +10,7 @@ import type { LLMProvider } from "../providers/llm-provider";
 import { GeminiProvider } from "../providers/gemini-provider";
 import { OpenAIProvider } from "../providers/openai-provider";
 import { AnthropicProvider } from "../providers/anthropic-provider";
+import { MistralProvider } from "../providers/mistral-provider";
 
 // ─── Text context formatter ───────────────────────────────────────────────────
 
@@ -125,8 +126,11 @@ export function createProvider(config: ModelConfig): LLMProvider {
       return new OpenAIProvider(config.openaiKey ?? "");
 
     case "anthropic":
-    default:
       return new AnthropicProvider(config.anthropicKey ?? "");
+
+    case "mistral":
+    default:
+      return new MistralProvider(config.mistralKey ?? "");
   }
 }
 

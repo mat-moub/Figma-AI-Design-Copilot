@@ -13,8 +13,9 @@
       "https://api.openai.com",
       "https://api.githubcopilot.com",
       "https://api.anthropic.com",
-      "https://api.github.com"
+      "https://api.github.com",
+      "https://api.mistral.ai"
     ],
-    "reasoning": "Required to call LLM provider APIs (Gemini, OpenAI, GitHub Copilot, Anthropic) and the GitHub skills library."
+    "reasoning": "Required to call LLM provider APIs (Gemini, OpenAI, GitHub Copilot, Anthropic, Mistral) and the GitHub skills library."
   }
 }
