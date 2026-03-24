@@ -177,6 +177,36 @@ export interface SelectedTextContext {
   screenName: string | null;
 }
 
+/**
+ * A text entry found inside a selected component (INSTANCE or COMPONENT node).
+ * Only the content and font information are included — sufficient for LLM context.
+ */
+export interface ComponentTextEntry {
+  /** Raw text content of the node. */
+  characters: string;
+  /** Font family, or `"mixed"` when the node uses multiple families. */
+  fontFamily: string;
+  /** Font style (e.g. `"Bold"`, `"Regular"`), or `"mixed"`. */
+  fontStyle: string;
+  /** Font size in pixels, or `"mixed"` when multiple sizes are used. */
+  fontSize: number | "mixed";
+}
+
+/**
+ * A non-text node (COMPONENT or INSTANCE) currently selected by the designer.
+ * Carries the component name and all text nodes it contains.
+ */
+export interface SelectedComponentContext {
+  /** Figma layer name of the selected node (e.g. "Button / Primary / Large"). */
+  componentName: string;
+  /** Figma node type: `"COMPONENT"` or `"INSTANCE"`. */
+  nodeType: "COMPONENT" | "INSTANCE" | "FRAME" | "GROUP" | "OTHER";
+  /** All non-empty text entries found inside the component, in tree order. */
+  texts: ComponentTextEntry[];
+  /** Name of the screen (top-level frame) that contains this component, if any. */
+  screenName: string | null;
+}
+
 export interface DocumentContext {
   designSystem: DesignSystem;
   /** Top-level frame names on the current page. */
@@ -187,6 +217,8 @@ export interface DocumentContext {
   pageTextContext: ScreenTextContext[];
   /** Currently selected text node, if any. */
   selectedText: SelectedTextContext | null;
+  /** Currently selected non-text node (component/frame/group), if any. */
+  selectedComponent: SelectedComponentContext | null;
 }
 
 // ─── Agent ───────────────────────────────────────────────────────────────────
@@ -303,6 +335,7 @@ export interface NotifyMessage {
 export interface SelectionChangedMessage {
   type: "selection-changed";
   selectedText: SelectedTextContext | null;
+  selectedComponent: SelectedComponentContext | null;
 }
 
 export type PluginToUIMessage =

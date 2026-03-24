@@ -11,27 +11,32 @@ const sharedConfig = {
 };
 
 function emitBundledUiHtml() {
-  const templatePath = path.join(__dirname, "ui.html");
-  const uiJsPath = path.join(__dirname, "dist", "ui.js");
-  const outPath = path.join(__dirname, "dist", "ui.html");
+  const templatePath = path.join(__dirname, "src", "ui", "template.html");
+  const stylesPath   = path.join(__dirname, "src", "ui", "styles.css");
+  const iconsPath    = path.join(__dirname, "src", "ui", "icons.svg");
+  const uiJsPath     = path.join(__dirname, "dist", "ui.js");
+  const outPath      = path.join(__dirname, "dist", "ui.html");
 
   if (!fs.existsSync(templatePath) || !fs.existsSync(uiJsPath)) {
     return;
   }
 
-  const htmlTemplate = fs.readFileSync(templatePath, "utf8");
+  let html   = fs.readFileSync(templatePath, "utf8");
   const uiJs = fs.readFileSync(uiJsPath, "utf8");
 
-  const scriptTagPattern = /<script[^>]*src=["']dist\/ui\.js["'][\s\S]*?<\/script>/i;
-  let bundledHtml;
-
-  if (scriptTagPattern.test(htmlTemplate)) {
-    bundledHtml = htmlTemplate.replace(scriptTagPattern, `<script>\n${uiJs}\n</script>`);
-  } else {
-    bundledHtml = htmlTemplate.replace("</body>", `<script>\n${uiJs}\n</script>\n</body>`);
+  if (fs.existsSync(stylesPath)) {
+    const css = fs.readFileSync(stylesPath, "utf8");
+    html = html.replace("<!--{{STYLES}}-->", css);
   }
 
-  fs.writeFileSync(outPath, bundledHtml, "utf8");
+  if (fs.existsSync(iconsPath)) {
+    const svg = fs.readFileSync(iconsPath, "utf8");
+    html = html.replace("<!--{{ICONS}}-->", svg);
+  }
+
+  html = html.replace("<!--{{BUNDLE}}-->", `<script>\n${uiJs}\n</script>`);
+
+  fs.writeFileSync(outPath, html, "utf8");
   console.log("[build] wrote dist/ui.html with inlined UI bundle");
 }
 
@@ -60,7 +65,7 @@ const mainConfig = {
 /** @type {esbuild.BuildOptions} */
 const uiConfig = {
   ...sharedConfig,
-  entryPoints: ["src/ui.ts"],
+  entryPoints: ["src/ui/index.ts"],
   outfile: "dist/ui.js",
   platform: "browser",
   plugins: [inlineUiHtmlPlugin],

@@ -5,6 +5,8 @@ import type {
   TextRole,
   ScreenTextContext,
   SelectedTextContext,
+  SelectedComponentContext,
+  ComponentTextEntry,
 } from "../types/ui-types";
 
 /**
@@ -27,6 +29,7 @@ export class ContextEngine {
       pages: this.extractPageNames(),
       pageTextContext: this.extractPageTextContext(),
       selectedText: this.extractSelectedText(),
+      selectedComponent: this.extractSelectedComponent(),
     };
   }
 
@@ -79,7 +82,7 @@ export class ContextEngine {
    * Read the first selected TextNode (if any) and return a structured
    * SelectedTextContext for the AI.  Returns null when no text node is selected.
    */
-  private extractSelectedText(): SelectedTextContext | null {
+  extractSelectedText(): SelectedTextContext | null {
     const selection = figma.currentPage.selection;
     const textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
 
@@ -128,8 +131,8 @@ export class ContextEngine {
 
   /**
    * Gather all TEXT nodes from every top-level FRAME on the current page.
-   * Results are grouped by screen and sorted by importance so the LLM sees
-   * primary content first.
+   * Results are grouped by screen and preserve the order in which nodes
+   * appear in the Figma layer tree (top-to-bottom, as designed).
    */
   private extractPageTextContext(): ScreenTextContext[] {
     const screens = figma.currentPage.children.filter(
@@ -144,8 +147,7 @@ export class ContextEngine {
 
         const texts: TextEntry[] = textNodes
           .filter((node) => node.characters.trim() !== "")
-          .map((node) => this.buildTextEntry(node))
-          .sort((a, b) => a.importance - b.importance);
+          .map((node) => this.buildTextEntry(node));
 
         return { screenName: frame.name, texts };
       })
@@ -233,5 +235,74 @@ export class ContextEngine {
       parent = parent.parent;
     }
     return false;
+  }
+
+  // ── Selected component extraction ────────────────────────────────────────────
+
+  /**
+   * When the first selected node is NOT a text node, extract it as a
+   * SelectedComponentContext: its name, type, screen, and all text children.
+   * Returns null when the selection is empty or is a text node (handled by
+   * extractSelectedText instead).
+   */
+  extractSelectedComponent(): SelectedComponentContext | null {
+    const selection = figma.currentPage.selection;
+    if (selection.length === 0) return null;
+
+    const node = selection[0];
+    // If the first selected node is text, this slot is null (selectedText handles it)
+    if (node.type === "TEXT") return null;
+
+    const nodeType = this.mapNodeType(node.type);
+    const screenName = this.findParentScreenNameFromNode(node);
+
+    // Collect all TEXT descendants in tree order
+    const textNodes = (node as ChildrenMixin).findAll
+      ? ((node as ChildrenMixin).findAll((n) => n.type === "TEXT") as TextNode[])
+      : [];
+
+    const texts: ComponentTextEntry[] = textNodes
+      .filter((t) => t.characters.trim() !== "")
+      .map((t) => {
+        const fontName = t.fontName;
+        const fontSize = t.fontSize;
+        return {
+          characters: t.characters,
+          fontFamily: fontName === figma.mixed ? "mixed" : fontName.family,
+          fontStyle: fontName === figma.mixed ? "mixed" : fontName.style,
+          fontSize: fontSize === figma.mixed ? "mixed" : fontSize,
+        };
+      });
+
+    return {
+      componentName: node.name,
+      nodeType,
+      texts,
+      screenName,
+    };
+  }
+
+  private mapNodeType(
+    type: string
+  ): SelectedComponentContext["nodeType"] {
+    if (type === "COMPONENT") return "COMPONENT";
+    if (type === "INSTANCE")  return "INSTANCE";
+    if (type === "FRAME")     return "FRAME";
+    if (type === "GROUP")     return "GROUP";
+    return "OTHER";
+  }
+
+  /**
+   * Walk up the parent chain to find the top-level FRAME name (screen name)
+   * for any arbitrary node (not just TextNode).
+   */
+  private findParentScreenNameFromNode(node: BaseNode): string | null {
+    let current: BaseNode | null = node.parent;
+    let lastFrameName: string | null = null;
+    while (current !== null && current.type !== "PAGE") {
+      if (current.type === "FRAME") lastFrameName = current.name;
+      current = current.parent;
+    }
+    return lastFrameName;
   }
 }

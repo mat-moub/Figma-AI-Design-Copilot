@@ -33,13 +33,9 @@ function formatTextContext(pageTextContext: ScreenTextContext[]): string {
             ? t.fontFamily
             : `${t.fontFamily} ${t.fontStyle}`;
         const component = t.insideComponent ? ", in-component" : "";
-        const preview =
-          t.characters.length > 80
-            ? `${t.characters.slice(0, 80)}…`
-            : t.characters;
         return (
           `    [${t.role}, importance:${String(t.importance)}, ${size}, ${font}` +
-          `${component}] "${preview}" (${String(t.charCount)} chars)`
+          `${component}] "${t.characters}"`
         );
       });
       return `  Screen: "${screen.screenName}"\n${lines.join("\n")}`;
@@ -73,18 +69,6 @@ function buildAlternativesSystemPrompt(
 ): string {
   const screens =
     context.screens.length > 0 ? context.screens.join(", ") : "None found";
-  const components =
-    context.designSystem.components.length > 0
-      ? context.designSystem.components.join(", ")
-      : "None";
-  const colors =
-    context.designSystem.colors.length > 0
-      ? context.designSystem.colors.join(", ")
-      : "None";
-  const textStyles =
-    context.designSystem.textStyles.length > 0
-      ? context.designSystem.textStyles.join(", ")
-      : "None";
   const textContext = formatTextContext(context.pageTextContext);
   const selectedText = formatSelectedText(context.selectedText);
 
@@ -94,9 +78,6 @@ function buildAlternativesSystemPrompt(
 FIGMA DOCUMENT CONTEXT
 ---
 Current Page Screens: ${screens}
-Design System Components: ${components}
-Design System Colors: ${colors}
-Design System Text Styles: ${textStyles}
 
 Current Page Text Content (grouped by screen, sorted by importance):
 ${textContext}
@@ -275,15 +256,5 @@ export class AIService {
     }
 
     return rawResponse;
-  }
-
-  /**
-   * Build a human-readable prompt for display in the chat history.
-   */
-  formatUserPrompt(prompt: string, count: number): string {
-    if (count > 1) {
-      return `${prompt}\n\nGenerate ${String(count)} alternatives.`;
-    }
-    return prompt;
   }
 }

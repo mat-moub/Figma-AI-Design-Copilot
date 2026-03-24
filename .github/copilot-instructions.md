@@ -27,15 +27,21 @@ This repository is a **Figma plugin** that helps designers write better copy by 
 ```
 src/
   main.ts                  # Figma plugin sandbox entry point (compiled → dist/code.js)
-  ui.ts                    # Plugin iframe UI logic (compiled → dist/ui.js)
+  ui/
+    index.ts               # UI entry point — shared state, init, postMessage handler
+    chat.ts                # Chat UI, generate/ask handlers, markdown renderer
+    settings.ts            # Settings panel, provider config, onboarding
+    context.ts             # Named functional contexts, Figma selection badge
+    template.html          # HTML shell with placeholders (assembled by build.js)
+    styles.css             # All CSS (injected into template at build time)
+    icons.svg              # SVG sprite (injected into template at build time)
   types/ui-types.ts        # Shared TypeScript types for sandbox ↔ UI messaging
   providers/               # LLM provider implementations (one file per provider)
   services/                # Core services: AI orchestration, context engine
   agents/                  # Agent implementations (ux-writer-agent)
+  utils/                   # Shared utilities (redact-secrets, etc.)
   __tests__/               # Jest unit tests (co-located test files)
 build.js                   # esbuild build script
-manifest.json              # Figma plugin manifest
-ui.html                    # Plugin iframe HTML shell
 ```
 
 ## Setup & Build
@@ -72,7 +78,7 @@ npm test             # Run Jest unit tests
 - **Context engine** — `src/services/context-engine.ts` extracts design-system context and the currently selected text node from the Figma document before forwarding to the AI provider. Changes here affect all generation.
 - **apply-text flow** — when the user clicks "Apply" in the UI, an `ApplyTextMessage` is posted to the sandbox (`main.ts`), which loads fonts and writes the new text into the selected `TextNode`.
 - **Adding a provider** — create a new file in `src/providers/`, implement `LLMProvider`, and register it in the provider factory in `src/services/ai-service.ts`.
-- **Adding an agent** — create a new file in `src/agents/` and wire it into `ui.ts`.
+- **Adding an agent** — create a new file in `src/agents/` and wire it into `src/ui/chat.ts`.
 - **Functional contexts** — users create named contexts in Settings; the active context content is injected into the AI system prompt. Contexts are stored in `localStorage` under `copilot_contexts` (JSON array) and `copilot_active_context_id`.
 
 ---
@@ -141,7 +147,7 @@ The script uses three ingredients:
 3. **Pillow** — crops the 420 × 900 render down to 420 × 640
 
 Each screenshot is built by:
-- Extracting the `<style>` block and `<svg>` symbol defs straight from `ui.html`
+- Extracting the `<style>` block and `<svg>` symbol defs from `src/ui/styles.css` and `src/ui/icons.svg`
 - Wrapping a hand-crafted HTML body (replicating the desired UI state) in that CSS
 - Running `chromium --headless=new --screenshot --window-size=420,900 file://…`
 - Cropping to 420 × 640
@@ -150,5 +156,5 @@ Each screenshot is built by:
 
 1. Open `scripts/gen-screenshots.py`.
 2. Find or add a section for the screenshot you want to change.
-3. Edit the HTML body to match the desired UI state, using the same class names as `ui.html`.
+3. Edit the HTML body to match the desired UI state, using the same class names as `src/ui/template.html`.
 4. Re-run `python3 scripts/gen-screenshots.py` and commit.

@@ -6,27 +6,17 @@
  */
 
 import { ContextEngine } from "./services/context-engine";
+import { redactSecrets } from "./utils/redact-secrets";
 import type {
   ApplyTextMessage,
   PersistedSettings,
   SaveSettingsMessage,
-  SelectedTextContext,
   UIToPluginMessage,
 } from "./types/ui-types";
 
 const contextEngine = new ContextEngine();
 const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
 const SETTINGS_KEY = "copilot_settings";
-
-function redactSecrets(raw: unknown): string {
-  const text = typeof raw === "string" ? raw : String(raw);
-  return text
-    .replace(/AIza[0-9A-Za-z\-_]{20,}/g, "AIza***")
-    .replace(/sk-ant-[A-Za-z0-9\-_]+/g, "sk-ant-***")
-    .replace(/sk-[A-Za-z0-9\-_]{10,}/g, "sk-***")
-    .replace(/ghp_[A-Za-z0-9]+/g, "ghp_***")
-    .replace(/(key=)[^&\s]+/gi, "$1***");
-}
 
 // ── Show the plugin UI ───────────────────────────────────────────────────────
 
@@ -42,7 +32,8 @@ figma.ui.postMessage({
 figma.on("selectionchange", () => {
   figma.ui.postMessage({
     type: "selection-changed",
-    selectedText: extractSelectedText(),
+    selectedText: contextEngine.extractSelectedText(),
+    selectedComponent: contextEngine.extractSelectedComponent(),
   });
 });
 
@@ -155,62 +146,4 @@ async function handleApplyText(msg: ApplyTextMessage): Promise<void> {
 }
 
 // ── Selection helper ──────────────────────────────────────────────────────────
-
-/**
- * Read the first selected TextNode and return a SelectedTextContext.
- * Returns null when no text node is selected.
- * Mirrors the logic in ContextEngine.extractSelectedText().
- */
-function extractSelectedText(): SelectedTextContext | null {
-  const selection = figma.currentPage.selection;
-  const textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
-  if (!textNode) return null;
-
-  const fontName = textNode.fontName;
-  const fontSize = textNode.fontSize;
-  const fontFamily = fontName === figma.mixed ? "mixed" : fontName.family;
-  const fontSizeVal: number | "mixed" = fontSize === figma.mixed ? "mixed" : fontSize;
-
-  // Walk parent chain to find top-level FRAME name (screen name)
-  let screenName: string | null = null;
-  let current: BaseNode | null = textNode.parent;
-  while (current !== null && current.type !== "PAGE") {
-    if (current.type === "FRAME") screenName = current.name;
-    current = current.parent;
-  }
-
-  // Infer semantic role from layer name and font size
-  const name = textNode.name.toLowerCase();
-  let role: SelectedTextContext["role"] = "unknown";
-  if (/heading|title|h1|h2/.test(name)) role = "heading";
-  else if (/subhead|subtitle|h3|h4/.test(name)) role = "subheading";
-  else if (/body|paragraph|text/.test(name)) role = "body";
-  else if (/label|tag/.test(name)) role = "label";
-  else if (/caption|footnote|hint/.test(name)) role = "caption";
-  else if (/button|btn|cta/.test(name)) role = "button";
-  else if (typeof fontSizeVal === "number") {
-    if (fontSizeVal >= 24) role = "heading";
-    else if (fontSizeVal >= 18) role = "subheading";
-    else if (fontSizeVal >= 14) role = "body";
-    else role = "caption";
-  }
-
-  const insideComponent = (() => {
-    let p: BaseNode | null = textNode.parent;
-    while (p && p.type !== "PAGE") {
-      if (p.type === "COMPONENT" || p.type === "INSTANCE") return true;
-      p = p.parent;
-    }
-    return false;
-  })();
-
-  return {
-    characters: textNode.characters,
-    role,
-    fontSize: fontSizeVal,
-    fontFamily,
-    charCount: textNode.characters.length,
-    insideComponent,
-    screenName,
-  };
-}
+// Selection extraction is handled by ContextEngine (context-engine.ts).

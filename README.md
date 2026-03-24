@@ -54,7 +54,7 @@ Supported providers:
 └────────────────┬────────────────────────────┘
                  │ postMessage (JSON)
 ┌────────────────▼────────────────────────────┐
-│  Plugin iframe  (ui.ts → dist/ui.js)         │
+│  Plugin iframe  (src/ui/ → dist/ui.js)       │
 │  • Chat interface + mode toggle              │
 │  • Provider / model / alternatives count     │
 │  • Named functional contexts                 │
@@ -100,7 +100,7 @@ Figma plugins run in two separate JavaScript contexts that can only talk to each
 | File | Context | Capabilities |
 |------|---------|--------------|
 | `src/main.ts` → `dist/code.js` | Figma plugin sandbox | Full Figma API access; no DOM; no `fetch` |
-| `src/ui.ts` → `dist/ui.js` | Sandboxed iframe | DOM + `fetch`; no direct Figma API |
+| `src/ui/index.ts` → `dist/ui.js` | Sandboxed iframe | DOM + `fetch`; no direct Figma API |
 
 Message types are defined in `src/types/ui-types.ts` under `UIToPluginMessage` and `PluginToUIMessage`.
 
@@ -111,7 +111,14 @@ Message types are defined in `src/types/ui-types.ts` under `UIToPluginMessage` a
 ```
 src/
 ├── main.ts                    # Plugin controller (Figma sandbox)
-├── ui.ts                      # UI logic (iframe)
+├── ui/
+│   ├── index.ts               # UI entry point — shared state, init, postMessage handler
+│   ├── chat.ts                # Chat UI, generate/ask handlers, markdown renderer
+│   ├── settings.ts            # Settings panel, provider config, onboarding
+│   ├── context.ts             # Named functional contexts, Figma selection badge
+│   ├── template.html          # HTML shell with placeholders (assembled by build.js)
+│   ├── styles.css             # All CSS (injected into template at build time)
+│   └── icons.svg              # SVG sprite (injected into template at build time)
 ├── types/
 │   └── ui-types.ts            # All shared TypeScript types
 ├── providers/
@@ -125,6 +132,8 @@ src/
 │   └── context-engine.ts      # Extracts design system + selected text from Figma doc
 ├── agents/
 │   └── ux-writer-agent.ts     # UX writer agent: system prompt + generate() method
+├── utils/
+│   └── redact-secrets.ts      # Strips API keys from error messages before display
 └── __tests__/                 # Jest unit tests
     ├── providers.test.ts
     └── ai-service.test.ts
@@ -290,7 +299,7 @@ You can create contexts for different products, brands, or audiences and switch 
 
 ```
 User selects a text node in Figma
-User types prompt → handleGenerate() in ui.ts  [Generate tab active]
+User types prompt → handleGenerate() in src/ui/chat.ts  [Generate tab active]
   │
   ├─ postMessage({ type: "get-context" }) → main.ts
   │     └─ context-engine.ts extracts DocumentContext (incl. selectedText)
@@ -314,7 +323,7 @@ User types prompt → handleGenerate() in ui.ts  [Generate tab active]
 ## Data flow — Ask mode
 
 ```
-User types question → handleAsk() in ui.ts  [Ask tab active]
+User types question → handleAsk() in src/ui/chat.ts  [Ask tab active]
   │
   ├─ aiService.ask(question, context, modelConfig, history)
   │     └─ createProvider(config)  → LLMProvider instance

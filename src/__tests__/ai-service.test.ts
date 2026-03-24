@@ -23,6 +23,7 @@ const mockContext: DocumentContext = {
   pages: ["Page 1"],
   pageTextContext: [],
   selectedText: null,
+  selectedComponent: null,
 };
 
 const mockModelConfig: ModelConfig = {
@@ -175,9 +176,9 @@ describe("AIService.generateAlternatives", () => {
     };
 
     const systemPrompt = body.systemInstruction.parts[0].text;
-    expect(systemPrompt).toContain("ButtonPrimary");
-    expect(systemPrompt).toContain("Brand Blue");
     expect(systemPrompt).toContain("Dashboard");
+    expect(systemPrompt).toContain("Login");
+    expect(systemPrompt).toContain("FIGMA DOCUMENT CONTEXT");
   });
 
   it("parses and returns valid alternatives from the provider response", async () => {

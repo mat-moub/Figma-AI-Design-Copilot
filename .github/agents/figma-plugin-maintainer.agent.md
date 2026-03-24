@@ -53,7 +53,7 @@ The `screenshots/` folder holds exactly these 7 PNG files (420×640 px each):
 | `main-view-ask.png` | Main view, Ask mode, example conversation |
 | `settings-view.png` | Settings overlay (Model config + Functional context + Custom skills) |
 
-The generator script `scripts/gen-screenshots.py` reads CSS and SVG defs directly from `ui.html`
+The generator script `scripts/gen-screenshots.py` reads CSS from `src/ui/styles.css` and SVG defs from `src/ui/icons.svg`
 and renders each view via Chrome headless, then crops with Pillow. Prerequisites: Python 3,
 `pip install Pillow`, and Google Chrome installed.
 
