@@ -225,25 +225,8 @@
           injected into every AI generation. Select one in the chat area dropdown.
         </p>
 
-        <!-- Context cards list (rendered by JS) -->
+        <!-- Context cards list (rendered by JS, supports in-place editing) -->
         <div id="contexts-list"></div>
-
-        <!-- Inline add/edit form (hidden by default) -->
-        <div id="ctx-form" class="ctx-form hidden">
-          <input type="hidden" id="ctx-form-edit-id" value=""/>
-          <div class="ctx-form__field">
-            <label for="ctx-form-title">Title</label>
-            <input type="text" id="ctx-form-title" placeholder="e.g. B2B SaaS HR" maxlength="80"/>
-          </div>
-          <div class="ctx-form__field">
-            <label for="ctx-form-content">Content</label>
-            <textarea id="ctx-form-content" placeholder="Describe your product, industry, target users, or tone of voice…" spellcheck="false"></textarea>
-          </div>
-          <div class="ctx-form__actions">
-            <button class="btn btn--primary btn--sm" id="ctx-form-save-btn" type="button">Save</button>
-            <button class="btn btn--ghost btn--sm" id="ctx-form-cancel-btn" type="button">Cancel</button>
-          </div>
-        </div>
       </div>
 
       <!-- ── Section: Appearance ── -->
@@ -430,7 +413,8 @@
         <p class="onboarding-hint">
           🔒 Your key is stored locally in your browser and never shared.
         </p>
-      </div>
+      </div><!-- end onboarding-configure -->
+      </div><!-- end onboarding-step-1 -->
 
       <!-- ── Step 3: Functional Context (optional) ── -->
       <div class="onboarding-step hidden" id="onboarding-step-2">

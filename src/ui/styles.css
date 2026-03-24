@@ -404,49 +404,59 @@ body {
 }
 
 /* ── Context inline form ───────────────────────────────────── */
-.ctx-form {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px;
-  margin-top: 8px;
-  background: var(--surface);
+/* Legacy: kept as hidden fallback — form removed from HTML */
+.ctx-form { display: none; }
+
+/* ── Context card in-place edit mode ───────────────────────── */
+.ctx-card--editing {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary-glow);
 }
-.ctx-form.hidden { display: none; }
-.ctx-form__field {
+.ctx-card__header--edit {
+  align-items: flex-start;
   margin-bottom: 6px;
 }
-.ctx-form__field label {
-  display: block;
-  font-size: 11px;
+.ctx-card__title-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text);
-  margin-bottom: 3px;
-}
-.ctx-form__field input,
-.ctx-form__field textarea {
-  width: 100%;
-  font-size: 11px;
   font-family: inherit;
-  padding: 6px 8px;
+  padding: 3px 6px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--bg);
   color: var(--text);
   box-sizing: border-box;
 }
-.ctx-form__field input:focus,
-.ctx-form__field textarea:focus {
+.ctx-card__title-input:focus {
   outline: none;
   border-color: var(--primary);
 }
-.ctx-form__field textarea {
-  min-height: 60px;
+.ctx-card__content-input {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  font-size: 10px;
+  font-family: inherit;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  box-sizing: border-box;
   resize: vertical;
+  line-height: 1.4;
 }
-.ctx-form__actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
+.ctx-card__content-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.ctx-card__save-btn {
+  color: var(--primary) !important;
+}
+.ctx-card__cancel-btn {
+  color: var(--text-muted);
 }
 
 /* ── Context selector in chat area ──────────────────────────── */
@@ -500,13 +510,19 @@ body {
   flex: 1;
   min-width: 0;
   border: none;
-  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg);
   color: var(--text);
   font-size: 10px;
   font-family: inherit;
   padding: 4px 0;
   outline: none;
   cursor: pointer;
+}
+.context-selector-wrap select option {
+  background: var(--bg);
+  color: var(--text);
 }
 
 /* ── Settings Overlay ─────────────────────────────────────── */
@@ -629,6 +645,10 @@ select, input[type="number"], input[type="text"], input[type="password"] {
   color: var(--text);
   outline: none;
   transition: border-color 0.18s, box-shadow 0.18s;
+}
+select option {
+  background: var(--bg);
+  color: var(--text);
 }
 select:focus, input:focus {
   border-color: var(--primary);

@@ -622,19 +622,28 @@ export function setupEventListeners(): void {
       const btn = target.closest<HTMLElement>("[data-ctx-action]");
       if (!btn) return;
       const action = btn.dataset.ctxAction;
-      const id = btn.dataset.ctxId ?? "";
+      const card = btn.closest<HTMLElement>(".ctx-card");
+
       if (action === "edit") {
+        const id = btn.dataset.ctxId ?? "";
         import("./context").then(({ openContextForm }) => openContextForm(id));
       }
+      if (action === "save-inline" && card) {
+        import("./context").then(({ saveContextInline }) => saveContextInline(card));
+      }
+      if (action === "cancel-inline" && card) {
+        import("./context").then(({ cancelContextInline }) => cancelContextInline(card));
+      }
       if (action === "delete") {
-        import("./context").then(({ deleteContext }) => {
-          openConfirmDialog(
-            "Delete Context",
-            "Are you sure you want to delete this context? This action cannot be undone.",
-            "Delete",
-            () => deleteContext(id)
-          );
-        });
+        const id = btn.dataset.ctxId ?? "";
+        // Open the confirmation dialog synchronously (no async needed).
+        // Resolve deleteContext lazily inside the confirmed callback only.
+        openConfirmDialog(
+          "Delete Context",
+          "Are you sure you want to delete this context? This action cannot be undone.",
+          "Delete",
+          () => { import("./context").then(({ deleteContext }) => deleteContext(id)); }
+        );
       }
     });
   }
@@ -643,20 +652,6 @@ export function setupEventListeners(): void {
   if (ctxAddBtn) {
     ctxAddBtn.addEventListener("click", () => {
       import("./context").then(({ openContextForm }) => openContextForm());
-    });
-  }
-
-  const ctxFormSaveBtn = document.getElementById("ctx-form-save-btn");
-  if (ctxFormSaveBtn) {
-    ctxFormSaveBtn.addEventListener("click", () => {
-      import("./context").then(({ saveContextForm }) => saveContextForm());
-    });
-  }
-
-  const ctxFormCancelBtn = document.getElementById("ctx-form-cancel-btn");
-  if (ctxFormCancelBtn) {
-    ctxFormCancelBtn.addEventListener("click", () => {
-      import("./context").then(({ closeContextForm }) => closeContextForm());
     });
   }
 

@@ -3,7 +3,7 @@
  *
  * Handles named functional contexts: reading/writing from storage, rendering
  * the context list in Settings, syncing the context selector in the chat input,
- * and managing the inline add/edit form.
+ * and managing in-place editing directly on the card.
  *
  * Depends on shared state and helpers from index.ts (via imports).
  */
@@ -71,6 +71,54 @@ export function migrateLegacyContext(): void {
 
 // ── UI rendering ──────────────────────────────────────────────────────────────
 
+/** Build a read-only context card element. */
+function buildReadCard(ctx: FunctionalContext): HTMLDivElement {
+  const card = document.createElement("div");
+  card.className = "ctx-card";
+  card.dataset.ctxId = ctx.id;
+  card.innerHTML = `
+    <div class="ctx-card__header">
+      <span class="ctx-card__title">${escapeHTML(ctx.title)}</span>
+      <div class="ctx-card__actions">
+        <button class="btn btn--icon-sm" data-ctx-action="edit" data-ctx-id="${escapeHTML(ctx.id)}" title="Edit">
+          <i class="fa-solid fa-pen" aria-hidden="true"></i>
+        </button>
+        <button class="btn btn--icon-sm" data-ctx-action="delete" data-ctx-id="${escapeHTML(ctx.id)}" title="Delete">
+          <i class="fa-solid fa-trash" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+    <div class="ctx-card__preview">${escapeHTML(ctx.content.substring(0, 120))}${ctx.content.length > 120 ? "…" : ""}</div>
+  `;
+  return card;
+}
+
+/** Switch an existing read-only card to in-place edit mode. */
+function activateCardEditMode(card: HTMLElement, title: string, content: string): void {
+  card.classList.add("ctx-card--editing");
+  card.innerHTML = `
+    <div class="ctx-card__header ctx-card__header--edit">
+      <input class="ctx-card__title-input" type="text"
+             placeholder="e.g. B2B SaaS HR" maxlength="80"
+             value="${escapeHTML(title)}" aria-label="Context title"/>
+      <div class="ctx-card__actions">
+        <button class="btn btn--icon-sm ctx-card__save-btn" data-ctx-action="save-inline" title="Save">
+          <i class="fa-solid fa-check" aria-hidden="true"></i>
+        </button>
+        <button class="btn btn--icon-sm ctx-card__cancel-btn" data-ctx-action="cancel-inline" title="Cancel">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+    <textarea class="ctx-card__content-input"
+              placeholder="Describe your product, industry, target users, or tone of voice…"
+              spellcheck="false" aria-label="Context description">${escapeHTML(content)}</textarea>
+  `;
+  const titleInput = card.querySelector<HTMLInputElement>(".ctx-card__title-input");
+  titleInput?.focus();
+  titleInput?.select();
+}
+
 /** Render the list of context cards in the Settings panel. */
 export function renderContextsList(): void {
   const container = document.getElementById("contexts-list");
@@ -85,23 +133,7 @@ export function renderContextsList(): void {
 
   container.innerHTML = "";
   for (const ctx of contexts) {
-    const card = document.createElement("div");
-    card.className = "ctx-card";
-    card.innerHTML = `
-      <div class="ctx-card__header">
-        <span class="ctx-card__title">${escapeHTML(ctx.title)}</span>
-        <div class="ctx-card__actions">
-          <button class="btn btn--icon-sm" data-ctx-action="edit" data-ctx-id="${escapeHTML(ctx.id)}" title="Edit">
-            <i class="fa-solid fa-pen" aria-hidden="true"></i>
-          </button>
-          <button class="btn btn--icon-sm" data-ctx-action="delete" data-ctx-id="${escapeHTML(ctx.id)}" title="Delete">
-            <i class="fa-solid fa-trash" aria-hidden="true"></i>
-          </button>
-        </div>
-      </div>
-      <div class="ctx-card__preview">${escapeHTML(ctx.content.substring(0, 120))}${ctx.content.length > 120 ? "…" : ""}</div>
-    `;
-    container.appendChild(card);
+    container.appendChild(buildReadCard(ctx));
   }
 }
 
@@ -137,94 +169,121 @@ export function syncContextSelector(): void {
   }
 }
 
-// ── Context form ──────────────────────────────────────────────────────────────
+// ── Context in-place edit ─────────────────────────────────────────────────────
 
-/** Open the inline add/edit form in the settings panel. */
+/**
+ * Enter edit mode on the card for the given context ID.
+ * The title and content become editable inputs directly on the card.
+ */
 export function openContextForm(editId?: string): void {
-  const form = document.getElementById("ctx-form");
-  const titleInput = document.getElementById("ctx-form-title") as HTMLInputElement | null;
-  const contentInput = document.getElementById("ctx-form-content") as HTMLTextAreaElement | null;
-  const formEditId = document.getElementById("ctx-form-edit-id") as HTMLInputElement | null;
-  if (!form || !titleInput || !contentInput || !formEditId) return;
-
   if (editId) {
+    // Edit an existing context: find its card and switch it to edit mode.
+    const container = document.getElementById("contexts-list");
+    const card = container?.querySelector<HTMLElement>(`[data-ctx-id="${CSS.escape(editId)}"]`);
+    if (!card) return;
+
     const contexts = getContexts();
     const existing = contexts.find((c) => c.id === editId);
-    if (existing) {
-      titleInput.value = existing.title;
-      contentInput.value = existing.content;
-      formEditId.value = existing.id;
-    }
+    if (!existing) return;
+
+    card.dataset.ctxEditId = editId;
+    activateCardEditMode(card, existing.title, existing.content);
   } else {
-    titleInput.value = "";
-    contentInput.value = "";
-    formEditId.value = "";
+    // Add a new context: append a temporary new card in edit mode.
+    const container = document.getElementById("contexts-list");
+    if (!container) return;
+
+    // Remove the empty-state paragraph if present.
+    const empty = container.querySelector(".ctx-empty");
+    empty?.remove();
+
+    const tempCard = document.createElement("div");
+    tempCard.className = "ctx-card";
+    tempCard.dataset.ctxEditId = ""; // empty = new context
+    container.appendChild(tempCard);
+    activateCardEditMode(tempCard, "", "");
   }
-
-  form.classList.remove("hidden");
-  titleInput.focus();
 }
 
-/** Hide the context add/edit form. */
-export function closeContextForm(): void {
-  const form = document.getElementById("ctx-form");
-  form?.classList.add("hidden");
-}
-
-/** Save (create or update) a context from the inline form fields. */
-export function saveContextForm(): void {
-  const titleInput = document.getElementById("ctx-form-title") as HTMLInputElement | null;
-  const contentInput = document.getElementById("ctx-form-content") as HTMLTextAreaElement | null;
-  const formEditId = document.getElementById("ctx-form-edit-id") as HTMLInputElement | null;
-  if (!titleInput || !contentInput || !formEditId) return;
+/** Save (create or update) a context from an in-place editing card. */
+export function saveContextInline(card: HTMLElement): void {
+  const titleInput = card.querySelector<HTMLInputElement>(".ctx-card__title-input");
+  const contentInput = card.querySelector<HTMLTextAreaElement>(".ctx-card__content-input");
+  if (!titleInput || !contentInput) return;
 
   const title = titleInput.value.trim();
   const content = contentInput.value.trim();
   if (!title) {
     import("./chat").then(({ showToast }) => showToast("Please enter a context title.", "warning"));
+    titleInput.focus();
     return;
   }
   if (!content) {
     import("./chat").then(({ showToast }) => showToast("Please enter context content.", "warning"));
+    contentInput.focus();
     return;
   }
 
   const contexts = getContexts();
-  const editId = formEditId.value;
+  const editId = card.dataset.ctxEditId ?? "";
+  let isNew = false;
 
   if (editId) {
-    // Update existing
     const idx = contexts.findIndex((c) => c.id === editId);
     if (idx !== -1) {
       contexts[idx] = { ...contexts[idx], title, content };
     }
   } else {
-    // Create new
-    const newCtx: FunctionalContext = {
-      id: generateId(),
-      title,
-      content,
-    };
+    isNew = true;
+    const newCtx: FunctionalContext = { id: generateId(), title, content };
     contexts.push(newCtx);
   }
 
   saveContexts(contexts);
 
-  if (!editId && contexts.length === 1) {
-    // Auto-activate if it's the first context (requires contexts to be saved first)
+  if (isNew && contexts.length === 1) {
     setActiveContextId(contexts[0].id);
   } else {
-    // If not doing setActiveContextId (which calls syncContextSelector), do it manually
     syncContextSelector();
   }
 
   renderContextsList();
-  closeContextForm();
   import("./settings").then(({ persistSettingsToPlugin }) => persistSettingsToPlugin());
   import("./chat").then(({ showToast }) =>
-    showToast(editId ? "Context updated." : "Context added.")
+    showToast(isNew ? "Context added." : "Context updated.")
   );
 }
+
+/** Cancel in-place editing on a card and restore it to read-only state. */
+export function cancelContextInline(card: HTMLElement): void {
+  const editId = card.dataset.ctxEditId ?? "";
+  if (editId) {
+    // Restore the original read-only card.
+    const contexts = getContexts();
+    const existing = contexts.find((c) => c.id === editId);
+    if (existing) {
+      const container = document.getElementById("contexts-list");
+      if (container) {
+        const readCard = buildReadCard(existing);
+        container.replaceChild(readCard, card);
+      }
+    }
+  } else {
+    // New card that was never saved — just remove it, re-render if empty.
+    const container = card.parentElement;
+    card.remove();
+    if (container && !container.querySelector(".ctx-card")) {
+      container.innerHTML = '<p class="ctx-empty">No contexts yet. Click "+ Add" to create one.</p>';
+    }
+  }
+}
+
+/**
+ * @deprecated Use saveContextInline / cancelContextInline instead.
+ * Kept as no-ops for backward compatibility if any external caller exists.
+ */
+export function closeContextForm(): void { /* no-op — form removed */ }
+export function saveContextForm(): void  { /* no-op — form removed */ }
 
 /** Delete a context by ID. */
 export function deleteContext(id: string): void {
