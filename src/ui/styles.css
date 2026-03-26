@@ -272,6 +272,13 @@ body {
   color: var(--header-title);
 }
 
+.btn--header:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Load context spinner + icon handled by .btn--reload-ctx */
+
 /* ── Info Bar (connection + model, always visible on main) ── */
 .connection-badge {
   display: flex;
@@ -439,7 +446,7 @@ body {
   min-height: 80px;
   font-size: 10px;
   font-family: inherit;
-  padding: 6px 18px 6px 6px;
+  padding: 8px 16px 8px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
@@ -448,6 +455,10 @@ body {
   resize: vertical;
   line-height: 1.4;
 }
+.ctx-card__content-input::-webkit-scrollbar { width: 6px; }
+.ctx-card__content-input::-webkit-scrollbar-track { background: transparent; }
+.ctx-card__content-input::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.ctx-card__content-input::-webkit-scrollbar-corner { background: transparent; }
 .ctx-card__content-input:focus {
   outline: none;
   border-color: var(--primary);
@@ -457,6 +468,61 @@ body {
 }
 .ctx-card__cancel-btn {
   color: var(--text-muted);
+}
+
+/* ── Context group (reload button + selector) ──────────────── */
+.context-group {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.btn--reload-ctx {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 0 6px;
+  height: 100%;
+  font-size: 10px;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s;
+  border-radius: 0;
+}
+.btn--reload-ctx:hover {
+  color: var(--primary);
+}
+.btn--reload-ctx:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn--reload-ctx .spinner {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+  border-color: var(--border);
+  border-top-color: var(--primary);
+}
+.btn--reload-ctx.context-loading #load-context-icon {
+  display: none;
+}
+/* Thin vertical separator between reload button and layer icon */
+.context-selector-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+/* The context-selector-wrap now contains the reload button inside it */
+.context-group .context-selector-wrap {
+  border-radius: var(--radius-lg);
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── Context selector in chat area ──────────────────────────── */
@@ -832,6 +898,63 @@ select { cursor: pointer; }
 .chat-bubble--user .chat-label { color: var(--user-bubble-label); }
 .chat-bubble--user .chat-text  { color: var(--user-bubble-text); }
 
+/* Selected text chip shown in user bubble */
+.chat-selected-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.70);
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 2px;
+  line-height: 1.4;
+  word-break: break-word;
+  max-height: 60px;
+  overflow: hidden;
+}
+.chat-selected-text > i {
+  flex-shrink: 0;
+  font-size: 9px;
+  margin-top: 2px;
+  opacity: 0.65;
+}
+.chat-selected-text > span {
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* Status header inside live assistant bubble (context progress, context summary) */
+.chat-bubble__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  min-height: 0;
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+.chat-bubble__status:empty {
+  display: none;
+}
+.chat-bubble__status .chat-typing__spinner {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+}
+.chat-bubble__status .fa-solid.fa-check {
+  color: var(--status-ready);
+  font-size: 9px;
+}
+
 .chat-bubble--assistant {
   align-self: flex-start;
   background: var(--ai-bubble);
@@ -1058,7 +1181,7 @@ textarea {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 9px 12px;
+  padding: 9px 20px 9px 12px;
   font-size: 12px;
   font-family: var(--font);
   color: var(--text);

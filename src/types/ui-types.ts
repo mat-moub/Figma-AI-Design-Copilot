@@ -219,6 +219,37 @@ export interface DocumentContext {
   selectedText: SelectedTextContext | null;
   /** Currently selected non-text node (component/frame/group), if any. */
   selectedComponent: SelectedComponentContext | null;
+  /** Metadata about how this context snapshot was loaded. */
+  contextMeta?: ContextLoadMeta;
+}
+
+export interface ContextLoadMeta {
+  /**
+   * Strategy used to resolve which nodes were scanned.
+   * - `root-node`: a direct page child was found as ancestor of the selection.
+   * - `page-all`: no selection — all direct page children were scanned.
+   */
+  strategy: "root-node" | "page-all";
+  /** Effective scope type used for extraction. */
+  scopeType: "root-node" | "page";
+  /** Effective scope node name, null for page scope. */
+  scopeName: string | null;
+  /** Path from the scope node back to the page root. */
+  scopePath: string[];
+  /** Total root nodes scanned for the final context. */
+  totalFrames: number;
+  /** Total non-empty text nodes included in context. */
+  totalTexts: number;
+  /** Estimated token count for the serialized context. */
+  estimatedTokens: number;
+  /** True when extraction had to stop early due to token cap. */
+  truncated: boolean;
+  /** Hard upper token cap used for this snapshot. */
+  maxTokens: number;
+  /** @deprecated No longer used — kept for interface compatibility. */
+  minTokensTarget: number;
+  /** End-to-end extraction time in milliseconds. */
+  durationMs: number;
 }
 
 // ─── Agent ───────────────────────────────────────────────────────────────────
@@ -259,7 +290,9 @@ export interface GenerateAlternativesInput {
 
 export type PluginMessageType =
   | "get-context"
+  | "load-context"
   | "context-ready"
+  | "context-load-progress"
   | "selection-changed"
   | "get-settings"
   | "save-settings"
@@ -277,9 +310,21 @@ export interface GetContextMessage {
   type: "get-context";
 }
 
+export interface LoadContextMessage {
+  type: "load-context";
+}
+
 export interface ContextReadyMessage {
   type: "context-ready";
   context: DocumentContext;
+}
+
+export interface ContextLoadProgressMessage {
+  type: "context-load-progress";
+  processedFrames: number;
+  totalFrames: number;
+  estimatedTokens: number;
+  scopeLabel: string;
 }
 
 export interface ApplyTextMessage {
@@ -340,6 +385,7 @@ export interface SelectionChangedMessage {
 
 export type PluginToUIMessage =
   | ContextReadyMessage
+  | ContextLoadProgressMessage
   | SelectionChangedMessage
   | SettingsLoadedMessage
   | OnboardingStatusMessage
@@ -349,6 +395,7 @@ export type PluginToUIMessage =
 
 export type UIToPluginMessage =
   | GetContextMessage
+  | LoadContextMessage
   | GetSettingsMessage
   | SaveSettingsMessage
   | GetOnboardingStatusMessage

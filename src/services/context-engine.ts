@@ -1,4 +1,5 @@
 import type {
+  ContextLoadMeta,
   DocumentContext,
   DesignSystem,
   TextEntry,
@@ -9,27 +10,107 @@ import type {
   ComponentTextEntry,
 } from "../types/ui-types";
 
+interface ExtractOptions {
+  maxTokens?: number;
+  onProgress?: (update: {
+    processedNodes: number;
+    totalNodes: number;
+    estimatedTokens: number;
+    scopeLabel: string;
+  }) => void;
+}
+
+interface ScopeBuildResult {
+  pageTextContext: ScreenTextContext[];
+  estimatedTokens: number;
+  totalTexts: number;
+  truncated: boolean;
+  processedNodes: number;
+}
+
+const DEFAULT_MAX_TOKENS = 80_000;
+const PROGRESS_EMIT_EVERY_N_FRAMES = 5;
+
 /**
  * Context Engine
  *
  * Runs inside the Figma plugin sandbox (main.ts) and reads the current page
  * to produce a structured {@link DocumentContext} sent to the AI as background
- * knowledge.  Text extraction is scoped to `figma.currentPage` so the context
- * stays focused and avoids loading every page in large files.
+ * knowledge.
  *
- * For UX writing, the most important piece of context is the currently
- * selected text node — its content, role, and surrounding screen.
+ * Strategy:
+ * - With selection: find the direct page child that is an ancestor of the
+ *   selected node (the "root node"), then extract ALL text descendants
+ *   recursively using Figma's native `findAll`.
+ * - Without selection: scan every direct child of the current page.
+ * - Hard token cap: 80 000 tokens (chars / 4). Truncates cleanly at entry
+ *   boundaries if the cap is reached.
  */
 export class ContextEngine {
-  /** Extract a full DocumentContext from the open Figma document. */
+  /**
+   * Lightweight extraction used by legacy flow.
+   * Delegates to the main scoped extraction.
+   */
   async extract(): Promise<DocumentContext> {
+    return this.extractScopedContext();
+  }
+
+  /**
+   * Scoped extraction with token cap + progress updates.
+   */
+  async extractScopedContext(options: ExtractOptions = {}): Promise<DocumentContext> {
+    const startedAt = Date.now();
+    const maxTokens = Math.max(1_000, options.maxTokens ?? DEFAULT_MAX_TOKENS);
+    const onProgress = options.onProgress;
+
+    const designSystemPromise = this.extractDesignSystem();
+    const selection = figma.currentPage.selection;
+
+    // Resolve which root nodes to scan
+    const { rootNodes, strategy, scopeNode, scopePath, scopeLabel } =
+      this.resolveScope(selection);
+
+    // Extract text context with token cap
+    const scopeBuild = this.buildTextContext(
+      rootNodes,
+      maxTokens,
+      scopeLabel,
+      onProgress
+    );
+
+    const designSystem = await designSystemPromise;
+
+    const contextMeta: ContextLoadMeta = {
+      strategy,
+      scopeType: strategy === "root-node" ? "root-node" : "page",
+      scopeName: scopeNode ? scopeNode.name : null,
+      scopePath,
+      totalFrames: rootNodes.length,
+      totalTexts: scopeBuild.totalTexts,
+      estimatedTokens: scopeBuild.estimatedTokens,
+      truncated: scopeBuild.truncated,
+      maxTokens,
+      minTokensTarget: 0,
+      durationMs: Date.now() - startedAt,
+    };
+
+    if (onProgress) {
+      onProgress({
+        processedNodes: scopeBuild.processedNodes,
+        totalNodes: rootNodes.length,
+        estimatedTokens: scopeBuild.estimatedTokens,
+        scopeLabel,
+      });
+    }
+
     return {
-      designSystem: await this.extractDesignSystem(),
+      designSystem,
       screens: this.extractScreenNames(),
       pages: this.extractPageNames(),
-      pageTextContext: this.extractPageTextContext(),
+      pageTextContext: scopeBuild.pageTextContext,
       selectedText: this.extractSelectedText(),
       selectedComponent: this.extractSelectedComponent(),
+      contextMeta,
     };
   }
 
@@ -76,37 +157,229 @@ export class ContextEngine {
     return textStyles.map((style) => style.name);
   }
 
+  /**
+   * Determine the scope for extraction.
+   *
+   * With selection: walk up from the selected node until we reach a direct
+   * child of the page (parent.type === "PAGE"). That node is the root.
+   *
+   * Without selection: use all direct page children.
+   */
+  private resolveScope(selection: readonly SceneNode[]): {
+    rootNodes: SceneNode[];
+    strategy: "root-node" | "page-all";
+    scopeNode: SceneNode | null;
+    scopePath: string[];
+    scopeLabel: string;
+  } {
+    const selectedNode = selection[0] ?? null;
+
+    if (selectedNode) {
+      const rootNode = this.findPageRootAncestor(selectedNode);
+      if (rootNode) {
+        return {
+          rootNodes: [rootNode],
+          strategy: "root-node",
+          scopeNode: rootNode,
+          scopePath: [rootNode.name],
+          scopeLabel: `${rootNode.type === "SECTION" ? "Section" : rootNode.type === "FRAME" ? "Frame" : "Node"}: ${rootNode.name}`,
+        };
+      }
+    }
+
+    // No selection or couldn't find root → scan whole page
+    const rootNodes = figma.currentPage.children as SceneNode[];
+    return {
+      rootNodes: [...rootNodes],
+      strategy: "page-all",
+      scopeNode: null,
+      scopePath: [figma.currentPage.name],
+      scopeLabel: `Page: ${figma.currentPage.name}`,
+    };
+  }
+
+  /**
+   * Walk up from `node` until we find its ancestor that is a direct child
+   * of the current page (i.e. `parent.type === "PAGE"`).
+   * Returns `node` itself if it is already a direct page child.
+   */
+  private findPageRootAncestor(node: BaseNode): SceneNode | null {
+    let current: BaseNode = node;
+
+    while (current.parent !== null) {
+      if (current.parent.type === "PAGE") {
+        // current is a direct child of the page
+        return current as SceneNode;
+      }
+      current = current.parent;
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract all TEXT descendants from each root node recursively using
+   * Figma's native `findAll`, then pack them into ScreenTextContext entries
+   * while respecting the hard token cap.
+   *
+   * Progress events are emitted every PROGRESS_EMIT_EVERY_N_FRAMES nodes.
+   */
+  private buildTextContext(
+    rootNodes: SceneNode[],
+    maxTokens: number,
+    scopeLabel: string,
+    onProgress?: (update: {
+      processedNodes: number;
+      totalNodes: number;
+      estimatedTokens: number;
+      scopeLabel: string;
+    }) => void
+  ): ScopeBuildResult {
+    const result: ScreenTextContext[] = [];
+    let estimatedTokens = 0;
+    let totalTexts = 0;
+    let truncated = false;
+    let processedNodes = 0;
+
+    for (const rootNode of rootNodes) {
+      if (truncated) break;
+
+      // Use Figma's native recursive findAll to get ALL text nodes in this subtree
+      const findAllMixin = rootNode as unknown as ChildrenMixin;
+      const textNodes: TextNode[] =
+        typeof findAllMixin.findAll === "function"
+          ? (findAllMixin.findAll((n) => n.type === "TEXT") as TextNode[])
+          : rootNode.type === "TEXT"
+          ? [rootNode as TextNode]
+          : [];
+
+      const texts: TextEntry[] = [];
+
+      for (const node of textNodes) {
+        if (node.characters.trim() === "") continue;
+
+        const entry = this.buildTextEntry(node);
+        const entryTokens = this.estimateTokensForTextEntry(entry);
+
+        if (estimatedTokens + entryTokens > maxTokens) {
+          truncated = true;
+          break;
+        }
+
+        texts.push(entry);
+        estimatedTokens += entryTokens;
+        totalTexts += 1;
+      }
+
+      if (texts.length > 0) {
+        result.push({ screenName: rootNode.name, texts });
+      }
+
+      processedNodes += 1;
+
+      if (
+        onProgress &&
+        (processedNodes % PROGRESS_EMIT_EVERY_N_FRAMES === 0 ||
+          processedNodes === rootNodes.length)
+      ) {
+        onProgress({
+          processedNodes,
+          totalNodes: rootNodes.length,
+          estimatedTokens,
+          scopeLabel,
+        });
+      }
+    }
+
+    return {
+      pageTextContext: result,
+      estimatedTokens,
+      totalTexts,
+      truncated,
+      processedNodes,
+    };
+  }
+
+  private estimateTokensForTextEntry(entry: TextEntry): number {
+    const payload = [
+      entry.layerName,
+      entry.characters,
+      entry.role,
+      entry.fontFamily,
+      entry.fontStyle,
+      String(entry.fontSize),
+      String(entry.importance),
+      entry.insideComponent ? "1" : "0",
+    ].join("|");
+    return Math.max(1, Math.ceil(payload.length / 4));
+  }
+
   // ── Selected text extraction ─────────────────────────────────────────────
 
   /**
-   * Read the first selected TextNode (if any) and return a structured
-   * SelectedTextContext for the AI.  Returns null when no text node is selected.
+   * Read the first selected node and return a structured SelectedTextContext.
+   *
+   * - If the selection is a TextNode → use it directly.
+   * - If the selection is a container (frame/group/component/instance) that has
+   *   at least one TEXT descendant → concatenate all descendant texts (joined by
+   *   newlines) and return a synthetic SelectedTextContext so the AI knows what
+   *   copy is inside the selected frame.
+   * - Otherwise → return null.
    */
   extractSelectedText(): SelectedTextContext | null {
     const selection = figma.currentPage.selection;
-    const textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
+    if (selection.length === 0) return null;
 
-    if (!textNode) return null;
+    const first = selection[0];
 
-    const fontName = textNode.fontName;
-    const fontSize = textNode.fontSize;
+    // ── Direct text node ──────────────────────────────────────────────────────
+    if (first.type === "TEXT") {
+      const textNode = first as TextNode;
+      const fontName = textNode.fontName;
+      const fontSize = textNode.fontSize;
 
-    const fontFamily = fontName === figma.mixed ? "mixed" : fontName.family;
-    const fontSizeVal: number | "mixed" =
-      fontSize === figma.mixed ? "mixed" : fontSize;
+      const fontFamily = fontName === figma.mixed ? "mixed" : fontName.family;
+      const fontSizeVal: number | "mixed" =
+        fontSize === figma.mixed ? "mixed" : fontSize;
 
-    const role = this.inferTextRole(textNode);
-    const insideComponent = this.isInsideComponent(textNode);
-    const screenName = this.findParentScreenName(textNode);
+      const role = this.inferTextRole(textNode);
+      const insideComponent = this.isInsideComponent(textNode);
+      const screenName = this.findParentScreenName(textNode);
+
+      return {
+        characters: textNode.characters,
+        role,
+        fontSize: fontSizeVal,
+        fontFamily,
+        charCount: textNode.characters.length,
+        insideComponent,
+        screenName,
+      };
+    }
+
+    // ── Container with text descendants ───────────────────────────────────────
+    const container = first as unknown as ChildrenMixin;
+    if (typeof container.findAll !== "function") return null;
+
+    const textNodes = container.findAll((n) => n.type === "TEXT") as TextNode[];
+    const nonEmpty = textNodes.filter((t) => t.characters.trim() !== "");
+    if (nonEmpty.length === 0) return null;
+
+    const combined = nonEmpty.map((t) => t.characters).join("\n");
+
+    // Use the font properties of the first text node as representative metadata
+    const ref = nonEmpty[0];
+    const fontName = ref.fontName;
+    const fontSize = ref.fontSize;
 
     return {
-      characters: textNode.characters,
-      role,
-      fontSize: fontSizeVal,
-      fontFamily,
-      charCount: textNode.characters.length,
-      insideComponent,
-      screenName,
+      characters: combined,
+      role: this.inferTextRole(ref),
+      fontSize: fontSize === figma.mixed ? "mixed" : fontSize,
+      fontFamily: fontName === figma.mixed ? "mixed" : fontName.family,
+      charCount: combined.length,
+      insideComponent: this.isInsideComponent(ref),
+      screenName: this.findParentScreenName(ref),
     };
   }
 
@@ -125,33 +398,6 @@ export class ContextEngine {
     }
 
     return lastFrameName;
-  }
-
-  // ── Text context extraction ─────────────────────────────────────────────
-
-  /**
-   * Gather all TEXT nodes from every top-level FRAME on the current page.
-   * Results are grouped by screen and preserve the order in which nodes
-   * appear in the Figma layer tree (top-to-bottom, as designed).
-   */
-  private extractPageTextContext(): ScreenTextContext[] {
-    const screens = figma.currentPage.children.filter(
-      (node) => node.type === "FRAME"
-    ) as FrameNode[];
-
-    return screens
-      .map((frame) => {
-        const textNodes = frame.findAll(
-          (node) => node.type === "TEXT"
-        ) as TextNode[];
-
-        const texts: TextEntry[] = textNodes
-          .filter((node) => node.characters.trim() !== "")
-          .map((node) => this.buildTextEntry(node));
-
-        return { screenName: frame.name, texts };
-      })
-      .filter((screen) => screen.texts.length > 0);
   }
 
   private buildTextEntry(node: TextNode): TextEntry {
@@ -250,13 +496,11 @@ export class ContextEngine {
     if (selection.length === 0) return null;
 
     const node = selection[0];
-    // If the first selected node is text, this slot is null (selectedText handles it)
     if (node.type === "TEXT") return null;
 
     const nodeType = this.mapNodeType(node.type);
     const screenName = this.findParentScreenNameFromNode(node);
 
-    // Collect all TEXT descendants in tree order
     const textNodes = (node as ChildrenMixin).findAll
       ? ((node as ChildrenMixin).findAll((n) => n.type === "TEXT") as TextNode[])
       : [];

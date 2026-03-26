@@ -8,8 +8,51 @@
  * Depends on shared state and helpers from index.ts (via imports).
  */
 
-import type { FunctionalContext, DocumentContext, SelectedTextContext, SelectedComponentContext } from "../types/ui-types";
+import type {
+  FunctionalContext,
+  DocumentContext,
+  SelectedTextContext,
+  SelectedComponentContext,
+  ContextLoadMeta,
+} from "../types/ui-types";
 import { safeStorage, generateId, CONTEXTS_KEY, ACTIVE_CONTEXT_KEY, LEGACY_FUNCTIONAL_CONTEXT_KEY, getDocumentContext, setDocumentContext, getContextFetchedAt, setContextFetchedAt } from "./index";
+
+let contextLoading = false;
+let contextResolve: ((ctx: DocumentContext) => void) | null = null;
+let contextProgressCallback: ((progress: {
+  processedFrames: number;
+  totalFrames: number;
+  estimatedTokens: number;
+  scopeLabel: string;
+}) => void) | null = null;
+
+function getLoadContextElements(): {
+  button: HTMLButtonElement | null;
+  spinner: HTMLElement | null;
+  label: HTMLElement | null;
+} {
+  return {
+    button: document.getElementById("load-context-btn") as HTMLButtonElement | null,
+    spinner: document.getElementById("load-context-spinner"),
+    label: document.getElementById("load-context-label"),
+  };
+}
+
+export function setContextLoading(active: boolean, labelText?: string): void {
+  void labelText;
+  contextLoading = active;
+  const { button, spinner } = getLoadContextElements();
+  if (button) {
+    button.disabled = active;
+    button.classList.toggle("context-loading", active);
+    button.title = active ? "Loading context…" : "Reload document context";
+  }
+  spinner?.classList.toggle("hidden", !active);
+}
+
+export function isContextLoading(): boolean {
+  return contextLoading;
+}
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
@@ -304,9 +347,38 @@ export function deleteContext(id: string): void {
 
 // ── Document context (Figma selection) ───────────────────────────────────────
 
-export function requestDocumentContext(): void {
-  parent.postMessage({ pluginMessage: { type: "get-context" } }, "*");
-  import("./chat").then(({ showToast }) => showToast("Refreshing document context…"));
+/**
+ * Request document context from the plugin sandbox.
+ * Returns a Promise that resolves when context-ready is received.
+ * Optional onProgress callback is called on each context-load-progress message.
+ */
+export function requestDocumentContext(
+  onProgress?: (progress: {
+    processedFrames: number;
+    totalFrames: number;
+    estimatedTokens: number;
+    scopeLabel: string;
+  }) => void
+): Promise<DocumentContext> {
+  if (contextLoading && contextResolve) {
+    // Already loading — piggyback on the existing request
+    return new Promise<DocumentContext>((resolve) => {
+      const prevResolve = contextResolve;
+      contextResolve = (ctx) => {
+        prevResolve?.(ctx);
+        resolve(ctx);
+      };
+      if (onProgress) contextProgressCallback = onProgress;
+    });
+  }
+
+  setContextLoading(true);
+  contextProgressCallback = onProgress ?? null;
+
+  return new Promise<DocumentContext>((resolve) => {
+    contextResolve = resolve;
+    parent.postMessage({ pluginMessage: { type: "load-context" } }, "*");
+  });
 }
 
 export function requestPersistedSettings(): void {
@@ -327,6 +399,7 @@ export function showContextBadge(context: DocumentContext): void {
   const hasSelectedText = context.selectedText !== null;
   const hasSelectedComponent = context.selectedComponent !== null;
   const screenCount = context.screens.length;
+  const meta = context.contextMeta;
 
   const textContent = context.selectedText?.characters || "";
   const truncatedText = textContent.length > 20 ? textContent.slice(0, 20) + "…" : textContent;
@@ -364,12 +437,68 @@ export function showContextBadge(context: DocumentContext): void {
 
   const contextFetchedAt = getContextFetchedAt();
   const refreshedAt = contextFetchedAt !== null ? new Date(contextFetchedAt).toLocaleTimeString() : "—";
+  const metaLines = formatContextMetaTooltip(meta);
   badge.title = [
     `Refreshed: ${refreshedAt}`,
     `Selected text: ${selectedLabel}`,
     `Screens: ${context.screens.join(", ") || "none"}`,
+    ...metaLines,
   ].join("\n");
   badge.classList.remove("hidden", "ctx-badge--stale");
+}
+
+export function handleContextLoadProgress(progress: {
+  processedFrames: number;
+  totalFrames: number;
+  estimatedTokens: number;
+  scopeLabel: string;
+}): void {
+  const total = Math.max(1, progress.totalFrames);
+  const pct = Math.min(100, Math.round((progress.processedFrames / total) * 100));
+  setContextLoading(true, `${pct}% (${progress.processedFrames}/${progress.totalFrames})`);
+  if (contextProgressCallback) contextProgressCallback(progress);
+}
+export function handleContextReady(context: DocumentContext): void {
+  setContextLoading(false);
+  setDocumentContext(context);
+  showContextBadge(context);
+
+  // Resolve the pending promise from requestDocumentContext()
+  if (contextResolve) {
+    contextResolve(context);
+    contextResolve = null;
+  }
+  contextProgressCallback = null;
+
+  const meta = context.contextMeta;
+  if (!meta) return;
+
+  const summary = [
+    `${meta.scopeType === "root-node" ? (meta.scopeName ?? "Root") : "Page"}`,
+    `${meta.totalFrames} node${meta.totalFrames > 1 ? "s" : ""}`,
+    `${meta.totalTexts} text${meta.totalTexts > 1 ? "s" : ""}`,
+    `${meta.estimatedTokens} tok`,
+    `${meta.durationMs}ms`,
+    meta.truncated ? "truncated" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  import("./chat").then(({ showToast }) => showToast(`Context loaded: ${summary}`));
+}
+
+function formatContextMetaTooltip(meta: ContextLoadMeta | undefined): string[] {
+  if (!meta) return [];
+  return [
+    `Scope: ${meta.scopeType}${meta.scopeName ? ` (${meta.scopeName})` : ""}`,
+    `Strategy: ${meta.strategy}`,
+    `Frames loaded: ${meta.totalFrames}`,
+    `Text nodes loaded: ${meta.totalTexts}`,
+    `Estimated tokens: ${meta.estimatedTokens}/${meta.maxTokens}`,
+    `Min target: ${meta.minTokensTarget}`,
+    `Truncated: ${meta.truncated ? "yes" : "no"}`,
+    `Duration: ${meta.durationMs}ms`,
+  ];
 }
 
 /**

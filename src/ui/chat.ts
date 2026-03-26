@@ -15,7 +15,6 @@ import type { DocumentContext, TextAlternative } from "../types/ui-types";
 import {
   safeStorage,
   getEl,
-  CONTEXT_STALE_MS,
   INTERACTION_MODE_KEY,
   getDocumentContext,
   getChatHistory,
@@ -24,7 +23,6 @@ import {
   setInteractionModeState,
   getTypingBubbleEl,
   setTypingBubbleEl,
-  EMPTY_DOCUMENT_CONTEXT,
 } from "./index";
 import { getModelConfig, validateApiKey, getAlternativesCount } from "./settings";
 import { getContexts, getActiveContextId, requestDocumentContext } from "./context";
@@ -50,41 +48,45 @@ export async function handleGenerate(): Promise<void> {
     return;
   }
 
-  const documentContext = getDocumentContext();
-  const context: DocumentContext = documentContext ?? EMPTY_DOCUMENT_CONTEXT;
-
-  // Warn the designer if the Figma context snapshot is stale
-  const { getContextFetchedAt } = await import("./index");
-  const contextFetchedAt = getContextFetchedAt();
-  if (documentContext && contextFetchedAt !== null && Date.now() - contextFetchedAt > CONTEXT_STALE_MS) {
-    requestDocumentContext();
-  }
+  // Read the current context for the selected text chip (before refresh)
+  const preContext = getDocumentContext();
+  const selectedChars = preContext?.selectedText?.characters ?? null;
 
   const count = getAlternativesCount();
   const fullContext = buildFullFunctionalContext();
 
-  appendUserMessage(prompt);
+  appendUserMessage(prompt, selectedChars);
   promptEl.value = "";
   setGenerating(true);
-  showAssistantTypingIndicator();
+
+  // Create a live AI bubble with status header
+  const liveBubble = createLiveAssistantBubble();
+  liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Loading context…');
 
   try {
+    // Auto-refresh context with live progress in the bubble
+    const freshContext = await requestDocumentContext((progress) => {
+      liveBubble.updateStatus(formatContextProgressHTML(progress));
+    });
+
+    // Show context summary, then thinking
+    liveBubble.updateStatus(formatContextReadyHTML(freshContext.contextMeta));
+    liveBubble.showThinking();
+
     const chatHistory = getChatHistory();
     const alternatives = await uxWriterAgent.generate(
       prompt,
       count,
-      context,
+      freshContext,
       modelConfig,
       chatHistory,
       fullContext || undefined
     );
 
-    hideAssistantTypingIndicator();
-
     if (alternatives.length === 0) {
-      appendAssistantMessage("No alternatives generated. Please refine your instruction.");
+      liveBubble.setContent(renderMarkdown("No alternatives generated. Please refine your instruction."));
     } else {
-      appendAlternativesMessage(alternatives);
+      liveBubble.setAlternatives(alternatives);
     }
 
     setChatHistory([
@@ -93,10 +95,8 @@ export async function handleGenerate(): Promise<void> {
       { role: "assistant", content: alternatives.map((a) => `• ${a.text}`).join("\n") },
     ]);
   } catch (err) {
-    setGenerating(false);
-    hideAssistantTypingIndicator();
     const message = redactSecrets(err instanceof Error ? err.message : String(err));
-    appendAssistantMessage(`Error: ${message}`);
+    liveBubble.setContent(renderMarkdown(`Error: ${message}`));
     const chatHistory = getChatHistory();
     setChatHistory([
       ...chatHistory,
@@ -131,29 +131,40 @@ export async function handleAsk(): Promise<void> {
     return;
   }
 
-  const documentContext = getDocumentContext();
-  const context: DocumentContext = documentContext ?? EMPTY_DOCUMENT_CONTEXT;
+  // Read pre-refresh context for the selected text chip
+  const preContext = getDocumentContext();
+  const selectedChars = preContext?.selectedText?.characters ?? null;
 
-  appendUserMessage(question);
+  appendUserMessage(question, selectedChars);
   promptEl.value = "";
   setGenerating(true);
-  showAssistantTypingIndicator();
+
+  // Create a live AI bubble with status header
+  const liveBubble = createLiveAssistantBubble();
+  liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Loading context…');
 
   try {
-    const chatHistory = getChatHistory();
-    const answer = await aiService.ask(question, context, modelConfig, chatHistory);
+    // Auto-refresh context with live progress in the bubble
+    const freshContext = await requestDocumentContext((progress) => {
+      liveBubble.updateStatus(formatContextProgressHTML(progress));
+    });
 
-    hideAssistantTypingIndicator();
-    appendAssistantMessage(answer);
+    // Show context summary, then thinking
+    liveBubble.updateStatus(formatContextReadyHTML(freshContext.contextMeta));
+    liveBubble.showThinking();
+
+    const chatHistory = getChatHistory();
+    const answer = await aiService.ask(question, freshContext, modelConfig, chatHistory);
+
+    liveBubble.setContent(renderMarkdown(answer));
     setChatHistory([
       ...chatHistory,
       { role: "user", content: question },
       { role: "assistant", content: answer },
     ]);
   } catch (err) {
-    hideAssistantTypingIndicator();
     const message = redactSecrets(err instanceof Error ? err.message : String(err));
-    appendAssistantMessage(`Error: ${message}`);
+    liveBubble.setContent(renderMarkdown(`Error: ${message}`));
     const chatHistory = getChatHistory();
     setChatHistory([
       ...chatHistory,
@@ -264,15 +275,15 @@ export function chatEmptyStateHTML(): string {
 
 // ── Chat message helpers ──────────────────────────────────────────────────────
 
-export function appendUserMessage(content: string): void {
-  appendChatMessage("user", content);
+export function appendUserMessage(content: string, selectedText?: string | null): void {
+  appendChatMessage("user", content, selectedText);
 }
 
 export function appendAssistantMessage(content: string): void {
   appendChatMessage("assistant", content);
 }
 
-export function appendChatMessage(role: "user" | "assistant", content: string): void {
+export function appendChatMessage(role: "user" | "assistant", content: string, selectedText?: string | null): void {
   const container = getEl<HTMLDivElement>("chat-history");
 
   const emptyState = document.getElementById("chat-empty-state");
@@ -285,6 +296,16 @@ export function appendChatMessage(role: "user" | "assistant", content: string): 
   label.className = "chat-label";
   label.textContent = role === "user" ? "You" : "AI";
 
+  bubble.appendChild(label);
+
+  // Show selected text chip in user bubble
+  if (role === "user" && selectedText) {
+    const chip = document.createElement("div");
+    chip.className = "chat-selected-text";
+    chip.innerHTML = `<i class="fa-solid fa-font" aria-hidden="true"></i> <span>${escapeHTMLInline(selectedText)}</span>`;
+    bubble.appendChild(chip);
+  }
+
   const text = document.createElement("div");
   text.className = "chat-text";
   if (role === "assistant") {
@@ -293,7 +314,6 @@ export function appendChatMessage(role: "user" | "assistant", content: string): 
     text.textContent = content;
   }
 
-  bubble.appendChild(label);
   bubble.appendChild(text);
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;
@@ -395,6 +415,143 @@ export function hideAssistantTypingIndicator(): void {
   if (!bubble) return;
   bubble.remove();
   setTypingBubbleEl(null);
+}
+
+// ── Live assistant bubble (context progress + thinking + response) ────────────
+
+/**
+ * Represents a live assistant bubble that can be updated progressively:
+ * first with context-loading status, then thinking indicator, then final content.
+ */
+export interface LiveAssistantBubble {
+  /** The bubble DOM element. */
+  element: HTMLDivElement;
+  /** Update the status header line (context loading progress, etc.). */
+  updateStatus(html: string): void;
+  /** Show the "Thinking…" spinner in the content area. */
+  showThinking(): void;
+  /** Replace the content area with the final assistant message (markdown rendered). */
+  setContent(html: string): void;
+  /** Replace the content area with an alternatives list. */
+  setAlternatives(alternatives: TextAlternative[]): void;
+}
+
+/**
+ * Create an assistant bubble with a status header and content area.
+ * The bubble is immediately appended to the chat history.
+ * Returns a handle to update the status and content areas.
+ */
+export function createLiveAssistantBubble(): LiveAssistantBubble {
+  const container = getEl<HTMLDivElement>("chat-history");
+
+  const emptyState = document.getElementById("chat-empty-state");
+  if (emptyState) emptyState.remove();
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble chat-bubble--assistant";
+
+  const label = document.createElement("span");
+  label.className = "chat-label";
+  label.textContent = "AI";
+
+  const status = document.createElement("div");
+  status.className = "chat-bubble__status";
+
+  const content = document.createElement("div");
+  content.className = "chat-text";
+
+  bubble.appendChild(label);
+  bubble.appendChild(status);
+  bubble.appendChild(content);
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+
+  return {
+    element: bubble,
+    updateStatus(html: string): void {
+      status.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
+    },
+    showThinking(): void {
+      content.innerHTML = [
+        '<span class="chat-typing">',
+        '  <span class="chat-typing__spinner" aria-hidden="true"></span>',
+        '  <span class="chat-typing__label">Thinking…</span>',
+        '</span>',
+      ].join("");
+      container.scrollTop = container.scrollHeight;
+    },
+    setContent(html: string): void {
+      content.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
+    },
+    setAlternatives(alternatives: TextAlternative[]): void {
+      // Clear previous content
+      content.innerHTML = "";
+
+      const intro = document.createElement("p");
+      intro.textContent = `${String(alternatives.length)} alternative${alternatives.length !== 1 ? "s" : ""} generated:`;
+      content.appendChild(intro);
+
+      const list = document.createElement("ul");
+      list.className = "alternatives-list";
+
+      for (const alt of alternatives) {
+        const item = document.createElement("li");
+        item.className = "alternative-item";
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "alternative-text";
+        textSpan.textContent = alt.text;
+
+        const rationaleSpan = document.createElement("span");
+        rationaleSpan.className = "alternative-rationale";
+        rationaleSpan.textContent = alt.rationale ?? "";
+
+        const applyBtn = document.createElement("button");
+        applyBtn.className = "btn btn--ghost btn--sm alternative-apply-btn";
+        applyBtn.type = "button";
+        applyBtn.textContent = "Apply";
+        applyBtn.title = "Apply this text to the selected Figma text node";
+        applyBtn.addEventListener("click", () => {
+          applyTextToFigma(alt.text);
+          showToast(`Applying: "${alt.text.slice(0, 40)}${alt.text.length > 40 ? "…" : ""}"`);
+        });
+
+        item.appendChild(textSpan);
+        if (alt.rationale) item.appendChild(rationaleSpan);
+        item.appendChild(applyBtn);
+        list.appendChild(item);
+      }
+
+      content.appendChild(list);
+      container.scrollTop = container.scrollHeight;
+    },
+  };
+}
+
+/** Format context loading progress as a status HTML string. */
+export function formatContextProgressHTML(progress: {
+  processedFrames: number;
+  totalFrames: number;
+  estimatedTokens: number;
+  scopeLabel: string;
+}): string {
+  const total = Math.max(1, progress.totalFrames);
+  const pct = Math.min(100, Math.round((progress.processedFrames / total) * 100));
+  return `<span class="chat-typing__spinner" aria-hidden="true"></span> Loading context… ${String(pct)}% (${String(progress.processedFrames)}/${String(progress.totalFrames)})`;
+}
+
+/** Format the context loaded summary as a status HTML string. */
+export function formatContextReadyHTML(meta: DocumentContext["contextMeta"]): string {
+  if (!meta) return "Context loaded";
+  const parts = [
+    `${String(meta.totalTexts)} text${meta.totalTexts > 1 ? "s" : ""}`,
+    `${String(meta.estimatedTokens)} tok`,
+    `${String(meta.durationMs)}ms`,
+  ];
+  if (meta.truncated) parts.push("truncated");
+  return `<i class="fa-solid fa-check" aria-hidden="true"></i> Context: ${parts.join(" · ")}`;
 }
 
 // ── New conversation confirmation ─────────────────────────────────────────────
@@ -559,4 +716,13 @@ export function renderMarkdown(raw: string): string {
 
   closeList();
   return output.join("");
+}
+
+/** Escape HTML for safe inline insertion. */
+function escapeHTMLInline(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

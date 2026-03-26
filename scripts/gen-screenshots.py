@@ -151,6 +151,10 @@ MAIN_HEADER = """
   </div>
   <div class="header__actions">
     <button class="btn--header" type="button">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+      Load Context
+    </button>
+    <button class="btn--header" type="button">
       <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-cog"/></svg>
       Settings
     </button>

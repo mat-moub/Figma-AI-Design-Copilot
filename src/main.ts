@@ -9,6 +9,7 @@ import { ContextEngine } from "./services/context-engine";
 import { redactSecrets } from "./utils/redact-secrets";
 import type {
   ApplyTextMessage,
+  LoadContextMessage,
   PersistedSettings,
   SaveSettingsMessage,
   UIToPluginMessage,
@@ -17,6 +18,9 @@ import type {
 const contextEngine = new ContextEngine();
 const ONBOARDING_DONE_KEY = "copilot_onboarding_done";
 const SETTINGS_KEY = "copilot_settings";
+const MAX_CONTEXT_TOKENS = 80_000;
+
+let isContextLoading = false;
 
 // ── Show the plugin UI ───────────────────────────────────────────────────────
 
@@ -44,6 +48,10 @@ figma.ui.onmessage = async (msg: UIToPluginMessage) => {
     switch (msg.type) {
       case "get-context":
         await handleGetContext();
+        break;
+
+      case "load-context":
+        await handleLoadContext(msg);
         break;
 
       case "get-onboarding-status":
@@ -82,8 +90,42 @@ figma.ui.onmessage = async (msg: UIToPluginMessage) => {
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
 async function handleGetContext(): Promise<void> {
-  const context = await contextEngine.extract();
+  const context = await contextEngine.extractScopedContext({
+    maxTokens: MAX_CONTEXT_TOKENS,
+  });
   figma.ui.postMessage({ type: "context-ready", context });
+}
+
+async function handleLoadContext(msg: LoadContextMessage): Promise<void> {
+  void msg;
+  if (isContextLoading) {
+    figma.ui.postMessage({
+      type: "notify",
+      message: "Context loading already in progress…",
+    });
+    return;
+  }
+
+  isContextLoading = true;
+
+  try {
+    const context = await contextEngine.extractScopedContext({
+      maxTokens: MAX_CONTEXT_TOKENS,
+      onProgress: (progress) => {
+        figma.ui.postMessage({
+          type: "context-load-progress",
+          processedFrames: progress.processedNodes,
+          totalFrames: progress.totalNodes,
+          estimatedTokens: progress.estimatedTokens,
+          scopeLabel: progress.scopeLabel,
+        });
+      },
+    });
+
+    figma.ui.postMessage({ type: "context-ready", context });
+  } finally {
+    isContextLoading = false;
+  }
 }
 
 async function handleGetOnboardingStatus(): Promise<void> {
@@ -109,12 +151,43 @@ async function handleResetOnboarding(): Promise<void> {
 }
 
 /**
- * Apply a text alternative to the first selected TextNode in Figma.
+ * Apply a text alternative to the selected TextNode in Figma.
+ *
+ * Resolution order:
+ * 1. If there is exactly one TextNode directly in the selection → use it.
+ * 2. If the selection contains no TextNode but exactly one frame/group/component
+ *    that has exactly one descendant TextNode → use that descendant.
+ * 3. If the resolved frame has more than one descendant TextNode → error
+ *    (ambiguous target).
+ * 4. Otherwise → error (nothing to write to).
+ *
  * Loads fonts before writing to avoid a "font not loaded" error.
  */
 async function handleApplyText(msg: ApplyTextMessage): Promise<void> {
   const selection = figma.currentPage.selection;
-  const textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
+
+  // 1. Direct text node in selection
+  let textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
+
+  if (!textNode) {
+    // 2. No direct text node — look for a single container in selection
+    const containers = selection.filter(
+      (n) => n.type !== "TEXT" && "findAll" in n
+    ) as (FrameNode | GroupNode | ComponentNode | InstanceNode | SectionNode)[];
+
+    if (containers.length === 1) {
+      const descendants = containers[0].findAll((n) => n.type === "TEXT") as TextNode[];
+      if (descendants.length === 1) {
+        textNode = descendants[0];
+      } else if (descendants.length > 1) {
+        figma.ui.postMessage({
+          type: "error",
+          message: `The selected frame contains ${String(descendants.length)} text layers. Please select one text layer directly.`,
+        });
+        return;
+      }
+    }
+  }
 
   if (!textNode) {
     figma.ui.postMessage({

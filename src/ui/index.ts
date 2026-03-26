@@ -246,6 +246,7 @@ async function initializeUI(): Promise<void> {
     requestDocumentContext,
     requestPersistedSettings,
     requestOnboardingStatus,
+    setContextLoading,
   } = await import("./context");
 
   const { setInteractionMode, showToast } = await import("./chat");
@@ -291,6 +292,7 @@ async function initializeUI(): Promise<void> {
     }
 
     requestPersistedSettings();
+    setContextLoading(false);
     requestDocumentContext();
     requestOnboardingStatus();
   } catch {
@@ -312,13 +314,17 @@ window.onmessage = (event: MessageEvent) => {
 
   void (async () => {
     const { showToast, setGenerating, appendAssistantMessage, hideAssistantTypingIndicator } = await import("./chat");
-    const { showContextBadge, handleSelectionChanged } = await import("./context");
+    const { handleSelectionChanged, handleContextReady, handleContextLoadProgress, setContextLoading } = await import("./context");
     const { setupOnboarding, applyPersistedSettings } = await import("./settings");
 
     switch (msg.type) {
       case "context-ready":
         _documentContext = msg.context;
-        showContextBadge(msg.context);
+        handleContextReady(msg.context);
+        break;
+
+      case "context-load-progress":
+        handleContextLoadProgress(msg);
         break;
 
       case "selection-changed":
@@ -341,6 +347,7 @@ window.onmessage = (event: MessageEvent) => {
         break;
 
       case "error":
+        setContextLoading(false);
         setGenerating(false);
         hideAssistantTypingIndicator();
         appendAssistantMessage(`Error: ${redactSecrets(msg.message)}`);

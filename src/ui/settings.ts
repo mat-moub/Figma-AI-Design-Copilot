@@ -30,6 +30,7 @@ import {
   setActiveContextId,
   renderContextsList,
   syncContextSelector,
+  requestDocumentContext,
 } from "./context";
 
 // Import lazily to avoid circular at module-load time; used in setInteractionMode
@@ -481,6 +482,7 @@ export function setupEventListeners(): void {
   const promptInput  = getEl<HTMLTextAreaElement>("prompt-input");
   const clearBtn     = getEl<HTMLButtonElement>("clear-btn");
   const apiKeyToggle = getEl<HTMLButtonElement>("api-key-toggle");
+  const loadContextBtn = document.getElementById("load-context-btn") as HTMLButtonElement | null;
 
   // Single action button dispatches to the active mode handler
   generateBtn.addEventListener("click", () => {
@@ -506,6 +508,12 @@ export function setupEventListeners(): void {
     import("./chat").then(({ openNewConvoConfirm }) => openNewConvoConfirm());
   });
   apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
+
+  if (loadContextBtn) {
+    loadContextBtn.addEventListener("click", () => {
+      requestDocumentContext();
+    });
+  }
 
   // ── Mode tabs ───────────────────────────────────────────────────────────
   const tabGenerate = document.getElementById("mode-tab-generate");

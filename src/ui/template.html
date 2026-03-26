@@ -86,12 +86,19 @@
           Ask
         </button>
       </div>
-      <div class="context-selector-wrap">
-        <i class="fa-solid fa-layer-group context-selector-icon" aria-hidden="true"></i>
-        <select id="context-selector" aria-label="Active functional context">
-          <option value="">(No context)</option>
-        </select>
-        <i class="fa-solid fa-chevron-down context-selector-chevron" aria-hidden="true"></i>
+      <div class="context-group">
+        <div class="context-selector-wrap">
+          <button class="btn--reload-ctx" id="load-context-btn" type="button" title="Reload document context" aria-label="Reload document context">
+            <span id="load-context-spinner" class="spinner hidden" aria-hidden="true"></span>
+            <svg class="icon icon-sm" id="load-context-icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
+          </button>
+          <span class="context-selector-divider" aria-hidden="true"></span>
+          <i class="fa-solid fa-layer-group context-selector-icon" aria-hidden="true"></i>
+          <select id="context-selector" aria-label="Active functional context">
+            <option value="">(No context)</option>
+          </select>
+          <i class="fa-solid fa-chevron-down context-selector-chevron" aria-hidden="true"></i>
+        </div>
       </div>
     </div>
     <textarea id="prompt-input" placeholder="Describe the wording you want — tone, audience, context…"

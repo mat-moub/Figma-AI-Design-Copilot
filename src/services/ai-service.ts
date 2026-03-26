@@ -28,15 +28,7 @@ function formatTextContext(pageTextContext: ScreenTextContext[]): string {
       const lines = screen.texts.map((t) => {
         const size =
           t.fontSize === "mixed" ? "mixed" : `${String(t.fontSize)}px`;
-        const font =
-          t.fontStyle === "mixed"
-            ? t.fontFamily
-            : `${t.fontFamily} ${t.fontStyle}`;
-        const component = t.insideComponent ? ", in-component" : "";
-        return (
-          `    [${t.role}, importance:${String(t.importance)}, ${size}, ${font}` +
-          `${component}] "${t.characters}"`
-        );
+        return `    [${size}] "${t.characters}"`;
       });
       return `  Screen: "${screen.screenName}"\n${lines.join("\n")}`;
     })
