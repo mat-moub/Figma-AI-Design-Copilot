@@ -310,6 +310,7 @@ export class ContextEngine {
       String(entry.fontSize),
       String(entry.importance),
       entry.insideComponent ? "1" : "0",
+      entry.parentPath.join("/"),
     ].join("|");
     return Math.max(1, Math.ceil(payload.length / 4));
   }
@@ -412,6 +413,7 @@ export class ContextEngine {
     const role = this.inferTextRole(node);
     const importance = this.inferImportance(role, fontSizeVal);
     const insideComponent = this.isInsideComponent(node);
+    const { depth, parentPath } = this.buildParentInfo(node);
 
     return {
       layerName: node.name,
@@ -423,6 +425,8 @@ export class ContextEngine {
       fontStyle,
       fontSize: fontSizeVal,
       insideComponent,
+      depth,
+      parentPath,
     };
   }
 
@@ -481,6 +485,30 @@ export class ContextEngine {
       parent = parent.parent;
     }
     return false;
+  }
+
+  /**
+   * Walk up from a text node to the top-level screen FRAME and collect the
+   * intermediate container names, stopping before the screen root itself.
+   * Returns `{ depth, parentPath }` where depth is 0 when the text node is a
+   * direct child of the screen frame, and parentPath lists the intermediate
+   * frame/group/component names from outermost to innermost.
+   */
+  private buildParentInfo(node: TextNode): { depth: number; parentPath: string[] } {
+    const path: string[] = [];
+    let current: BaseNode | null = node.parent;
+
+    // Walk up, stopping at the PAGE level or when we've passed the screen root.
+    // The screen root is the first FRAME whose parent is a PAGE.
+    while (current !== null && current.type !== "PAGE") {
+      const isScreenRoot =
+        current.parent !== null && current.parent.type === "PAGE";
+      if (isScreenRoot) break; // screen frame itself is not in the path
+      path.unshift(current.name);
+      current = current.parent;
+    }
+
+    return { depth: path.length, parentPath: path };
   }
 
   // ── Selected component extraction ────────────────────────────────────────────

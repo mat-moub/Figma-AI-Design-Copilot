@@ -146,6 +146,18 @@ export interface TextEntry {
    * master — gives the LLM context about its role (e.g. button label).
    */
   insideComponent: boolean;
+  /**
+   * Nesting depth of the text node relative to its top-level screen frame.
+   * 0 = direct child of the screen, 1 = one frame deep, etc.
+   * Used to produce indented markdown that mirrors the Figma hierarchy.
+   */
+  depth: number;
+  /**
+   * Names of the intermediate container frames/groups between the screen root
+   * and this text node (not including the screen itself).
+   * Ordered from outermost to innermost (e.g. ["Card", "Header"]).
+   */
+  parentPath: string[];
 }
 
 /** All text entries found within a single top-level screen frame. */

@@ -388,6 +388,91 @@ export async function handleTestConnection(): Promise<void> {
   }
 }
 
+// ── Onboarding test connection ────────────────────────────────────────────────
+
+async function handleObTestConnection(): Promise<void> {
+  const btn = document.getElementById("ob-test-connection-btn") as HTMLButtonElement | null;
+  const statusEl = document.getElementById("ob-test-connection-status");
+
+  const providerEl = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
+  const modelEl    = document.getElementById("ob-model-select")    as HTMLSelectElement | null;
+  const keyEl      = document.getElementById("ob-api-key-input")   as HTMLInputElement  | null;
+
+  const provider = (providerEl?.value ?? "gemini") as LLMProvider;
+  const model    = (modelEl?.value ?? "") as ModelConfig["model"];
+  const keyValue = keyEl?.value.trim() ?? "";
+
+  const modelConfig: ModelConfig = { provider, model };
+  if (provider === "gemini")        modelConfig.geminiKey    = keyValue || undefined;
+  else if (provider === "openai")   modelConfig.openaiKey    = keyValue || undefined;
+  else if (provider === "anthropic") modelConfig.anthropicKey = keyValue || undefined;
+  else if (provider === "mistral")  modelConfig.mistralKey   = keyValue || undefined;
+
+  const missingKeyMsg = validateApiKey(modelConfig);
+  if (missingKeyMsg) {
+    const { showToast } = await import("./chat");
+    showToast(missingKeyMsg, "warning");
+    if (statusEl) {
+      statusEl.textContent = "No API key configured";
+      statusEl.className = "test-connection-status test-connection-status--warn";
+    }
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    const label = btn.querySelector<HTMLSpanElement>("#ob-test-connection-label");
+    if (label) label.textContent = "Testing…";
+  }
+  if (statusEl) {
+    statusEl.textContent = "Testing connection…";
+    statusEl.className = "test-connection-status";
+  }
+
+  const { showToast } = await import("./chat");
+  const { EMPTY_DOCUMENT_CONTEXT } = await import("./index");
+
+  try {
+    const aiSvc = await getAIService();
+    const emptyContext = { ...EMPTY_DOCUMENT_CONTEXT };
+
+    const timeoutMs = 15000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("Connection test timed out after 15s. Check your API key, provider status, or network policy."));
+      }, timeoutMs);
+    });
+
+    await Promise.race([
+      aiSvc.ask("Reply with the single word: ok", emptyContext, modelConfig),
+      timeoutPromise,
+    ]);
+
+    showToast("Connection successful!", "info");
+    if (statusEl) {
+      statusEl.textContent = "Connection successful";
+      statusEl.className = "test-connection-status test-connection-status--ok";
+    }
+  } catch (err) {
+    const rawMessage = redactSecrets(err instanceof Error ? err.message : "Connection failed.");
+    const message = /failed to fetch|networkerror|network error/i.test(rawMessage)
+      ? "Network request blocked or failed. Verify manifest allowed domains and provider endpoint access."
+      : rawMessage;
+
+    showToast(`${message}`, "error");
+    if (statusEl) {
+      statusEl.textContent = `${message}`;
+      statusEl.className = "test-connection-status test-connection-status--error";
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      const label = btn.querySelector<HTMLSpanElement>("#ob-test-connection-label");
+      if (label) label.textContent = "Test connection";
+    }
+  }
+}
+
 // ── Confirm dialog ────────────────────────────────────────────────────────────
 
 /** Pending callback for the generic confirm modal. */
@@ -744,6 +829,11 @@ export function setupOnboarding(): void {
       eye?.classList.toggle("hidden", !isPassword);
       eyeSlash?.classList.toggle("hidden", isPassword);
     };
+  }
+
+  const obTestBtn = document.getElementById("ob-test-connection-btn");
+  if (obTestBtn) {
+    obTestBtn.onclick = () => void handleObTestConnection();
   }
 
   const skipBtn = document.getElementById("ob-skip-btn");

@@ -243,7 +243,6 @@ async function initializeUI(): Promise<void> {
     renderContextsList,
     syncContextSelector,
     migrateLegacyContext,
-    requestDocumentContext,
     requestPersistedSettings,
     requestOnboardingStatus,
     setContextLoading,
@@ -293,7 +292,6 @@ async function initializeUI(): Promise<void> {
 
     requestPersistedSettings();
     setContextLoading(false);
-    requestDocumentContext();
     requestOnboardingStatus();
   } catch {
     showToast("Settings initialization failed partially. Core actions remain available.", "warning");

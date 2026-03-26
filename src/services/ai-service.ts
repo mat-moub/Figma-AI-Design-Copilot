@@ -5,6 +5,7 @@ import type {
   ScreenTextContext,
   SelectedTextContext,
   TextAlternative,
+  TextEntry,
 } from "../types/ui-types";
 import type { LLMProvider } from "../providers/llm-provider";
 import { GeminiProvider } from "../providers/gemini-provider";
@@ -15,9 +16,57 @@ import { MistralProvider } from "../providers/mistral-provider";
 // ─── Text context formatter ───────────────────────────────────────────────────
 
 /**
- * Render the page text context as a readable block for the system prompt.
- * Each screen section lists its text entries sorted by importance so the LLM
- * understands the content hierarchy at a glance.
+ * Apply Figma-style markdown formatting to a text entry's content string:
+ * - headings → `##` / `###` (scaled by nesting depth)
+ * - bold font styles → `**text**`
+ * - captions / light fonts → `_text_`
+ * - button / CTA roles → `` `text` ``
+ * - plain body text → left as-is
+ */
+function applyMarkdownStyle(entry: TextEntry): string {
+  const { characters, role, fontStyle, depth } = entry;
+  const style = typeof fontStyle === "string" ? fontStyle.toLowerCase() : "";
+  const isBold   = /bold|heavy|black|semibold|extrabold/.test(style);
+  const isLight  = /light|thin|extralight/.test(style);
+
+  if (role === "heading") {
+    // h2 at depth 0, h3 at depth 1, h4+ beyond
+    const hashes = depth === 0 ? "##" : depth === 1 ? "###" : "####";
+    return `${hashes} ${characters}`;
+  }
+  if (role === "subheading") {
+    const hashes = depth <= 1 ? "###" : "####";
+    return `${hashes} ${characters}`;
+  }
+  if (role === "button") {
+    return `\`${characters}\``;
+  }
+  if (isBold) {
+    return `**${characters}**`;
+  }
+  if (role === "caption" || isLight) {
+    return `_${characters}_`;
+  }
+  return characters;
+}
+
+/**
+ * Render the page text context as structured markdown for the system prompt.
+ *
+ * Format:
+ * ```
+ * # Screen name
+ *
+ * ## Heading text          ← role=heading, depth=0
+ *   ### Sub-heading        ← role=subheading, depth=1 (inside a container)
+ *   **Bold label**         ← bold font, depth=1
+ *   _caption text_         ← caption role or light font
+ *   `Button label`         ← button/CTA role
+ *     Plain body copy      ← depth=2, inside nested container
+ * ```
+ *
+ * Indentation mirrors the Figma frame hierarchy via `depth`.
+ * A font size hint `[14px]` is appended when the size is known.
  */
 function formatTextContext(pageTextContext: ScreenTextContext[]): string {
   const populated = pageTextContext.filter((s) => s.texts.length > 0);
@@ -25,12 +74,16 @@ function formatTextContext(pageTextContext: ScreenTextContext[]): string {
 
   return populated
     .map((screen) => {
-      const lines = screen.texts.map((t) => {
-        const size =
-          t.fontSize === "mixed" ? "mixed" : `${String(t.fontSize)}px`;
-        return `    [${size}] "${t.characters}"`;
-      });
-      return `  Screen: "${screen.screenName}"\n${lines.join("\n")}`;
+      const lines: string[] = [`# ${screen.screenName}`, ""];
+
+      for (const entry of screen.texts) {
+        const indent = "  ".repeat(entry.depth);
+        const styled = applyMarkdownStyle(entry);
+        const size   = entry.fontSize === "mixed" ? "" : ` [${String(entry.fontSize)}px]`;
+        lines.push(`${indent}${styled}${size}`);
+      }
+
+      return lines.join("\n");
     })
     .join("\n\n");
 }

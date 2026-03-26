@@ -415,6 +415,13 @@
               </button>
           </div>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <button class="btn btn--secondary" id="ob-test-connection-btn" type="button">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
+            <span id="ob-test-connection-label">Test connection</span>
+          </button>
+          <span id="ob-test-connection-status" class="test-connection-status"></span>
+        </div>
         <div class="ob-token-instructions" id="ob-token-instructions" aria-live="polite">
           <!-- Populated by JS based on selected provider -->
         </div>
@@ -474,31 +481,38 @@
         <ul class="onboarding-tips" aria-label="Usage tips">
           <li>
             <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-            <strong>Generate mode</strong> — Select a text node, describe the wording you want, and get alternatives
+            <strong>Generate mode</strong>
+            <span>Select a text node, describe the wording you want, and get alternatives</span>
           </li>
           <li>
             <i class="fa-solid fa-comments" aria-hidden="true"></i>
-            <strong>Ask mode</strong> — Ask UX writing questions and get AI advice without modifying anything
+            <strong>Ask mode</strong>
+            <span>Ask UX writing questions and get AI advice without modifying anything</span>
           </li>
           <li>
             <i class="fa-solid fa-list-ol" aria-hidden="true"></i>
-            <strong>Alternatives</strong> — Set a number to generate multiple copy options at once
+            <strong>Alternatives</strong>
+            <span>Set a number to generate multiple copy options at once</span>
           </li>
           <li>
             <i class="fa-solid fa-check" aria-hidden="true"></i>
-            <strong>Apply</strong> — Click "Apply" on any alternative to write it directly into the selected text node
+            <strong>Apply</strong>
+            <span>Click "Apply" on any alternative to write it directly into the selected text node</span>
           </li>
           <li>
             <i class="fa-solid fa-arrow-pointer" aria-hidden="true"></i>
-            <strong>Auto-selection</strong> — Select any text node in Figma and the plugin detects it automatically
+            <strong>Auto-selection</strong>
+            <span>Select any text node in Figma and the plugin detects it automatically</span>
           </li>
           <li>
             <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-            <strong>New conversation</strong> — Use the refresh icon in the chat header to start fresh
+            <strong>New conversation</strong>
+            <span>Use the refresh icon in the chat header to start fresh</span>
           </li>
           <li>
             <i class="fa-solid fa-gear" aria-hidden="true"></i>
-            <strong>Settings</strong> — Change provider, model, or functional contexts anytime
+            <strong>Settings</strong>
+            <span>Change provider, model, or functional contexts anytime</span>
           </li>
         </ul>
       </div>
