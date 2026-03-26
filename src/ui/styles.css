@@ -436,10 +436,10 @@ body {
 .ctx-card__content-input {
   display: block;
   width: 100%;
-  min-height: 64px;
+  min-height: 80px;
   font-size: 10px;
   font-family: inherit;
-  padding: 5px 6px;
+  padding: 6px 18px 6px 6px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
