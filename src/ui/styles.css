@@ -1070,6 +1070,9 @@ textarea {
   max-height: none;
   overflow-y: auto;
 }
+textarea::-webkit-scrollbar { width: 4px; }
+textarea::-webkit-scrollbar-track { background: transparent; }
+textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-glow), 0 0 18px rgba(33, 150, 243, 0.12);
