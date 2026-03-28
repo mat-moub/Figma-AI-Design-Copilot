@@ -24,8 +24,8 @@ import {
   getTypingBubbleEl,
   setTypingBubbleEl,
 } from "./index";
-import { getModelConfig, validateApiKey, getAlternativesCount } from "./settings";
-import { getContexts, getActiveContextId, requestDocumentContext } from "./context";
+import { getModelConfig, validateApiKey, getAlternativesCount, getDebugMode } from "./settings";
+import { getContexts, getActiveContextId, requestDocumentContext, ensureAppSummary, isConversationContextReady, markConversationContextReady, resetConversationContext } from "./context";
 
 // Lazy-initialised service singletons shared across calls
 const aiService = new AIService();
@@ -61,16 +61,41 @@ export async function handleGenerate(): Promise<void> {
 
   // Create a live AI bubble with status header
   const liveBubble = createLiveAssistantBubble();
-  liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Loading context…');
+
+  const contextAlreadyLoaded = isConversationContextReady();
 
   try {
-    // Auto-refresh context with live progress in the bubble
-    const freshContext = await requestDocumentContext((progress) => {
-      liveBubble.updateStatus(formatContextProgressHTML(progress));
-    });
+    let freshContext: DocumentContext;
 
-    // Show context summary, then thinking
-    liveBubble.updateStatus(formatContextReadyHTML(freshContext.contextMeta));
+    if (contextAlreadyLoaded && preContext) {
+      // Reuse the context already loaded for this conversation.
+      // The selected text is kept up-to-date by handleSelectionChanged().
+      freshContext = preContext;
+    } else {
+      // First message of the conversation — load context from Figma.
+      liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Loading context…');
+      freshContext = await requestDocumentContext((progress) => {
+        liveBubble.updateStatus(formatContextProgressHTML(progress));
+      }, /* invalidateSummary */ false);
+    }
+
+    // Ensure app summary exists — generated once per conversation, cached thereafter.
+    const debug = getDebugMode();
+    if (!contextAlreadyLoaded) {
+      liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Analysing document…');
+    }
+    const appSummary = await ensureAppSummary(freshContext, modelConfig, debug);
+    if (debug) {
+      /* eslint-disable no-console */
+      console.log("[Debug] handleGenerate — app summary:", appSummary ? `${appSummary.length} chars` : "none (fallback to raw context)");
+      /* eslint-enable no-console */
+    }
+
+    // Mark context as loaded for this conversation after the first successful load
+    if (!contextAlreadyLoaded) {
+      markConversationContextReady();
+      liveBubble.updateStatus(formatContextReadyHTML(freshContext.contextMeta));
+    }
     liveBubble.showThinking();
 
     const chatHistory = getChatHistory();
@@ -80,7 +105,8 @@ export async function handleGenerate(): Promise<void> {
       freshContext,
       modelConfig,
       chatHistory,
-      fullContext || undefined
+      fullContext || undefined,
+      appSummary
     );
 
     if (alternatives.length === 0) {
@@ -141,20 +167,43 @@ export async function handleAsk(): Promise<void> {
 
   // Create a live AI bubble with status header
   const liveBubble = createLiveAssistantBubble();
-  liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Loading context…');
+
+  const contextAlreadyLoaded = isConversationContextReady();
 
   try {
-    // Auto-refresh context with live progress in the bubble
-    const freshContext = await requestDocumentContext((progress) => {
-      liveBubble.updateStatus(formatContextProgressHTML(progress));
-    });
+    let freshContext: DocumentContext;
 
-    // Show context summary, then thinking
-    liveBubble.updateStatus(formatContextReadyHTML(freshContext.contextMeta));
+    if (contextAlreadyLoaded && preContext) {
+      // Reuse the context loaded for this conversation.
+      freshContext = preContext;
+    } else {
+      // First message — load context from Figma.
+      liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Loading context…');
+      freshContext = await requestDocumentContext((progress) => {
+        liveBubble.updateStatus(formatContextProgressHTML(progress));
+      }, /* invalidateSummary */ false);
+    }
+
+    // Ensure app summary exists — once per conversation.
+    const debug = getDebugMode();
+    if (!contextAlreadyLoaded) {
+      liveBubble.updateStatus('<span class="chat-typing__spinner" aria-hidden="true"></span> Analysing document…');
+    }
+    const appSummary = await ensureAppSummary(freshContext, modelConfig, debug);
+    if (debug) {
+      /* eslint-disable no-console */
+      console.log("[Debug] handleAsk — app summary:", appSummary ? `${appSummary.length} chars` : "none (fallback to raw context)");
+      /* eslint-enable no-console */
+    }
+
+    if (!contextAlreadyLoaded) {
+      markConversationContextReady();
+      liveBubble.updateStatus(formatContextReadyHTML(freshContext.contextMeta));
+    }
     liveBubble.showThinking();
 
     const chatHistory = getChatHistory();
-    const answer = await aiService.ask(question, freshContext, modelConfig, chatHistory);
+    const answer = await aiService.ask(question, freshContext, modelConfig, chatHistory, appSummary);
 
     liveBubble.setContent(renderMarkdown(answer));
     setChatHistory([
@@ -593,6 +642,8 @@ export function clearHistory(): void {
   const container = getEl<HTMLDivElement>("chat-history");
   container.innerHTML = chatEmptyStateHTML();
   setChatHistory([]);
+  // Reset conversation context so the next message triggers a fresh Figma load
+  resetConversationContext();
   showToast("New conversation started.");
 }
 

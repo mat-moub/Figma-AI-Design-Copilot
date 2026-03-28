@@ -388,6 +388,97 @@ export async function handleTestConnection(): Promise<void> {
   }
 }
 
+// ── Onboarding generate context ───────────────────────────────────────────────
+
+async function handleObGenerateContext(): Promise<void> {
+  const btn       = document.getElementById("ob-generate-context-btn") as HTMLButtonElement | null;
+  const label     = document.getElementById("ob-generate-context-label");
+  const spinner   = document.getElementById("ob-generate-context-spinner");
+  const statusEl  = document.getElementById("ob-generate-context-status");
+  const titleInput  = document.getElementById("ob-context-title")  as HTMLInputElement   | null;
+  const promptInput = document.getElementById("ob-agent-prompt")   as HTMLTextAreaElement | null;
+
+  const providerEl = document.getElementById("ob-provider-select") as HTMLSelectElement | null;
+  const modelEl    = document.getElementById("ob-model-select")    as HTMLSelectElement | null;
+  const keyEl      = document.getElementById("ob-api-key-input")   as HTMLInputElement  | null;
+
+  const provider = (providerEl?.value ?? "gemini") as LLMProvider;
+  const model    = (modelEl?.value ?? "") as ModelConfig["model"];
+  const keyValue = keyEl?.value.trim() ?? "";
+
+  const modelConfig: ModelConfig = { provider, model, debug: getDebugMode() };
+  if (provider === "gemini")         modelConfig.geminiKey    = keyValue || undefined;
+  else if (provider === "openai")    modelConfig.openaiKey    = keyValue || undefined;
+  else if (provider === "anthropic") modelConfig.anthropicKey = keyValue || undefined;
+  else if (provider === "mistral")   modelConfig.mistralKey   = keyValue || undefined;
+
+  const missingKeyMsg = validateApiKey(modelConfig);
+  if (missingKeyMsg) {
+    const { showToast } = await import("./chat");
+    showToast(missingKeyMsg, "warning");
+    return;
+  }
+
+  // Show loading state
+  if (btn)    btn.disabled = true;
+  if (label)  label.textContent = "Generating…";
+  if (spinner) spinner.classList.remove("hidden");
+  if (statusEl) statusEl.textContent = "";
+
+  try {
+    // Load Figma document context (triggers a message to the sandbox)
+    await requestDocumentContext();
+
+    // Wait briefly for context to arrive (it is dispatched asynchronously)
+    const { getDocumentContext } = await import("./index");
+    let context = getDocumentContext();
+    if (!context) {
+      // Give the sandbox up to 5 s to respond
+      await new Promise<void>((resolve, reject) => {
+        const deadline = Date.now() + 5000;
+        const poll = setInterval(() => {
+          context = getDocumentContext();
+          if (context) { clearInterval(poll); resolve(); }
+          else if (Date.now() > deadline) { clearInterval(poll); reject(new Error("Timed out waiting for Figma context.")); }
+        }, 100);
+      });
+      context = getDocumentContext();
+    }
+
+    if (!context) throw new Error("Could not load Figma document context.");
+
+    const aiSvc = await getAIService();
+    const result = await aiSvc.generateFunctionalContext(context, modelConfig);
+
+    if (titleInput)  titleInput.value  = result.title;
+    if (promptInput) promptInput.value = result.content;
+
+    if (statusEl) {
+      statusEl.textContent = "Done!";
+      setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 2500);
+    }
+
+    if (getDebugMode()) {
+      /* eslint-disable no-console */
+      console.log("[OB generateFunctionalContext] result:", result);
+      /* eslint-enable no-console */
+    }
+  } catch (err) {
+    const { redactSecrets } = await import("../utils/redact-secrets");
+    const msg = redactSecrets(err instanceof Error ? err.message : "Failed to generate context.");
+    if (statusEl) {
+      statusEl.textContent = msg;
+      statusEl.style.color = "var(--error, #e74c3c)";
+    }
+    const { showToast } = await import("./chat");
+    showToast(msg, "error");
+  } finally {
+    if (btn)    btn.disabled = false;
+    if (label)  label.textContent = "Generate from Figma";
+    if (spinner) spinner.classList.add("hidden");
+  }
+}
+
 // ── Onboarding test connection ────────────────────────────────────────────────
 
 async function handleObTestConnection(): Promise<void> {
@@ -596,6 +687,9 @@ export function setupEventListeners(): void {
 
   if (loadContextBtn) {
     loadContextBtn.addEventListener("click", () => {
+      // An explicit reload must invalidate the summary and reset the conversation
+      // context state so the next message does a full re-load + re-summarise.
+      import("./context").then(({ resetConversationContext }) => resetConversationContext());
       requestDocumentContext();
     });
   }
@@ -834,6 +928,11 @@ export function setupOnboarding(): void {
   const obTestBtn = document.getElementById("ob-test-connection-btn");
   if (obTestBtn) {
     obTestBtn.onclick = () => void handleObTestConnection();
+  }
+
+  const obGenerateCtxBtn = document.getElementById("ob-generate-context-btn");
+  if (obGenerateCtxBtn) {
+    obGenerateCtxBtn.onclick = () => void handleObGenerateContext();
   }
 
   const skipBtn = document.getElementById("ob-skip-btn");

@@ -348,6 +348,12 @@ html = make_html("""
         in every generation to produce copy that fits your application&#39;s voice and audience.
       </p>
       <div class="onboarding-configure">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <button class="btn btn--secondary" type="button">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
+            <span>Generate from Figma</span>
+          </button>
+        </div>
         <div style="margin-bottom:8px">
           <label for="ob-ctitle" class="settings__label">
             <i class="fa-solid fa-tag" aria-hidden="true"></i>

@@ -442,6 +442,15 @@
           in every generation to produce copy that fits your application's voice and audience.
         </p>
         <div class="onboarding-configure">
+          <!-- Generate from Figma -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <button class="btn btn--secondary" id="ob-generate-context-btn" type="button">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
+              <span id="ob-generate-context-label">Generate from Figma</span>
+            </button>
+            <span id="ob-generate-context-spinner" class="spinner hidden" aria-hidden="true"></span>
+            <span id="ob-generate-context-status" style="font-size:11px;color:var(--text-secondary)"></span>
+          </div>
           <!-- Context title -->
           <div style="margin-bottom:8px">
             <label for="ob-context-title" class="settings__label">

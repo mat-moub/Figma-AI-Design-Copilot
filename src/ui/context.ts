@@ -14,6 +14,7 @@ import type {
   SelectedTextContext,
   SelectedComponentContext,
   ContextLoadMeta,
+  ModelConfig,
 } from "../types/ui-types";
 import { safeStorage, generateId, CONTEXTS_KEY, ACTIVE_CONTEXT_KEY, LEGACY_FUNCTIONAL_CONTEXT_KEY, getDocumentContext, setDocumentContext, getContextFetchedAt, setContextFetchedAt } from "./index";
 
@@ -25,6 +26,171 @@ let contextProgressCallback: ((progress: {
   estimatedTokens: number;
   scopeLabel: string;
 }) => void) | null = null;
+/** Whether the next context-ready should invalidate the cached app summary. */
+let _pendingInvalidateSummary = true;
+
+// ── Conversation context state ─────────────────────────────────────────────────
+
+/**
+ * True once the Figma context + app summary have been loaded for the current
+ * conversation. Reset to false when the user starts a new conversation so the
+ * next message triggers a fresh load.
+ */
+let _conversationContextReady = false;
+
+/** Returns true if context has already been loaded for this conversation. */
+export function isConversationContextReady(): boolean {
+  return _conversationContextReady;
+}
+
+/** Mark the conversation context as loaded (called after first successful load). */
+export function markConversationContextReady(): void {
+  _conversationContextReady = true;
+}
+
+/** Reset at the start of a new conversation so the next message reloads context. */
+export function resetConversationContext(): void {
+  _conversationContextReady = false;
+  invalidateAppSummary();
+}
+
+// ── App summary state ─────────────────────────────────────────────────────────
+
+const APP_SUMMARY_KEY = "copilot_app_summary";
+const APP_SUMMARY_HASH_KEY = "copilot_app_summary_hash";
+
+/** In-memory copy of the cached app summary. `null` = not yet generated or invalidated. */
+let _appSummary: string | null = null;
+/** Whether a summarization request is currently in flight. */
+let _summarizing = false;
+/** Pending resolvers waiting for the in-flight summarization to complete. */
+let _summarizeWaiters: Array<(s: string | null) => void> = [];
+
+export function getAppSummary(): string | null {
+  if (_appSummary !== null) return _appSummary;
+  // Try to restore from localStorage
+  const stored = safeStorage.getItem(APP_SUMMARY_KEY);
+  if (stored) {
+    _appSummary = stored;
+    return stored;
+  }
+  return null;
+}
+
+export function setAppSummary(summary: string | null): void {
+  _appSummary = summary;
+  if (summary !== null) {
+    safeStorage.setItem(APP_SUMMARY_KEY, summary);
+  } else {
+    safeStorage.removeItem(APP_SUMMARY_KEY);
+    safeStorage.removeItem(APP_SUMMARY_HASH_KEY);
+  }
+}
+
+/**
+ * Compute a cheap cache key from context metadata so we can detect when the
+ * Figma document has changed and the summary needs to be regenerated.
+ */
+function contextCacheKey(context: DocumentContext): string {
+  const meta = context.contextMeta;
+  const screens = context.screens.join(",");
+  return meta
+    ? `${meta.scopeType}:${meta.scopeName ?? ""}:${meta.totalTexts}:${meta.estimatedTokens}:${screens}`
+    : `noMeta:${screens}`;
+}
+
+/** Invalidate the cached summary (called on every context reload). */
+export function invalidateAppSummary(): void {
+  _appSummary = null;
+  safeStorage.removeItem(APP_SUMMARY_KEY);
+  safeStorage.removeItem(APP_SUMMARY_HASH_KEY);
+}
+
+/**
+ * Ensure an app summary exists for the given context.
+ * - If a valid cached summary exists (same cache key), returns it immediately.
+ * - If a summarization is already in flight, waits for it.
+ * - Otherwise, kicks off a new summarization and caches the result.
+ *
+ * Debug logs are emitted when `debugMode` is true.
+ */
+export async function ensureAppSummary(
+  context: DocumentContext,
+  config: ModelConfig,
+  debugMode = false
+): Promise<string | null> {
+  const cacheKey = contextCacheKey(context);
+  const storedKey = safeStorage.getItem(APP_SUMMARY_HASH_KEY);
+  const stored = safeStorage.getItem(APP_SUMMARY_KEY);
+
+  // Return cached summary if the context hasn't changed
+  if (stored && storedKey === cacheKey) {
+    _appSummary = stored;
+    if (debugMode) {
+      /* eslint-disable no-console */
+      console.group("[Debug] ensureAppSummary — cache hit");
+      console.log("Cache key:", cacheKey);
+      console.log("Summary (first 300 chars):", stored.slice(0, 300));
+      console.groupEnd();
+      /* eslint-enable no-console */
+    }
+    return stored;
+  }
+
+  // If already summarizing, wait for the in-flight result
+  if (_summarizing) {
+    if (debugMode) {
+      /* eslint-disable no-console */
+      console.log("[Debug] ensureAppSummary — waiting for in-flight summarization");
+      /* eslint-enable no-console */
+    }
+    return new Promise<string | null>((resolve) => {
+      _summarizeWaiters.push(resolve);
+    });
+  }
+
+  // No valid cache — run summarization
+  _summarizing = true;
+  if (debugMode) {
+    /* eslint-disable no-console */
+    console.group("[Debug] ensureAppSummary — starting summarization");
+    console.log("Cache key:", cacheKey);
+    console.log("Screens:", context.screens);
+    console.log("Total text entries:", context.pageTextContext.reduce((n, s) => n + s.texts.length, 0));
+    console.groupEnd();
+    /* eslint-enable no-console */
+  }
+
+  let summary: string | null = null;
+  try {
+    const { AIService } = await import("../services/ai-service");
+    const svc = new AIService();
+    summary = await svc.summarizeAppContext(context, config);
+    setAppSummary(summary);
+    safeStorage.setItem(APP_SUMMARY_HASH_KEY, cacheKey);
+    if (debugMode) {
+      /* eslint-disable no-console */
+      console.group("[Debug] ensureAppSummary — summary ready");
+      console.log("Summary (first 500 chars):\n", summary.slice(0, 500));
+      console.groupEnd();
+      /* eslint-enable no-console */
+    }
+  } catch (err) {
+    if (debugMode) {
+      /* eslint-disable no-console */
+      console.warn("[Debug] ensureAppSummary — summarization failed:", err);
+      /* eslint-enable no-console */
+    }
+    summary = null;
+  } finally {
+    _summarizing = false;
+    const waiters = _summarizeWaiters;
+    _summarizeWaiters = [];
+    for (const resolve of waiters) resolve(summary);
+  }
+
+  return summary;
+}
 
 function getLoadContextElements(): {
   button: HTMLButtonElement | null;
@@ -351,6 +517,11 @@ export function deleteContext(id: string): void {
  * Request document context from the plugin sandbox.
  * Returns a Promise that resolves when context-ready is received.
  * Optional onProgress callback is called on each context-load-progress message.
+ *
+ * @param onProgress   Called with incremental progress updates while loading.
+ * @param invalidateSummary  When true (default), the cached app summary is
+ *   cleared when the context arrives so it will be regenerated. Pass false
+ *   to keep the existing summary (used when forcing a mid-conversation reload).
  */
 export function requestDocumentContext(
   onProgress?: (progress: {
@@ -358,7 +529,8 @@ export function requestDocumentContext(
     totalFrames: number;
     estimatedTokens: number;
     scopeLabel: string;
-  }) => void
+  }) => void,
+  invalidateSummary = true
 ): Promise<DocumentContext> {
   if (contextLoading && contextResolve) {
     // Already loading — piggyback on the existing request
@@ -374,6 +546,7 @@ export function requestDocumentContext(
 
   setContextLoading(true);
   contextProgressCallback = onProgress ?? null;
+  _pendingInvalidateSummary = invalidateSummary;
 
   return new Promise<DocumentContext>((resolve) => {
     contextResolve = resolve;
@@ -462,6 +635,13 @@ export function handleContextReady(context: DocumentContext): void {
   setContextLoading(false);
   setDocumentContext(context);
   showContextBadge(context);
+
+  // Only invalidate the cached app summary when the caller requested it
+  // (explicit reload via button). Mid-conversation loads preserve the summary.
+  if (_pendingInvalidateSummary) {
+    invalidateAppSummary();
+  }
+  _pendingInvalidateSummary = true; // reset to safe default for next call
 
   // Resolve the pending promise from requestDocumentContext()
   if (contextResolve) {

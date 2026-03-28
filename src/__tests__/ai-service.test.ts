@@ -232,4 +232,29 @@ describe("AIService.generateAlternatives", () => {
       service.generateAlternatives("Improve", 2, "Agent", mockContext, mockModelConfig, [])
     ).rejects.toThrow(/not a JSON array/i);
   });
+
+  it("parses alternatives when text values contain literal newlines (invalid JSON from LLM)", async () => {
+    // Simulate the LLM returning a JSON array where string values contain
+    // bare newline characters instead of the \\n escape sequence.
+    const rawWithNewlines = `[
+  {
+    "text": "Kitchen & Appliance Cleaning\nSelect items to clean",
+    "rationale": "Concise and action-focused."
+  },
+  {
+    "text": "Clean Your Kitchen & Appliances\nChoose what to include",
+    "rationale": "User-centric phrasing."
+  }
+]`;
+    global.fetch = mockFetchWithContent(rawWithNewlines);
+
+    const service = new AIService();
+    const result = await service.generateAlternatives(
+      "Improve", 2, "Agent", mockContext, mockModelConfig, []
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe("Kitchen & Appliance Cleaning\nSelect items to clean");
+    expect(result[1].text).toBe("Clean Your Kitchen & Appliances\nChoose what to include");
+  });
 });

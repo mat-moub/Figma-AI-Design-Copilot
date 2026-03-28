@@ -65,6 +65,7 @@ export class UXWriterAgent {
    * @param modelConfig       AI model configuration.
    * @param history           Previous chat messages for multi-turn context.
    * @param functionalContext Optional product/brand context appended to the system prompt.
+   * @param appSummary        Pre-generated app writing summary (replaces raw pageTextContext).
    */
   async generate(
     prompt: string,
@@ -72,7 +73,8 @@ export class UXWriterAgent {
     context: DocumentContext,
     modelConfig: ModelConfig,
     history: ChatMessage[] = [],
-    functionalContext?: string
+    functionalContext?: string,
+    appSummary?: string | null
   ): Promise<TextAlternative[]> {
     const agentPrompt = functionalContext
       ? `${this.config.systemPrompt}\n\n## Product / Brand Context\n\n${functionalContext}`
@@ -84,7 +86,8 @@ export class UXWriterAgent {
       agentPrompt,
       context,
       modelConfig,
-      history
+      history,
+      appSummary
     );
   }
 }
