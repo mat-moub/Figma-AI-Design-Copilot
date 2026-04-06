@@ -1584,6 +1584,58 @@ textarea::placeholder { color: var(--text-muted); }
   gap: 10px;
 }
 
+/* ── Onboarding step 3: Generate from Figma block ─────────── */
+.ob-generate-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ob-generate-row > .btn {
+  align-self: flex-start;
+}
+
+.ob-generate-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Context title: full width */
+.ob-context-title {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Progress bar */
+.ob-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ob-progress__bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.ob-progress__fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.ob-progress__label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.2px;
+}
+
 .onboarding-hint {
   font-size: 10px;
   color: var(--text-muted);
@@ -1742,6 +1794,67 @@ textarea::placeholder { color: var(--text-muted); }
   font-size: 10px;
   color: var(--text-muted);
   margin-top: 4px;
+}
+
+/* ── Onboarding step 2: provider hint + Get API Key row ───── */
+.ob-apikey-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ob-apikey-hint {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.ob-apikey-hint strong { color: var(--text); }
+.ob-apikey-hint code {
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.ob-apikey-warn {
+  display: block;
+  margin-top: 4px;
+  color: var(--warning, #e8a020);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ob-get-apikey-btn {
+  align-self: flex-start;
+  text-decoration: none;
+}
+
+/* ── Onboarding step 2: divider ───────────────────────────── */
+.ob-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
+
+/* ── Onboarding step 2: bottom (test + model) ─────────────── */
+.ob-bottom-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ob-test-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-model-row {
+  margin: 0;
 }
 
 /* ── Alternatives list (inside AI chat bubble) ────────────── */

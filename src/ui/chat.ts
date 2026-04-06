@@ -317,7 +317,7 @@ export function chatEmptyStateHTML(): string {
     <div class="chat-empty__icon">
       <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
     </div>
-    <p class="chat-empty__title">Select a text node to start</p>
+    <p class="chat-empty__title">Select a text frame to start</p>
     <p class="chat-empty__subtitle">Select any text in Figma, then describe<br>what you want &mdash; I'll suggest alternatives.</p>
   </div>`;
 }
@@ -411,7 +411,7 @@ export function appendAlternativesMessage(alternatives: TextAlternative[]): void
     applyBtn.className = "btn btn--ghost btn--sm alternative-apply-btn";
     applyBtn.type = "button";
     applyBtn.textContent = "Apply";
-    applyBtn.title = "Apply this text to the selected Figma text node";
+    applyBtn.title = "Apply this text to the selected Figma text frame";
     applyBtn.addEventListener("click", () => {
       applyTextToFigma(alt.text);
       showToast(`Applying: "${alt.text.slice(0, 40)}${alt.text.length > 40 ? "…" : ""}"`);
@@ -561,7 +561,7 @@ export function createLiveAssistantBubble(): LiveAssistantBubble {
         applyBtn.className = "btn btn--ghost btn--sm alternative-apply-btn";
         applyBtn.type = "button";
         applyBtn.textContent = "Apply";
-        applyBtn.title = "Apply this text to the selected Figma text node";
+        applyBtn.title = "Apply this text to the selected Figma text frame";
         applyBtn.addEventListener("click", () => {
           applyTextToFigma(alt.text);
           showToast(`Applying: "${alt.text.slice(0, 40)}${alt.text.length > 40 ? "…" : ""}"`);

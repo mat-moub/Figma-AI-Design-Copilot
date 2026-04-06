@@ -83,14 +83,18 @@ export const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: 
 };
 
 /** Key labels and placeholders per provider for the API key input field. */
-export const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string; icon: string; instructionsHtml: string }> = {
+export const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string; icon: string; instructionsHtml: string; apiKeyUrl: string }> = {
   gemini: {
     label: "API Key",
     placeholder: "AIza… (Google AI Studio key)",
     storageKey: "copilot_gemini_key",
     hint: "Get your API key at aistudio.google.com/apikey.",
     icon: '<i class="fa-brands fa-google" aria-hidden="true"></i>',
-    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-google" aria-hidden="true"></i> Gemini — How to get your API key</div><ol><li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>.</li><li>Click <strong>Create API key</strong>.</li><li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your Google account has Gemini API access. Errors 400/401/429 are shown in the chat.</p>`,
+    apiKeyUrl: "https://aistudio.google.com/apikey",
+    instructionsHtml:
+      `Sign in to Google AI Studio and click <strong>Create API key</strong>.<br>` +
+      `The key starts with <code>AIza…</code> — copy it and paste it below.<br>` +
+      `<span class="ob-apikey-warn">⚠ Save it immediately: Google only shows it once.</span>`,
   },
   openai: {
     label: "API Key",
@@ -98,7 +102,11 @@ export const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder
     storageKey: "copilot_openai_key",
     hint: "Get your API key at platform.openai.com/api-keys.",
     icon: '<i class="fa-brands fa-openai" aria-hidden="true"></i>',
-    instructionsHtml: `<div class="ob-inst-header"><i class="fa-brands fa-openai" aria-hidden="true"></i> OpenAI — How to get your API key</div><ol><li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a>.</li><li>Click <strong>Create new secret key</strong>.</li><li>Copy the key (<code>sk-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Ensure your account has sufficient credits. Errors 401/429 are shown in the chat.</p>`,
+    apiKeyUrl: "https://platform.openai.com/api-keys",
+    instructionsHtml:
+      `Sign in to OpenAI and click <strong>Create new secret key</strong>.<br>` +
+      `The key starts with <code>sk-…</code> — copy it and paste it below.<br>` +
+      `<span class="ob-apikey-warn">⚠ Save it immediately: OpenAI only shows it once.</span>`,
   },
   anthropic: {
     label: "API Key",
@@ -106,7 +114,11 @@ export const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder
     storageKey: "copilot_anthropic_key",
     hint: "Get your API key at console.anthropic.com → API Keys.",
     icon: '<svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg>',
-    instructionsHtml: `<div class="ob-inst-header"><svg class="icon icon--fill" aria-hidden="true"><use href="#icon-anthropic"/></svg> Anthropic — How to get your API key</div><ol><li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com → API Keys</a>.</li><li>Click <strong>Create key</strong>.</li><li>Copy the key (<code>sk-ant-…</code>) and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
+    apiKeyUrl: "https://console.anthropic.com/settings/keys",
+    instructionsHtml:
+      `Sign in to Anthropic Console and click <strong>Create key</strong>.<br>` +
+      `The key starts with <code>sk-ant-…</code> — copy it and paste it below.<br>` +
+      `<span class="ob-apikey-warn">⚠ Save it immediately: Anthropic only shows it once.</span>`,
   },
   mistral: {
     label: "API Key",
@@ -114,7 +126,11 @@ export const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder
     storageKey: "copilot_mistral_key",
     hint: "Get your API key at console.mistral.ai.",
     icon: '<span class="provider-icon-badge" aria-hidden="true">M</span>',
-    instructionsHtml: `<div class="ob-inst-header">Mistral — How to get your API key</div><ol><li>Go to <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener noreferrer">console.mistral.ai → API Keys</a>.</li><li>Click <strong>Create new key</strong>.</li><li>Copy the key and paste it in the field above.</li></ol><p class="ob-inst-note">Errors 401/429 are surfaced in the chat with a descriptive message.</p>`,
+    apiKeyUrl: "https://console.mistral.ai/api-keys",
+    instructionsHtml:
+      `Sign in to Mistral Console and click <strong>Create new key</strong>.<br>` +
+      `Copy the key and paste it below.<br>` +
+      `<span class="ob-apikey-warn">⚠ Save it immediately: Mistral only shows it once.</span>`,
   },
 };
 

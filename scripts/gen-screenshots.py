@@ -21,7 +21,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="repla
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS_DIR = os.path.join(REPO, "screenshots")
 FA_CSS = os.path.join(REPO, "node_modules/@fortawesome/fontawesome-free/css/all.min.css")
-UI_HTML = os.path.join(REPO, "ui.html")
+UI_HTML = os.path.join(REPO, "dist/ui.html")
 
 # ── Locate Chrome / Chromium executable ──────────────────────────────────────
 def _find_chrome() -> str:
@@ -208,11 +208,11 @@ html = make_html("""
       <div class="onboarding-icon" aria-hidden="true">✨</div>
       <h2 class="onboarding-title">Welcome to UX Writer Copilot</h2>
       <p class="onboarding-desc">
-        Generate wording alternatives for any text node in Figma using AI.
+        Generate wording alternatives for any text frame in Figma using AI.
         Let&#39;s get you set up in 3 quick steps.
       </p>
       <ul class="onboarding-features">
-        <li>✍️ Select any text node and get AI-powered wording suggestions</li>
+        <li>✍️ Select any text frame and get AI-powered wording suggestions</li>
         <li>💬 Ask UX writing questions in <strong>Ask mode</strong> — no edits needed</li>
         <li>🎯 Context-aware: AI reads your Figma layout for better copy</li>
         <li>🔁 Generate multiple alternatives at once and apply with one click</li>
@@ -410,13 +410,13 @@ html = make_html("""
       <div class="onboarding-icon" aria-hidden="true">🚀</div>
       <h2 class="onboarding-title">You&#39;re all set!</h2>
       <p class="onboarding-desc">
-        Start improving your copy by selecting a text node in Figma and typing a prompt.
+        Start improving your copy by selecting a text frame in Figma and typing a prompt.
         Here are some tips to get the most out of the plugin.
       </p>
       <ul class="onboarding-tips">
          <li>
            <i class="fa-solid fa-pen-nib" style="width:14px;color:var(--action)"></i>
-           <strong>Generate mode</strong> — Select a text node, describe the wording you want, and get alternatives
+           <strong>Generate mode</strong> — Select a text frame, describe the wording you want, and get alternatives
          </li>
          <li>
            <i class="fa-solid fa-comments" style="width:14px;color:var(--primary)"></i>
@@ -428,11 +428,11 @@ html = make_html("""
          </li>
          <li>
            <i class="fa-solid fa-check" style="width:14px;color:var(--primary)"></i>
-           <strong>Apply</strong> — Click &ldquo;Apply&rdquo; on any alternative to write it directly into the text node
+           <strong>Apply</strong> — Click &ldquo;Apply&rdquo; on any alternative to write it directly into the text frame
          </li>
          <li>
            <i class="fa-solid fa-bullseye" style="width:14px;color:var(--primary)"></i>
-           <strong>Auto-selection</strong> — Select any text node in Figma and the plugin detects it automatically
+           <strong>Auto-selection</strong> — Select any text frame in Figma and the plugin detects it automatically
          </li>
          <li>
            <i class="fa-solid fa-rotate" style="width:14px;color:var(--primary)"></i>
@@ -467,7 +467,7 @@ html = make_html(
       <div class="chat-empty__icon">
         <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
       </div>
-      <p class="chat-empty__title">Select a text node to start</p>
+      <p class="chat-empty__title">Select a text frame to start</p>
       <p class="chat-empty__subtitle">Select any text in Figma, then describe<br>what you want &mdash; I&#39;ll suggest alternatives.</p>
     </div>
   </div>

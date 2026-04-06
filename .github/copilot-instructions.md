@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-This repository is a **Figma plugin** that helps designers write better copy by generating AI-powered wording alternatives for selected text nodes. The plugin reads the selected text node, the surrounding Figma document context (design system, screens, page text), and forwards everything to the selected AI provider to produce contextually-aware copy suggestions that can be applied in one click.
+This repository is a **Figma plugin** that helps designers write better copy by generating AI-powered wording alternatives for selected text frames. The plugin reads the selected text frame, the surrounding Figma document context (design system, screens, page text), and forwards everything to the selected AI provider to produce contextually-aware copy suggestions that can be applied in one click.
 
 **Key capabilities:**
 - Supports four AI providers: Gemini (Google), OpenAI, Anthropic, and Mistral
-- Generates N wording alternatives for any selected Figma text node
+- Generates N wording alternatives for any selected Figma text frame
 - Context-aware: reads design system, screen names, and surrounding text from the document
 - `Ask` mode for free-form UX writing questions without modifying any node
 - Named functional contexts: create multiple business contexts and switch between them
@@ -75,7 +75,7 @@ npm test             # Run Jest unit tests
 ## Important Patterns
 
 - **Sandbox ↔ UI messaging** — use the typed message protocol defined in `src/types/ui-types.ts`; never send untyped `postMessage` payloads.
-- **Context engine** — `src/services/context-engine.ts` extracts design-system context and the currently selected text node from the Figma document before forwarding to the AI provider. Changes here affect all generation.
+- **Context engine** — `src/services/context-engine.ts` extracts design-system context and the currently selected text frame from the Figma document before forwarding to the AI provider. Changes here affect all generation.
 - **apply-text flow** — when the user clicks "Apply" in the UI, an `ApplyTextMessage` is posted to the sandbox (`main.ts`), which loads fonts and writes the new text into the selected `TextNode`.
 - **Adding a provider** — create a new file in `src/providers/`, implement `LLMProvider`, and register it in the provider factory in `src/services/ai-service.ts`.
 - **Adding an agent** — create a new file in `src/agents/` and wire it into `src/ui/chat.ts`.

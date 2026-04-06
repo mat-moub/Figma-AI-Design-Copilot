@@ -89,13 +89,13 @@ function formatTextContext(pageTextContext: ScreenTextContext[]): string {
 }
 
 /**
- * Render the currently selected text node as a structured block for the
+ * Render the currently selected text frame as a structured block for the
  * system prompt so the LLM has precise context about what it is rewriting.
- * Used in Generate mode where a single text node is the target.
+ * Used in Generate mode where a single text frame is the target.
  */
 function formatSelectedText(selected: SelectedTextContext | null): string {
   if (!selected || selected.characters.trim() === "") {
-    return "No text node currently selected in Figma.";
+    return "No text frame currently selected in Figma.";
   }
   const size = selected.fontSize === "mixed" ? "mixed" : `${String(selected.fontSize)}px`;
   const component = selected.insideComponent ? ", inside a component" : "";
@@ -112,9 +112,9 @@ function formatSelectedText(selected: SelectedTextContext | null): string {
  * Priority order:
  * 1. If the screen containing the selection is in `pageTextContext`, render all
  *    its `TextEntry` items as indented markdown (richest: has role, depth, font style).
- * 2. If `selectedComponent` is available (non-text node selected), render its
+ * 2. If `selectedComponent` is available (non-text frame selected), render its
  *    `texts[]` array as a markdown list with font metadata.
- * 3. If only `selectedText` is available (single text node), fall back to the
+ * 3. If only `selectedText` is available (single text frame), fall back to the
  *    same compact 2-line format used by Generate mode.
  * 4. If nothing is selected, return a "nothing selected" message.
  */
@@ -127,7 +127,7 @@ function formatSelectedContext(context: DocumentContext): string {
     const screen = pageTextContext.find((s) => s.screenName === screenName);
     if (screen && screen.texts.length > 0) {
       const lines: string[] = [
-        `Selected frame: **${screenName}** (${String(screen.texts.length)} text node${screen.texts.length > 1 ? "s" : ""})`,
+        `Selected frame: **${screenName}** (${String(screen.texts.length)} text frame${screen.texts.length > 1 ? "s" : ""})`,
         "",
       ];
       for (const entry of screen.texts) {
@@ -140,7 +140,7 @@ function formatSelectedContext(context: DocumentContext): string {
       // Also highlight the specifically selected node when available
       if (selectedText && selectedText.characters.trim() !== "") {
         lines.push("");
-        lines.push(`> **Currently selected text node:** "${selectedText.characters}"`);
+        lines.push(`> **Currently selected text frame:** "${selectedText.characters}"`);
         lines.push(`> Role: ${selectedText.role}, font: ${selectedText.fontFamily} ${selectedText.fontSize === "mixed" ? "mixed" : `${String(selectedText.fontSize)}px`}${selectedText.insideComponent ? ", inside a component" : ""}`);
       }
       return lines.join("\n");
@@ -151,7 +151,7 @@ function formatSelectedContext(context: DocumentContext): string {
   if (selectedComponent && selectedComponent.texts.length > 0) {
     const nodeInfo = `${selectedComponent.nodeType} "${selectedComponent.componentName}"${selectedComponent.screenName ? ` on screen "${selectedComponent.screenName}"` : ""}`;
     const lines: string[] = [
-      `Selected frame: ${nodeInfo} (${String(selectedComponent.texts.length)} text node${selectedComponent.texts.length > 1 ? "s" : ""})`,
+      `Selected frame: ${nodeInfo} (${String(selectedComponent.texts.length)} text frame${selectedComponent.texts.length > 1 ? "s" : ""})`,
       "",
     ];
     for (const t of selectedComponent.texts) {
@@ -165,13 +165,13 @@ function formatSelectedContext(context: DocumentContext): string {
     return lines.join("\n");
   }
 
-  // ── Case 3: single text node selected ────────────────────────────────────
+  // ── Case 3: single text frame selected ────────────────────────────────────
   if (selectedText && selectedText.characters.trim() !== "") {
     return formatSelectedText(selectedText);
   }
 
   // ── Case 4: nothing selected ──────────────────────────────────────────────
-  return "No text node or frame currently selected in Figma.";
+  return "No text frame or frame currently selected in Figma.";
 }
 
 // ─── System prompt builder ────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ Current Page Screens: ${screens}
 
 ${contextBlock}
 
-SELECTED TEXT NODE
+SELECTED TEXT FRAME
 ---
 ${selectedText}
 
@@ -467,17 +467,22 @@ export class AIService {
    * Analyse the Figma document text content and generate a functional context object
    * (title + content) that the user can save as a functional context in the plugin.
    *
-   * @param context  The freshly loaded document context.
-   * @param config   Provider, model, and API key configuration.
+   * @param context     The freshly loaded document context.
+   * @param config      Provider, model, and API key configuration.
+   * @param onProgress  Optional callback receiving (percent: number, label: string).
    */
   async generateFunctionalContext(
     context: DocumentContext,
-    config: ModelConfig
+    config: ModelConfig,
+    onProgress?: (percent: number, label: string) => void
   ): Promise<{ title: string; content: string }> {
     const provider = createProvider(config);
 
+    onProgress?.(30, "Analysing Figma content…");
+
     const rawText = formatTextContext(context.pageTextContext);
     if (rawText === "None found") {
+      onProgress?.(100, "Done");
       return {
         title: "My context",
         content:
@@ -497,10 +502,28 @@ export class AIService {
       content: `Here is the structured text content extracted from the Figma document:\n\n${rawText}\n\nGenerate the functional context JSON now.`,
     };
 
-    const rawResponse = await provider.chat(
+    onProgress?.(55, "Sending to AI…");
+
+    const fetchPromise = provider.chat(
       [systemMessage, userMessage],
       String(config.model)
     );
+
+    // Animate from 55 → 90 while waiting for the LLM response
+    let animPct = 55;
+    const animInterval = setInterval(() => {
+      animPct = Math.min(90, animPct + 2);
+      onProgress?.(animPct, "Waiting for AI response…");
+    }, 600);
+
+    let rawResponse: string;
+    try {
+      rawResponse = await fetchPromise;
+    } finally {
+      clearInterval(animInterval);
+    }
+
+    onProgress?.(95, "Parsing response…");
 
     if (config.debug) {
       /* eslint-disable no-console */
@@ -540,6 +563,7 @@ export class AIService {
     }
 
     const result = parsed as { title: string; content: string };
+    onProgress?.(100, "Done");
     return {
       title: result.title.trim(),
       content: result.content.trim(),

@@ -1,7 +1,7 @@
 /**
  * ux-writer-agent.ts
  *
- * UX Writer Agent — generates text alternatives for Figma text nodes.
+ * UX Writer Agent — generates text alternatives for Figma text frames.
  * The agent receives the selected text, its context (role, screen, surrounding
  * copy), and a user instruction, then returns N distinct wording alternatives.
  */
@@ -46,7 +46,7 @@ export const UX_WRITER_AGENT_CONFIG: AgentConfig = {
 /**
  * UX Writer Agent
  *
- * Generates wording alternatives for a selected Figma text node.
+ * Generates wording alternatives for a selected Figma text frame.
  */
 export class UXWriterAgent {
   private readonly aiService = new AIService();
@@ -61,7 +61,7 @@ export class UXWriterAgent {
    *
    * @param prompt            The designer's wording request or instruction.
    * @param count             Number of alternatives to generate.
-   * @param context           Figma document context (including selected text node).
+   * @param context           Figma document context (including selected text frame).
    * @param modelConfig       AI model configuration.
    * @param history           Previous chat messages for multi-turn context.
    * @param functionalContext Optional product/brand context appended to the system prompt.

@@ -1,6 +1,6 @@
 # Figma UX Writer Copilot
 
-A Figma plugin that generates AI-powered wording alternatives for any selected text node. The plugin reads the selected text, the surrounding Figma document context (design system, screens, existing page copy), and forwards everything to the chosen AI provider so every suggestion is contextually coherent with the current file.
+A Figma plugin that generates AI-powered wording alternatives for any selected text frame. The plugin reads the selected text, the surrounding Figma document context (design system, screens, existing page copy), and forwards everything to the chosen AI provider so every suggestion is contextually coherent with the current file.
 
 Supported providers:
 - **Gemini** — direct Google Gemini API with your own Google AI Studio key (BYOK) — **default**.
@@ -48,8 +48,8 @@ Supported providers:
 ┌─────────────────────────────────────────────┐
 │  Figma Plugin Sandbox  (main.ts / code.js)  │
 │  • Reads Figma document via Figma API        │
-│  • Reads the selected text node              │
-│  • Writes approved copy back to text nodes   │
+│  • Reads the selected text frame              │
+│  • Writes approved copy back to text frames   │
 │  • Communicates with UI via postMessage      │
 └────────────────┬────────────────────────────┘
                  │ postMessage (JSON)
@@ -157,7 +157,7 @@ interface DocumentContext {
   screens: string[];          // names of top-level FRAMEs
   pages: string[];            // names of all PAGEs
   pageTextContext: ScreenTextContext[]; // all text entries on current page
-  selectedText: SelectedTextContext | null; // currently selected text node
+  selectedText: SelectedTextContext | null; // currently selected text frame
 }
 ```
 
@@ -270,7 +270,7 @@ Uses a **Mistral AI API key**.
 
 | Mode | Button | What it does |
 |------|--------|--------------|
-| **✍️ Generate** | `Generate` | Reads the selected text node, sends the prompt to the UX writer agent, and returns N wording alternatives |
+| **✍️ Generate** | `Generate` | Reads the selected text frame, sends the prompt to the UX writer agent, and returns N wording alternatives |
 | **💬 Ask** | `Ask` | Sends the question to the AI for conversational UX writing advice — no node is modified |
 
 **Generate mode** is the default. Switch to **Ask mode** to get writing advice, tone guidance, or microcopy inspiration without committing to any change.
@@ -298,7 +298,7 @@ You can create contexts for different products, brands, or audiences and switch 
 ## Data flow — Generate mode
 
 ```
-User selects a text node in Figma
+User selects a text frame in Figma
 User types prompt → handleGenerate() in src/ui/chat.ts  [Generate tab active]
   │
   ├─ postMessage({ type: "get-context" }) → main.ts

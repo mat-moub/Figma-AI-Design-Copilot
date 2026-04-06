@@ -391,10 +391,11 @@ export async function handleTestConnection(): Promise<void> {
 // ── Onboarding generate context ───────────────────────────────────────────────
 
 async function handleObGenerateContext(): Promise<void> {
-  const btn       = document.getElementById("ob-generate-context-btn") as HTMLButtonElement | null;
-  const label     = document.getElementById("ob-generate-context-label");
-  const spinner   = document.getElementById("ob-generate-context-spinner");
-  const statusEl  = document.getElementById("ob-generate-context-status");
+  const btn         = document.getElementById("ob-generate-context-btn") as HTMLButtonElement | null;
+  const label       = document.getElementById("ob-generate-context-label");
+  const progressEl  = document.getElementById("ob-generate-progress");
+  const fillEl      = document.getElementById("ob-progress-fill") as HTMLElement | null;
+  const labelEl     = document.getElementById("ob-progress-label");
   const titleInput  = document.getElementById("ob-context-title")  as HTMLInputElement   | null;
   const promptInput = document.getElementById("ob-agent-prompt")   as HTMLTextAreaElement | null;
 
@@ -419,21 +420,26 @@ async function handleObGenerateContext(): Promise<void> {
     return;
   }
 
+  // Helper to update the progress bar
+  function setProgress(pct: number, text: string): void {
+    if (fillEl)  fillEl.style.width = `${pct}%`;
+    if (labelEl) labelEl.textContent = `${pct}% — ${text}`;
+  }
+
   // Show loading state
-  if (btn)    btn.disabled = true;
-  if (label)  label.textContent = "Generating…";
-  if (spinner) spinner.classList.remove("hidden");
-  if (statusEl) statusEl.textContent = "";
+  if (btn)   btn.disabled = true;
+  if (label) label.textContent = "Generating…";
+  progressEl?.classList.remove("hidden");
+  setProgress(0, "Starting…");
 
   try {
-    // Load Figma document context (triggers a message to the sandbox)
+    // Step 1 — Load Figma document context
+    setProgress(10, "Loading Figma context…");
     await requestDocumentContext();
 
-    // Wait briefly for context to arrive (it is dispatched asynchronously)
     const { getDocumentContext } = await import("./index");
     let context = getDocumentContext();
     if (!context) {
-      // Give the sandbox up to 5 s to respond
       await new Promise<void>((resolve, reject) => {
         const deadline = Date.now() + 5000;
         const poll = setInterval(() => {
@@ -447,16 +453,21 @@ async function handleObGenerateContext(): Promise<void> {
 
     if (!context) throw new Error("Could not load Figma document context.");
 
+    // Step 2–4 — Send to LLM + wait for response (progress driven by onProgress callback)
     const aiSvc = await getAIService();
-    const result = await aiSvc.generateFunctionalContext(context, modelConfig);
+    const result = await aiSvc.generateFunctionalContext(
+      context,
+      modelConfig,
+      (pct, text) => setProgress(pct, text)
+    );
+
+    setProgress(100, "Done!");
 
     if (titleInput)  titleInput.value  = result.title;
     if (promptInput) promptInput.value = result.content;
 
-    if (statusEl) {
-      statusEl.textContent = "Done!";
-      setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 2500);
-    }
+    // Brief pause so the user sees 100%, then hide the bar
+    await new Promise<void>((resolve) => setTimeout(resolve, 1200));
 
     if (getDebugMode()) {
       /* eslint-disable no-console */
@@ -466,16 +477,18 @@ async function handleObGenerateContext(): Promise<void> {
   } catch (err) {
     const { redactSecrets } = await import("../utils/redact-secrets");
     const msg = redactSecrets(err instanceof Error ? err.message : "Failed to generate context.");
-    if (statusEl) {
-      statusEl.textContent = msg;
-      statusEl.style.color = "var(--error, #e74c3c)";
+    if (labelEl) {
+      labelEl.textContent = msg;
+      labelEl.style.color = "var(--error, #e74c3c)";
     }
     const { showToast } = await import("./chat");
     showToast(msg, "error");
   } finally {
-    if (btn)    btn.disabled = false;
-    if (label)  label.textContent = "Generate from Figma";
-    if (spinner) spinner.classList.add("hidden");
+    if (btn)   btn.disabled = false;
+    if (label) label.textContent = "Generate from Figma";
+    progressEl?.classList.add("hidden");
+    if (fillEl)  fillEl.style.width = "0%";
+    if (labelEl) { labelEl.textContent = ""; labelEl.style.color = ""; }
   }
 }
 
@@ -995,7 +1008,6 @@ export function goToOnboardingStep(step: number): void {
 export function syncOnboardingProviderUI(provider: LLMProvider): void {
   const modelSelect = document.getElementById("ob-model-select") as HTMLSelectElement | null;
   const keyInput    = document.getElementById("ob-api-key-input") as HTMLInputElement | null;
-  const keyLabel    = document.getElementById("ob-api-key-label");
 
   if (modelSelect) {
     modelSelect.innerHTML = "";
@@ -1010,7 +1022,6 @@ export function syncOnboardingProviderUI(provider: LLMProvider): void {
   }
 
   const info = PROVIDER_KEY_INFO[provider];
-  if (keyLabel?.lastChild) keyLabel.lastChild.textContent = info.label;
   if (keyInput) {
     keyInput.placeholder = info.placeholder;
     keyInput.value = safeStorage.getItem(info.storageKey) ?? "";
@@ -1019,8 +1030,13 @@ export function syncOnboardingProviderUI(provider: LLMProvider): void {
   const providerIcon = document.getElementById("ob-provider-icon");
   if (providerIcon) providerIcon.innerHTML = info.icon;
 
+  // Short hint text with save warning
   const instructions = document.getElementById("ob-token-instructions");
   if (instructions) instructions.innerHTML = info.instructionsHtml;
+
+  // Update the "Get API Key" button href
+  const getApiKeyBtn = document.getElementById("ob-get-apikey-btn") as HTMLAnchorElement | null;
+  if (getApiKeyBtn) getApiKeyBtn.href = info.apiKeyUrl;
 }
 
 export function applyOnboardingConfig(): void {

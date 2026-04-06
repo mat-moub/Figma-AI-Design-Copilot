@@ -28,7 +28,7 @@ figma.showUI(__html__, { width: 420, height: 800, themeColors: true });
 
 figma.ui.postMessage({
   type: "notify",
-  message: "UX Writer Copilot ready. Select a text node and start writing!",
+  message: "UX Writer Copilot ready. Select a text frame and start writing!",
 });
 
 // ── Selection change listener ─────────────────────────────────────────────────
@@ -166,11 +166,11 @@ async function handleResetOnboarding(): Promise<void> {
 async function handleApplyText(msg: ApplyTextMessage): Promise<void> {
   const selection = figma.currentPage.selection;
 
-  // 1. Direct text node in selection
+  // 1. Direct text frame in selection
   let textNode = selection.find((n) => n.type === "TEXT") as TextNode | undefined;
 
   if (!textNode) {
-    // 2. No direct text node — look for a single container in selection
+    // 2. No direct text frame — look for a single container in selection
     const containers = selection.filter(
       (n) => n.type !== "TEXT" && "findAll" in n
     ) as (FrameNode | GroupNode | ComponentNode | InstanceNode | SectionNode)[];
@@ -192,12 +192,12 @@ async function handleApplyText(msg: ApplyTextMessage): Promise<void> {
   if (!textNode) {
     figma.ui.postMessage({
       type: "error",
-      message: "No text node selected. Please select a text layer in Figma first.",
+      message: "No text frame selected. Please select a text layer in Figma first.",
     });
     return;
   }
 
-  // Load all fonts used by this text node before editing
+  // Load all fonts used by this text frame before editing
   const fontName = textNode.fontName;
   if (fontName !== figma.mixed) {
     await figma.loadFontAsync(fontName);

@@ -308,7 +308,7 @@ function activateCardEditMode(card: HTMLElement, title: string, content: string)
   card.innerHTML = `
     <div class="ctx-card__header ctx-card__header--edit">
       <input class="ctx-card__title-input" type="text"
-             placeholder="e.g. B2B SaaS HR" maxlength="80"
+             placeholder="e.g. B2B SaaS HR" maxlength="120"
              value="${escapeHTML(title)}" aria-label="Context title"/>
       <div class="ctx-card__actions">
         <button class="btn btn--icon-sm ctx-card__save-btn" data-ctx-action="save-inline" title="Save">
@@ -673,7 +673,7 @@ function formatContextMetaTooltip(meta: ContextLoadMeta | undefined): string[] {
     `Scope: ${meta.scopeType}${meta.scopeName ? ` (${meta.scopeName})` : ""}`,
     `Strategy: ${meta.strategy}`,
     `Frames loaded: ${meta.totalFrames}`,
-    `Text nodes loaded: ${meta.totalTexts}`,
+    `Text frames loaded: ${meta.totalTexts}`,
     `Estimated tokens: ${meta.estimatedTokens}/${meta.maxTokens}`,
     `Min target: ${meta.minTokensTarget}`,
     `Truncated: ${meta.truncated ? "yes" : "no"}`,

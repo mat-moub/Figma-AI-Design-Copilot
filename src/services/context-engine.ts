@@ -244,7 +244,7 @@ export class ContextEngine {
     for (const rootNode of rootNodes) {
       if (truncated) break;
 
-      // Use Figma's native recursive findAll to get ALL text nodes in this subtree
+      // Use Figma's native recursive findAll to get ALL text frames in this subtree
       const findAllMixin = rootNode as unknown as ChildrenMixin;
       const textNodes: TextNode[] =
         typeof findAllMixin.findAll === "function"
@@ -333,7 +333,7 @@ export class ContextEngine {
 
     const first = selection[0];
 
-    // ── Direct text node ──────────────────────────────────────────────────────
+    // ── Direct text frame ──────────────────────────────────────────────────────
     if (first.type === "TEXT") {
       const textNode = first as TextNode;
       const fontName = textNode.fontName;
@@ -368,7 +368,7 @@ export class ContextEngine {
 
     const combined = nonEmpty.map((t) => t.characters).join("\n");
 
-    // Use the font properties of the first text node as representative metadata
+    // Use the font properties of the first text frame as representative metadata
     const ref = nonEmpty[0];
     const fontName = ref.fontName;
     const fontSize = ref.fontSize;
@@ -431,7 +431,7 @@ export class ContextEngine {
   }
 
   /**
-   * Infer the semantic role of a text node.
+   * Infer the semantic role of a text frame.
    * Priority: layer-name keywords → font-size thresholds.
    */
   private inferTextRole(node: TextNode): TextRole {
@@ -488,9 +488,9 @@ export class ContextEngine {
   }
 
   /**
-   * Walk up from a text node to the top-level screen FRAME and collect the
+   * Walk up from a text frame to the top-level screen FRAME and collect the
    * intermediate container names, stopping before the screen root itself.
-   * Returns `{ depth, parentPath }` where depth is 0 when the text node is a
+   * Returns `{ depth, parentPath }` where depth is 0 when the text frame is a
    * direct child of the screen frame, and parentPath lists the intermediate
    * frame/group/component names from outermost to innermost.
    */
@@ -514,9 +514,9 @@ export class ContextEngine {
   // ── Selected component extraction ────────────────────────────────────────────
 
   /**
-   * When the first selected node is NOT a text node, extract it as a
+   * When the first selected node is NOT a text frame, extract it as a
    * SelectedComponentContext: its name, type, screen, and all text children.
-   * Returns null when the selection is empty or is a text node (handled by
+   * Returns null when the selection is empty or is a text frame (handled by
    * extractSelectedText instead).
    */
   extractSelectedComponent(): SelectedComponentContext | null {

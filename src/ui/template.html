@@ -59,7 +59,7 @@
         <div class="chat-empty__icon">
           <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
         </div>
-        <p class="chat-empty__title">Select a text node to start</p>
+        <p class="chat-empty__title">Select a text frame to start</p>
         <p class="chat-empty__subtitle">Select any text in Figma, then describe<br>what you want — I'll suggest alternatives.</p>
       </div>
     </div>
@@ -75,13 +75,13 @@
       <div class="mode-toggle" role="tablist" aria-label="Interaction mode">
         <button class="mode-tab mode-tab--active" id="mode-tab-generate" role="tab"
                 aria-selected="true" aria-controls="input-section" type="button"
-                title="Generate wording alternatives for the selected text node">
+                title="Generate wording alternatives for the selected text frame">
           <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
           Generate
         </button>
         <button class="mode-tab" id="mode-tab-ask" role="tab"
                 aria-selected="false" aria-controls="input-section" type="button"
-                title="Ask the AI a UX writing question — no text node is modified">
+                title="Ask the AI a UX writing question — no text frame is modified">
           <i class="fa-solid fa-comments" aria-hidden="true"></i>
           Ask
         </button>
@@ -355,11 +355,11 @@
         <div class="onboarding-icon" aria-hidden="true">✨</div>
         <h2 class="onboarding-title">Welcome to UX Writer Copilot</h2>
         <p class="onboarding-desc">
-          Generate wording alternatives for any text node in Figma using AI.
+          Generate wording alternatives for any text frame in Figma using AI.
           Let's get you set up in 3 quick steps.
         </p>
         <ul class="onboarding-features" aria-label="Key features">
-          <li>✍️ Select any text node and get AI-powered wording suggestions</li>
+          <li>✍️ Select any text frame and get AI-powered wording suggestions</li>
           <li>💬 Ask UX writing questions in <strong>Ask mode</strong> — no edits needed</li>
           <li>🎯 Context-aware: AI reads your Figma layout for better copy</li>
           <li>🔁 Generate multiple alternatives at once and apply with one click</li>
@@ -374,7 +374,8 @@
           Choose a provider and enter your API key. You can change this later in Settings.
         </p>
         <div class="onboarding-configure">
-          <!-- Provider -->
+
+          <!-- Provider selector -->
           <div class="settings__row">
             <label class="settings__label" for="ob-provider-select">
               <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
@@ -390,45 +391,55 @@
               </select>
             </div>
           </div>
-          <!-- Model -->
-          <div class="settings__row">
-            <label class="settings__label" for="ob-model-select">
-              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
-              Model
-            </label>
-            <select id="ob-model-select" aria-label="Model" style="flex:1"></select>
-          </div>
-          <!-- API Key -->
-          <div class="settings__row">
-            <span class="settings__label" id="ob-api-key-label">
+
+          <!-- Provider hint + Get API Key button (row) -->
+          <div class="ob-apikey-row">
+            <a class="btn btn--primary ob-get-apikey-btn" id="ob-get-apikey-btn"
+               href="#" target="_blank" rel="noopener noreferrer"
+               aria-label="Get API Key — opens provider page">
               <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
-              API Key
-            </span>
-            <div class="api-key-row">
-              <input type="password" id="ob-api-key-input"
-                     placeholder="Enter your API key"
-                     autocomplete="off" aria-label="API Key"/>
-              <button class="btn btn--icon" id="ob-api-key-toggle" type="button"
-                      title="Show/hide key" aria-label="Toggle key visibility">
-                <svg class="icon icon-sm" id="ob-key-icon-eye" aria-hidden="true"><use href="#icon-eye"/></svg>
-                <svg class="icon icon-sm hidden" id="ob-key-icon-eye-slash" aria-hidden="true"><use href="#icon-eye-slash"/></svg>
-              </button>
+              Get API Key
+            </a>
+            <p class="ob-apikey-hint" id="ob-token-instructions" aria-live="polite"></p>
           </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <button class="btn btn--primary" id="ob-test-connection-btn" type="button">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
-            <span id="ob-test-connection-label">Test connection</span>
-          </button>
-          <span id="ob-test-connection-status" class="test-connection-status"></span>
-        </div>
-        <div class="ob-token-instructions" id="ob-token-instructions" aria-live="polite">
-          <!-- Populated by JS based on selected provider -->
-        </div>
+
+          <!-- API Key input (full row) -->
+          <div class="api-key-row">
+            <input type="password" id="ob-api-key-input"
+                   placeholder="Enter your API key"
+                   autocomplete="off" aria-label="API Key"/>
+            <button class="btn btn--icon" id="ob-api-key-toggle" type="button"
+                    title="Show/hide key" aria-label="Toggle key visibility">
+              <svg class="icon icon-sm" id="ob-key-icon-eye" aria-hidden="true"><use href="#icon-eye"/></svg>
+              <svg class="icon icon-sm hidden" id="ob-key-icon-eye-slash" aria-hidden="true"><use href="#icon-eye-slash"/></svg>
+            </button>
+          </div>
+
+          <!-- Divider -->
+          <div class="ob-divider"></div>
+
+          <!-- Test connection + Model (bottom) -->
+          <div class="ob-bottom-row">
+            <div class="ob-test-row">
+              <button class="btn btn--secondary" id="ob-test-connection-btn" type="button">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
+                <span id="ob-test-connection-label">Test connection</span>
+              </button>
+              <span id="ob-test-connection-status" class="test-connection-status"></span>
+            </div>
+            <div class="settings__row ob-model-row">
+              <label class="settings__label" for="ob-model-select">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
+                Model
+              </label>
+              <select id="ob-model-select" aria-label="Model" style="flex:1"></select>
+            </div>
+          </div>
+
+        </div><!-- end onboarding-configure -->
         <p class="onboarding-hint">
           🔒 Your key is stored locally in your browser and never shared.
         </p>
-      </div><!-- end onboarding-configure -->
       </div><!-- end onboarding-step-1 -->
 
       <!-- ── Step 3: Functional Context (optional) ── -->
@@ -443,22 +454,31 @@
         </p>
         <div class="onboarding-configure">
           <!-- Generate from Figma -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-            <button class="btn btn--secondary" id="ob-generate-context-btn" type="button">
+          <div class="ob-generate-row">
+            <button class="btn btn--primary" id="ob-generate-context-btn" type="button">
               <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
               <span id="ob-generate-context-label">Generate from Figma</span>
             </button>
-            <span id="ob-generate-context-spinner" class="spinner hidden" aria-hidden="true"></span>
-            <span id="ob-generate-context-status" style="font-size:11px;color:var(--text-secondary)"></span>
+            <p class="ob-generate-desc">
+              Automatically generate the functional context from your current Figma file.
+              The AI will analyse your screens, text hierarchy, and copy to describe your product.
+            </p>
+            <!-- Progress bar (hidden by default) -->
+            <div class="ob-progress hidden" id="ob-generate-progress" aria-live="polite" role="status">
+              <div class="ob-progress__bar">
+                <div class="ob-progress__fill" id="ob-progress-fill" style="width:0%"></div>
+              </div>
+              <span class="ob-progress__label" id="ob-progress-label">Loading…</span>
+            </div>
           </div>
           <!-- Context title -->
-          <div style="margin-bottom:8px">
+          <div style="margin-top:8px">
             <label for="ob-context-title" class="settings__label">
               <i class="fa-solid fa-tag" aria-hidden="true"></i>
               Context title
             </label>
-            <input type="text" id="ob-context-title" class="onboarding-input"
-                   placeholder="e.g. B2B SaaS HR" maxlength="80"
+            <input type="text" id="ob-context-title" class="onboarding-input ob-context-title"
+                   placeholder="e.g. B2B SaaS HR" maxlength="120"
                    aria-label="Context title" style="margin-top:4px"/>
           </div>
           <!-- Functional context -->
@@ -484,14 +504,14 @@
         <div class="onboarding-icon" aria-hidden="true">🚀</div>
         <h2 class="onboarding-title">You're all set!</h2>
         <p class="onboarding-desc">
-          Start improving your copy by selecting a text node in Figma and typing a prompt.
+          Start improving your copy by selecting a text frame in Figma and typing a prompt.
           Here are some tips to get the most out of the plugin.
         </p>
         <ul class="onboarding-tips" aria-label="Usage tips">
           <li>
             <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
             <strong>Generate mode</strong>
-            <span>Select a text node, describe the wording you want, and get alternatives</span>
+            <span>Select a text frame, describe the wording you want, and get alternatives</span>
           </li>
           <li>
             <i class="fa-solid fa-comments" aria-hidden="true"></i>
@@ -499,29 +519,9 @@
             <span>Ask UX writing questions and get AI advice without modifying anything</span>
           </li>
           <li>
-            <i class="fa-solid fa-list-ol" aria-hidden="true"></i>
-            <strong>Alternatives</strong>
-            <span>Set a number to generate multiple copy options at once</span>
-          </li>
-          <li>
-            <i class="fa-solid fa-check" aria-hidden="true"></i>
-            <strong>Apply</strong>
-            <span>Click "Apply" on any alternative to write it directly into the selected text node</span>
-          </li>
-          <li>
             <i class="fa-solid fa-arrow-pointer" aria-hidden="true"></i>
             <strong>Auto-selection</strong>
-            <span>Select any text node in Figma and the plugin detects it automatically</span>
-          </li>
-          <li>
-            <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-            <strong>New conversation</strong>
-            <span>Use the refresh icon in the chat header to start fresh</span>
-          </li>
-          <li>
-            <i class="fa-solid fa-gear" aria-hidden="true"></i>
-            <strong>Settings</strong>
-            <span>Change provider, model, or functional contexts anytime</span>
+            <span>Select any text frame in Figma and the plugin detects it automatically</span>
           </li>
         </ul>
       </div>

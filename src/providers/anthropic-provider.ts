@@ -63,6 +63,9 @@ export class AnthropicProvider implements LLMProvider {
         "Content-Type": "application/json",
         "x-api-key": this.apiKey,
         "anthropic-version": ANTHROPIC_VERSION,
+        // Required for direct browser access (e.g. Figma plugin iframe).
+        // See: https://docs.anthropic.com/en/api/getting-started
+        "anthropic-dangerous-direct-browser-access": "true",
       },
       body: JSON.stringify(body),
     });

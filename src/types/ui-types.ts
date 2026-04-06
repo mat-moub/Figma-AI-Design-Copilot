@@ -1,7 +1,7 @@
 // ─── Text Alternative ─────────────────────────────────────────────────────────
 
 /**
- * A single AI-generated text alternative for a Figma text node.
+ * A single AI-generated text alternative for a Figma text frame.
  * The plugin generates N alternatives and lets the designer apply one.
  */
 export interface TextAlternative {
@@ -105,7 +105,7 @@ export interface DesignSystem {
   textStyles: string[];
 }
 
-/** Inferred semantic role of a text node based on its name and font properties. */
+/** Inferred semantic role of a text frame based on its name and font properties. */
 export type TextRole =
   | "heading"
   | "subheading"
@@ -116,7 +116,7 @@ export type TextRole =
   | "unknown";
 
 /**
- * A single text node extracted from the current Figma page, enriched with
+ * A single text frame extracted from the current Figma page, enriched with
  * metadata useful for LLM-based wording generation.
  */
 export interface TextEntry {
@@ -142,19 +142,19 @@ export interface TextEntry {
   /** Font size in pixels, or `"mixed"` when multiple sizes are used. */
   fontSize: number | "mixed";
   /**
-   * True when the text node lives inside a component instance or component
+   * True when the text frame lives inside a component instance or component
    * master — gives the LLM context about its role (e.g. button label).
    */
   insideComponent: boolean;
   /**
-   * Nesting depth of the text node relative to its top-level screen frame.
+   * Nesting depth of the text frame relative to its top-level screen frame.
    * 0 = direct child of the screen, 1 = one frame deep, etc.
    * Used to produce indented markdown that mirrors the Figma hierarchy.
    */
   depth: number;
   /**
    * Names of the intermediate container frames/groups between the screen root
-   * and this text node (not including the screen itself).
+   * and this text frame (not including the screen itself).
    * Ordered from outermost to innermost (e.g. ["Card", "Header"]).
    */
   parentPath: string[];
@@ -169,7 +169,7 @@ export interface ScreenTextContext {
 }
 
 /**
- * The text node currently selected by the designer in Figma.
+ * The text frame currently selected by the designer in Figma.
  * Sent to the AI as the primary input for wording generation.
  */
 export interface SelectedTextContext {
@@ -185,7 +185,7 @@ export interface SelectedTextContext {
   charCount: number;
   /** True if the node is inside a component or instance. */
   insideComponent: boolean;
-  /** Name of the screen (top-level frame) that contains this text node, if any. */
+  /** Name of the screen (top-level frame) that contains this text frame, if any. */
   screenName: string | null;
 }
 
@@ -205,8 +205,8 @@ export interface ComponentTextEntry {
 }
 
 /**
- * A non-text node (COMPONENT or INSTANCE) currently selected by the designer.
- * Carries the component name and all text nodes it contains.
+ * A non-text frame (COMPONENT or INSTANCE) currently selected by the designer.
+ * Carries the component name and all text frames it contains.
  */
 export interface SelectedComponentContext {
   /** Figma layer name of the selected node (e.g. "Button / Primary / Large"). */
@@ -227,9 +227,9 @@ export interface DocumentContext {
   pages: string[];
   /** Text content of the current page, grouped by screen, for wording context. */
   pageTextContext: ScreenTextContext[];
-  /** Currently selected text node, if any. */
+  /** Currently selected text frame, if any. */
   selectedText: SelectedTextContext | null;
-  /** Currently selected non-text node (component/frame/group), if any. */
+  /** Currently selected non-text frame (component/frame/group), if any. */
   selectedComponent: SelectedComponentContext | null;
   /** Metadata about how this context snapshot was loaded. */
   contextMeta?: ContextLoadMeta;
@@ -250,7 +250,7 @@ export interface ContextLoadMeta {
   scopePath: string[];
   /** Total root nodes scanned for the final context. */
   totalFrames: number;
-  /** Total non-empty text nodes included in context. */
+  /** Total non-empty text frames included in context. */
   totalTexts: number;
   /** Estimated token count for the serialized context. */
   estimatedTokens: number;
