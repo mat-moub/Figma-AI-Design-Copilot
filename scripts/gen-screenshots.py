@@ -255,6 +255,7 @@ html = make_html("""
         Choose a provider and enter your API key. You can change this later in Settings.
       </p>
       <div class="onboarding-configure">
+        <!-- Provider selector -->
         <div class="settings__row">
           <label class="settings__label" for="ob-prov">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
@@ -269,43 +270,49 @@ html = make_html("""
             </select>
           </div>
         </div>
-        <div class="settings__row">
-          <label class="settings__label" for="ob-mod">
-            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
-            Model
-          </label>
-          <select id="ob-mod" style="flex:1">
-            <option>Gemini Flash Lite</option>
-          </select>
-        </div>
-        <div class="settings__row">
-          <span class="settings__label">
+        <!-- Get API Key button + instructions (stacked vertically) -->
+        <div class="ob-apikey-row">
+          <a class="btn btn--primary ob-get-apikey-btn" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg>
-            API Key
-          </span>
-          <div class="api-key-row">
-            <input type="password" placeholder="AIza… (Google AI Studio key)" style="flex:1"/>
-            <button class="btn btn--icon" type="button">
-              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-eye"/></svg>
+            Get API Key
+          </a>
+          <p class="ob-apikey-hint" id="ob-token-instructions">
+            Go to <strong>aistudio.google.com</strong> → Get API key.<br/>
+            Click <strong>Create API key</strong> and select or create a project.<br/>
+            Copy the key (<code>AIza…</code>) and paste it below.<br/>
+            <br/>
+            <strong style="color:var(--warning)">Save it immediately</strong> — you won't see it again.
+          </p>
+        </div>
+        <!-- API Key input (full width) -->
+        <div class="api-key-row">
+          <input type="password" placeholder="AIza… (Google AI Studio key)" style="flex:1"/>
+          <button class="btn btn--icon" type="button">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-eye"/></svg>
+          </button>
+        </div>
+        <!-- Divider -->
+        <div class="ob-divider"></div>
+        <!-- Test connection + Model (bottom) -->
+        <div class="ob-bottom-row">
+          <div class="ob-test-row">
+            <button class="btn btn--secondary" type="button">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-link"/></svg>
+              <span>Test connection</span>
             </button>
+          </div>
+          <div class="settings__row ob-model-row">
+            <label class="settings__label" for="ob-mod">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chip"/></svg>
+              Model
+            </label>
+            <select id="ob-mod" style="flex:1">
+              <option>Gemini Flash Lite</option>
+            </select>
           </div>
         </div>
       </div>
-      <div class="ob-token-instructions" style="margin-top:10px">
-        <div class="ob-inst-header">
-          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-info"/></svg>
-          Gemini (Google) — How to get your API key
-        </div>
-        <ol>
-          <li>Go to <strong>aistudio.google.com</strong> → Get API key.</li>
-          <li>Click <strong>Create API key</strong> and select or create a project.</li>
-          <li>Copy the key (<code>AIza…</code>) and paste it in the field above.</li>
-        </ol>
-        <p style="margin-top:6px;font-size:10px;color:var(--text-muted)">
-          Free tier available. No credit card required to start.
-        </p>
-      </div>
-      <p class="onboarding-hint">🔒 Your key is stored locally and never shared.</p>
+      <p class="onboarding-hint">🔒 Your key is stored locally in your browser and never shared.</p>
     </div>
   </div>
   <div class="onboarding-nav">
@@ -348,18 +355,29 @@ html = make_html("""
         in every generation to produce copy that fits your application&#39;s voice and audience.
       </p>
       <div class="onboarding-configure">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <button class="btn btn--secondary" type="button">
+        <div class="ob-generate-row">
+          <button class="btn btn--primary" type="button">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-sparkles"/></svg>
             <span>Generate from Figma</span>
           </button>
+          <p class="ob-generate-desc">
+            Automatically generate the functional context from your current Figma file.
+            The AI will analyse your screens, text hierarchy, and copy to describe your product.
+          </p>
+          <!-- Progress bar (shown during generation) -->
+          <div class="ob-progress" style="margin-top:8px">
+            <div class="ob-progress__bar">
+              <div class="ob-progress__fill" style="width:72%"></div>
+            </div>
+            <span class="ob-progress__label">Analyzing screens… (72%)</span>
+          </div>
         </div>
-        <div style="margin-bottom:8px">
+        <div style="margin-top:8px">
           <label for="ob-ctitle" class="settings__label">
             <i class="fa-solid fa-tag" aria-hidden="true"></i>
             Context title
           </label>
-          <input type="text" id="ob-ctitle" placeholder="e.g. B2B SaaS HR" style="margin-top:4px;width:100%;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);box-sizing:border-box"/>
+          <input type="text" id="ob-ctitle" placeholder="e.g. B2B SaaS HR" class="onboarding-input ob-context-title" style="margin-top:4px"/>
         </div>
         <div>
           <label for="ob-ctx" class="settings__label">
