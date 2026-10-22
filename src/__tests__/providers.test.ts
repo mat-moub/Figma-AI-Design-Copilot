@@ -13,6 +13,8 @@ import { createProvider } from "../services/ai-service";
 import { GeminiProvider } from "../providers/gemini-provider";
 import { OpenAIProvider } from "../providers/openai-provider";
 import { AnthropicProvider } from "../providers/anthropic-provider";
+import { MistralProvider } from "../providers/mistral-provider";
+import { PROVIDER_MODELS } from "../models";
 import type { ChatMessage, ModelConfig } from "../types/ui-types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -20,7 +22,7 @@ import type { ChatMessage, ModelConfig } from "../types/ui-types";
 function makeConfig(overrides: Partial<ModelConfig>): ModelConfig {
   return {
     provider: "gemini",
-    model: "gemini-flash-lite-latest",
+    model: "gemini-3.5-flash-lite",
     geminiKey: "AIza-test",
     ...overrides,
   };
@@ -70,7 +72,7 @@ describe("createProvider", () => {
 
   it("defaults to GeminiProvider when provider is undefined", () => {
     // Simulate a config that lacks the provider field
-    const config = { model: "gemini-flash-lite-latest", geminiKey: "AIza-test" } as unknown as ModelConfig;
+    const config = { model: "gemini-3.5-flash-lite", geminiKey: "AIza-test" } as unknown as ModelConfig;
     const provider = createProvider(config);
     expect(provider).toBeInstanceOf(GeminiProvider);
   });
@@ -79,6 +81,19 @@ describe("createProvider", () => {
 // ─── GeminiProvider ───────────────────────────────────────────────────────────
 
 describe("GeminiProvider", () => {
+  it.each(PROVIDER_MODELS.gemini)("supports $value without exposing thought parts", async ({ value }) => {
+    const fetchMock = mockFetchOk({ candidates: [{ content: { parts: [
+      { text: "internal reasoning", thought: true },
+      { text: "First. " }, { text: "Second." },
+    ] } }] });
+    global.fetch = fetchMock;
+    expect(await new GeminiProvider("AIza-test").chat([userMsg], value)).toBe("First. Second.");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain(`${value}:generateContent`);
+    const body = JSON.parse(init.body as string);
+    expect(body.generationConfig).not.toHaveProperty("temperature");
+    expect(body.generationConfig.maxOutputTokens).toBe(value === "gemini-4-argon" ? 32768 : 4096);
+  });
   it("throws when no API key is supplied", () => {
     expect(() => new GeminiProvider("")).toThrow(/Google AI Studio API key/i);
   });
@@ -90,13 +105,13 @@ describe("GeminiProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new GeminiProvider("AIza-test");
-    const result = await provider.chat([systemMsg, userMsg], "gemini-flash-lite-latest");
+    const result = await provider.chat([systemMsg, userMsg], "gemini-3.5-flash-lite");
 
     expect(result).toBe("gemini response");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("gemini-flash-lite-latest:generateContent");
+    expect(url).toContain("gemini-3.5-flash-lite:generateContent");
     expect(url).toContain("key=AIza-test");
     expect(init.method).toBe("POST");
 
@@ -116,7 +131,7 @@ describe("GeminiProvider", () => {
 
     const assistantMsg: ChatMessage = { role: "assistant", content: "Previous answer" };
     const provider = new GeminiProvider("AIza-test");
-    await provider.chat([userMsg, assistantMsg, userMsg], "gemini-flash-lite-latest");
+    await provider.chat([userMsg, assistantMsg, userMsg], "gemini-3.5-flash-lite");
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
@@ -131,7 +146,7 @@ describe("GeminiProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new GeminiProvider("AIza-test");
-    await provider.chat([userMsg], "gemini-flash-lite-latest");
+    await provider.chat([userMsg], "gemini-3.5-flash-lite");
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
@@ -141,7 +156,7 @@ describe("GeminiProvider", () => {
   it("throws a clear message on 401/403 Unauthorized", async () => {
     global.fetch = mockFetchError(401, "Unauthorized");
     const provider = new GeminiProvider("AIza-bad");
-    await expect(provider.chat([userMsg], "gemini-flash-lite-latest")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "gemini-3.5-flash-lite")).rejects.toThrow(
       /invalid or lacks permissions/i
     );
   });
@@ -149,7 +164,7 @@ describe("GeminiProvider", () => {
   it("throws a clear message on 429 Too Many Requests", async () => {
     global.fetch = mockFetchError(429, "Rate limited");
     const provider = new GeminiProvider("AIza-good");
-    await expect(provider.chat([userMsg], "gemini-flash-lite-latest")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "gemini-3.5-flash-lite")).rejects.toThrow(
       /rate limit/i
     );
   });
@@ -159,14 +174,37 @@ describe("GeminiProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new GeminiProvider("AIza-test");
-    const result = await provider.chat([userMsg], "gemini-flash-lite-latest");
+    const result = await provider.chat([userMsg], "gemini-3.5-flash-lite");
     expect(result).toBe("");
   });
 });
 
 // ─── OpenAIProvider ───────────────────────────────────────────────────────────
 
+describe("MistralProvider", () => {
+  it.each(PROVIDER_MODELS.mistral)("sends the verified model ID $value", async ({ value }) => {
+    const fetchMock = mockFetchOk({ choices: [{ message: { content: "mistral response" } }] });
+    global.fetch = fetchMock;
+    expect(await new MistralProvider("test-key").chat([systemMsg, userMsg], value)).toBe("mistral response");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.mistral.ai/v1/chat/completions");
+    expect(init.headers.Authorization).toBe("Bearer test-key");
+    expect(JSON.parse(init.body as string).model).toBe(value);
+  });
+});
+
 describe("OpenAIProvider", () => {
+  it.each(PROVIDER_MODELS.openai)("uses compatible reasoning parameters for $value", async ({ value }) => {
+    const fetchMock = mockFetchOk({ choices: [{ message: { content: "ok" } }] });
+    global.fetch = fetchMock;
+    await new OpenAIProvider("sk-test").chat([userMsg], value);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.model).toBe(value);
+    expect(body.reasoning_effort).toBe("low");
+    expect(body.max_completion_tokens).toBe(4096);
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("max_tokens");
+  });
   it("throws when no API key is supplied", () => {
     expect(() => new OpenAIProvider("")).toThrow(/OpenAI API key/i);
   });
@@ -178,7 +216,7 @@ describe("OpenAIProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new OpenAIProvider("sk-test");
-    const result = await provider.chat([systemMsg, userMsg], "gpt-5.4");
+    const result = await provider.chat([systemMsg, userMsg], "gpt-6.1-sol");
 
     expect(result).toBe("openai response");
 
@@ -189,7 +227,7 @@ describe("OpenAIProvider", () => {
     expect(headers["Authorization"]).toBe("Bearer sk-test");
 
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body["model"]).toBe("gpt-5.4");
+    expect(body["model"]).toBe("gpt-6.1-sol");
     expect(body["messages"]).toEqual([
       { role: "system", content: "You are a designer." },
       { role: "user", content: "Create a login screen." },
@@ -199,19 +237,19 @@ describe("OpenAIProvider", () => {
   it("throws a clear message on 401 Unauthorized", async () => {
     global.fetch = mockFetchError(401, "Unauthorized");
     const provider = new OpenAIProvider("sk-bad");
-    await expect(provider.chat([userMsg], "gpt-5.4")).rejects.toThrow(/invalid or expired/i);
+    await expect(provider.chat([userMsg], "gpt-6.1-sol")).rejects.toThrow(/invalid or expired/i);
   });
 
   it("throws a clear message on 429 Too Many Requests", async () => {
     global.fetch = mockFetchError(429, "Rate limited");
     const provider = new OpenAIProvider("sk-good");
-    await expect(provider.chat([userMsg], "gpt-5.4")).rejects.toThrow(/rate limit/i);
+    await expect(provider.chat([userMsg], "gpt-6.1-sol")).rejects.toThrow(/rate limit/i);
   });
 
   it("throws a generic error on other HTTP errors", async () => {
     global.fetch = mockFetchError(503, "Service Unavailable");
     const provider = new OpenAIProvider("sk-good");
-    await expect(provider.chat([userMsg], "gpt-5.4")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "gpt-6.1-sol")).rejects.toThrow(
       /OpenAI API error 503/
     );
   });
@@ -220,6 +258,15 @@ describe("OpenAIProvider", () => {
 // ─── AnthropicProvider ────────────────────────────────────────────────────────
 
 describe("AnthropicProvider", () => {
+  it("joins visible text blocks while excluding thinking", async () => {
+    global.fetch = mockFetchOk({ content: [
+      { type: "thinking", thinking: "internal reasoning" },
+      { type: "text", text: "First. " },
+      { type: "text", text: "Second." },
+    ] });
+    expect(await new AnthropicProvider("sk-ant-test").chat([userMsg], "claude-opus-5-5"))
+      .toBe("First. Second.");
+  });
   it("throws when no API key is supplied", () => {
     expect(() => new AnthropicProvider("")).toThrow(/Anthropic API key/i);
   });
@@ -231,7 +278,7 @@ describe("AnthropicProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new AnthropicProvider("sk-ant-test");
-    const result = await provider.chat([systemMsg, userMsg], "claude-sonnet-4-6");
+    const result = await provider.chat([systemMsg, userMsg], "claude-sonnet-5-5");
 
     expect(result).toBe("anthropic response");
 
@@ -248,7 +295,7 @@ describe("AnthropicProvider", () => {
     expect(body["messages"]).toEqual([
       { role: "user", content: "Create a login screen." },
     ]);
-    expect(body["model"]).toBe("claude-sonnet-4-6");
+    expect(body["model"]).toBe("claude-sonnet-5-5");
   });
 
   it("works without a system message (omits the system field)", async () => {
@@ -258,7 +305,7 @@ describe("AnthropicProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new AnthropicProvider("sk-ant-test");
-    await provider.chat([userMsg], "claude-haiku-4-5");
+    await provider.chat([userMsg], "claude-haiku-5-5");
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
@@ -275,7 +322,7 @@ describe("AnthropicProvider", () => {
     const sys2: ChatMessage = { role: "system", content: "Part 2." };
 
     const provider = new AnthropicProvider("sk-ant-test");
-    await provider.chat([sys1, sys2, userMsg], "claude-opus-4-6");
+    await provider.chat([sys1, sys2, userMsg], "claude-opus-5-5");
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
@@ -285,7 +332,7 @@ describe("AnthropicProvider", () => {
   it("throws when conversation does not start with a user message", async () => {
     const provider = new AnthropicProvider("sk-ant-test");
     const assistantMsg: ChatMessage = { role: "assistant", content: "Hello" };
-    await expect(provider.chat([assistantMsg], "claude-haiku-4-5")).rejects.toThrow(
+    await expect(provider.chat([assistantMsg], "claude-haiku-5-5")).rejects.toThrow(
       /user message/i
     );
   });
@@ -293,7 +340,7 @@ describe("AnthropicProvider", () => {
   it("throws a clear message on 401 Unauthorized", async () => {
     global.fetch = mockFetchError(401, "Unauthorized");
     const provider = new AnthropicProvider("sk-ant-bad");
-    await expect(provider.chat([userMsg], "claude-haiku-4-5")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "claude-haiku-5-5")).rejects.toThrow(
       /invalid or expired/i
     );
   });
@@ -301,7 +348,7 @@ describe("AnthropicProvider", () => {
   it("throws a clear message on 429 Too Many Requests", async () => {
     global.fetch = mockFetchError(429, "Rate limited");
     const provider = new AnthropicProvider("sk-ant-good");
-    await expect(provider.chat([userMsg], "claude-haiku-4-5")).rejects.toThrow(
+    await expect(provider.chat([userMsg], "claude-haiku-5-5")).rejects.toThrow(
       /rate limit/i
     );
   });
@@ -313,7 +360,7 @@ describe("AnthropicProvider", () => {
     global.fetch = fetchMock;
 
     const provider = new AnthropicProvider("sk-ant-test");
-    const result = await provider.chat([userMsg], "claude-haiku-4-5");
+    const result = await provider.chat([userMsg], "claude-haiku-5-5");
     expect(result).toBe("");
   });
 });

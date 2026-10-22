@@ -6,7 +6,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 /**
  * LLM provider that calls the OpenAI Chat Completions API directly (BYOK).
  *
- * Supported models: gpt-5-mini, gpt-5, gpt-5.2, gpt-5.3, codex.
+ * Supported models are listed in src/models.ts.
  * Requires an OpenAI API key (sk-…).
  */
 export class OpenAIProvider implements LLMProvider {
@@ -32,8 +32,8 @@ export class OpenAIProvider implements LLMProvider {
       body: JSON.stringify({
         model: modelId,
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        temperature: 0.7,
-        max_tokens: 4096,
+        reasoning_effort: "low",
+        max_completion_tokens: 4096,
       }),
     });
 

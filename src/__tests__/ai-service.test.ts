@@ -28,7 +28,7 @@ const mockContext: DocumentContext = {
 
 const mockModelConfig: ModelConfig = {
   provider: "gemini",
-  model: "gemini-flash-lite-latest",
+  model: "gemini-3.5-flash-lite",
   geminiKey: "AIza-test",
 };
 

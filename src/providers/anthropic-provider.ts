@@ -12,7 +12,7 @@ interface AnthropicMessage {
 /**
  * LLM provider that calls the Anthropic Messages API directly (BYOK).
  *
- * Supported models: claude-haiku-4-5, claude-sonnet-4-6, claude-opus-4-6.
+ * Supported models are listed in src/models.ts.
  * Requires an Anthropic API key (sk-ant-…).
  *
  * The Anthropic Messages API separates the `system` prompt from the
@@ -91,8 +91,7 @@ export class AnthropicProvider implements LLMProvider {
       content: Array<{ type: string; text: string }>;
     };
 
-    // Anthropic returns an array of content blocks; extract the first text block.
-    const textBlock = data.content.find((block) => block.type === "text");
-    return textBlock?.text ?? "";
+    // Reasoning models can interleave thinking and multiple visible text blocks.
+    return data.content.filter((block) => block.type === "text").map((block) => block.text).join("");
   }
 }

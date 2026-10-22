@@ -232,37 +232,42 @@ Uses a **Mistral AI API key**.
 
 ## Available providers and models
 
+Text-generation catalog verified on **2026-10-22** against the official catalogs: [Gemini](https://ai.google.dev/gemini-api/docs/models), [OpenAI](https://developers.openai.com/api/docs/models), [Anthropic](https://platform.claude.com/docs/en/models/overview), and [Mistral](https://docs.mistral.ai/models). Availability depends on your API account and quota. Image, audio, embedding, and specialized coding models are outside this text-writing plugin's scope.
+
+The first model for each provider is its default. Saved selections from the previous catalog migrate to the corresponding tier; unknown selections fall back to the provider default. Model IDs and labels are maintained together in `src/models.ts`.
+
 ### Gemini (default)
 
 | UI label | API model id | Best for |
 |----------|-------------|----------|
-| Gemini Flash Lite *(default)* | `gemini-flash-lite-latest` | Fast, cost-efficient generation |
-| Gemini Flash | `gemini-flash-latest` | Balanced quality and speed |
-| Gemini Pro | `gemini-pro-latest` | Higher-quality suggestions |
+| Gemini 3.5 Flash-Lite *(default)* | `gemini-3.5-flash-lite` | Fast, cost-efficient generation |
+| Gemini 3.8 Flash | `gemini-3.8-flash` | Balanced quality and speed |
+| Gemini 4 Argon | `gemini-4-argon` | Flagship reasoning and writing |
 
 ### OpenAI
 
 | UI label | API model id |
 |----------|-------------|
-| GPT-5.4 Nano | `gpt-5.4-nano` |
-| GPT-5.4 Mini | `gpt-5.4-mini` |
-| GPT-5.4 | `gpt-5.4` |
+| GPT-6 Luna | `gpt-6-luna` |
+| GPT-6.1 Sol | `gpt-6.1-sol` |
+| GPT-6 Astra | `gpt-6-astra` |
 
 ### Anthropic
 
 | UI label | API model id |
 |----------|-------------|
-| Claude Haiku 4.5 | `claude-haiku-4-5` |
-| Claude Sonnet 4.6 | `claude-sonnet-4-6` |
-| Claude Opus 4.6 | `claude-opus-4-6` |
+| Claude Haiku 5.5 | `claude-haiku-5-5` |
+| Claude Sonnet 5.5 | `claude-sonnet-5-5` |
+| Claude Opus 5.5 | `claude-opus-5-5` |
+| Claude Fable 5.1 | `claude-fable-5-1` |
 
 ### Mistral
 
 | UI label | API model id |
 |----------|-------------|
-| Mistral Small | `mistral-small-latest` |
-| Mistral Medium | `mistral-medium-latest` |
-| Mistral Large | `mistral-large-latest` |
+| Mistral Small 4 | `mistral-small-2603` |
+| Mistral Medium 3.5 | `mistral-medium-3-5` |
+| Mistral Large 4 (Preview) | `mistral-large-4` |
 
 ---
 

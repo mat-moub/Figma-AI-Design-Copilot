@@ -8,6 +8,7 @@
  */
 
 import type { FunctionalContext, LLMProvider, ModelConfig, PersistedSettings, ThemeMode } from "../types/ui-types";
+import { resolveModel } from "../models";
 import { redactSecrets } from "../utils/redact-secrets";
 import {
   safeStorage,
@@ -83,7 +84,8 @@ export function syncProviderUI(provider: LLMProvider): void {
   }
 
   const savedModel = safeStorage.getItem(`copilot_model_${provider}`);
-  if (savedModel) modelSelect.value = savedModel;
+  modelSelect.value = resolveModel(provider, savedModel);
+  safeStorage.setItem(`copilot_model_${provider}`, modelSelect.value);
 
   const info = PROVIDER_KEY_INFO[provider];
   const keyLabelText = document.getElementById("api-key-label-text");
@@ -112,10 +114,10 @@ export function collectPersistedSettings(): PersistedSettings {
   const activeContextId = getActiveContextId();
 
   const modelByProvider: Partial<Record<LLMProvider, ModelConfig["model"]>> = {
-    gemini: (safeStorage.getItem("copilot_model_gemini") as ModelConfig["model"] | null) ?? undefined,
-    openai: (safeStorage.getItem("copilot_model_openai") as ModelConfig["model"] | null) ?? undefined,
-    anthropic: (safeStorage.getItem("copilot_model_anthropic") as ModelConfig["model"] | null) ?? undefined,
-    mistral: (safeStorage.getItem("copilot_model_mistral") as ModelConfig["model"] | null) ?? undefined,
+    gemini: resolveModel("gemini", safeStorage.getItem("copilot_model_gemini")),
+    openai: resolveModel("openai", safeStorage.getItem("copilot_model_openai")),
+    anthropic: resolveModel("anthropic", safeStorage.getItem("copilot_model_anthropic")),
+    mistral: resolveModel("mistral", safeStorage.getItem("copilot_model_mistral")),
   };
 
   const apiKeyByProvider: Partial<Record<LLMProvider, string>> = {
@@ -155,7 +157,7 @@ export function applyPersistedSettings(settings: PersistedSettings): void {
 
   for (const provider of ["gemini", "openai", "anthropic", "mistral"] as const) {
     const model = settings.modelByProvider[provider];
-    if (model) safeStorage.setItem(`copilot_model_${provider}`, model);
+    safeStorage.setItem(`copilot_model_${provider}`, resolveModel(provider, model));
 
     const key = settings.apiKeyByProvider[provider];
     if (typeof key === "string") {
@@ -1018,7 +1020,8 @@ export function syncOnboardingProviderUI(provider: LLMProvider): void {
       modelSelect.appendChild(opt);
     }
     const savedModel = safeStorage.getItem(`copilot_model_${provider}`);
-    if (savedModel) modelSelect.value = savedModel;
+    modelSelect.value = resolveModel(provider, savedModel);
+    safeStorage.setItem(`copilot_model_${provider}`, modelSelect.value);
   }
 
   const info = PROVIDER_KEY_INFO[provider];

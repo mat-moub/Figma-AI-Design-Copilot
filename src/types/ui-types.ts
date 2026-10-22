@@ -1,3 +1,5 @@
+import type { ProviderModel } from "../models";
+
 // ─── Text Alternative ─────────────────────────────────────────────────────────
 
 /**
@@ -35,28 +37,16 @@ export type LLMProvider = "gemini" | "openai" | "anthropic" | "mistral";
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 /** Models available directly on the Google Gemini API. */
-export type GeminiModel =
-  | "gemini-flash-lite-latest"
-  | "gemini-flash-latest"
-  | "gemini-pro-latest";
+export type GeminiModel = ProviderModel<"gemini">;
 
 /** Models available directly on the OpenAI API. */
-export type OpenAIModel =
-  | "gpt-5.4-nano"
-  | "gpt-5.4-mini"
-  | "gpt-5.4";
+export type OpenAIModel = ProviderModel<"openai">;
 
 /** Models available directly on the Anthropic API. */
-export type AnthropicModel =
-  | "claude-haiku-4-5"
-  | "claude-sonnet-4-6"
-  | "claude-opus-4-6";
+export type AnthropicModel = ProviderModel<"anthropic">;
 
 /** Models available directly on the Mistral AI API. */
-export type MistralModel =
-  | "mistral-small-latest"
-  | "mistral-medium-latest"
-  | "mistral-large-latest";
+export type MistralModel = ProviderModel<"mistral">;
 
 /** Union of all model IDs supported across providers. */
 export type AIModel = GeminiModel | OpenAIModel | AnthropicModel | MistralModel;

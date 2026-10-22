@@ -58,29 +58,7 @@ export const ANIMATE_BADGE_KEY = "copilot_animate_badge";
 /** Default theme when no preference is stored. */
 export const DEFAULT_THEME: ThemeMode = "dark";
 
-/** Models available per provider, used to populate the model dropdown. */
-export const PROVIDER_MODELS: Record<LLMProvider, Array<{ value: string; label: string }>> = {
-  "gemini": [
-    { value: "gemini-flash-lite-latest", label: "Gemini Flash Lite" },
-    { value: "gemini-flash-latest",      label: "Gemini Flash" },
-    { value: "gemini-pro-latest",        label: "Gemini Pro" },
-  ],
-  openai: [
-    { value: "gpt-5.4-nano", label: "GPT-5.4 nano" },
-    { value: "gpt-5.4-mini", label: "GPT-5.4 mini" },
-    { value: "gpt-5.4",      label: "GPT-5.4" },
-  ],
-  anthropic: [
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
-  ],
-  mistral: [
-    { value: "mistral-small-latest",  label: "Mistral Small" },
-    { value: "mistral-medium-latest", label: "Mistral Medium" },
-    { value: "mistral-large-latest",  label: "Mistral Large" },
-  ],
-};
+export { PROVIDER_MODELS } from "../models";
 
 /** Key labels and placeholders per provider for the API key input field. */
 export const PROVIDER_KEY_INFO: Record<LLMProvider, { label: string; placeholder: string; storageKey: string; hint: string; icon: string; instructionsHtml: string; apiKeyUrl: string }> = {

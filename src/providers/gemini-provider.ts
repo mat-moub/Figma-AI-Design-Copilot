@@ -5,6 +5,7 @@ const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models
 
 interface GeminiPart {
   text: string;
+  thought?: boolean;
 }
 
 interface GeminiContent {
@@ -21,7 +22,7 @@ interface GeminiResponse {
 /**
  * LLM provider that calls the Google Gemini API directly (BYOK).
  *
- * Supported models: gemini-3.1-flash-lite-preview, gemini-3-pro.
+ * Supported models are listed in src/models.ts.
  * Requires a Google AI Studio API key.
  *
  * The Gemini API separates the system prompt from the conversation history,
@@ -62,12 +63,12 @@ export class GeminiProvider implements LLMProvider {
     const requestBody: {
       contents: GeminiContent[];
       systemInstruction?: { parts: GeminiPart[] };
-      generationConfig: { temperature: number; maxOutputTokens: number };
+      generationConfig: { maxOutputTokens: number };
     } = {
       contents,
       generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
+        // Argon shares its token limit between thinking and the visible answer.
+        maxOutputTokens: modelId === "gemini-4-argon" ? 32768 : 4096,
       },
     };
 
@@ -107,6 +108,9 @@ export class GeminiProvider implements LLMProvider {
     }
 
     const data = (await response.json()) as GeminiResponse;
-    return data.candidates[0]?.content?.parts[0]?.text ?? "";
+    return data.candidates[0]?.content?.parts
+      ?.filter((part) => !part.thought)
+      .map((part) => part.text ?? "")
+      .join("") ?? "";
   }
 }

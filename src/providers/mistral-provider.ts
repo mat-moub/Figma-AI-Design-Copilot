@@ -7,7 +7,7 @@ const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
  * LLM provider that calls the Mistral AI Chat Completions API directly (BYOK).
  * The Mistral API is OpenAI-compatible — same request/response shape, different base URL and key.
  *
- * Supported models: ministral-8b-2512, mistral-small-2603, mistral-large-2512.
+ * Supported models are listed in src/models.ts.
  * Requires a Mistral API key from console.mistral.ai.
  */
 export class MistralProvider implements LLMProvider {
